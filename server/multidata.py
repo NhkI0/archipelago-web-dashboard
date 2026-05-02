@@ -126,38 +126,52 @@ def _coerce_datapackage(raw_dp: Any) -> dict[str, GamePackage]:
     return out
 
 
-class _StubClass:
-    """Generic stand-in for AP-specific classes (NetworkSlot, etc.) referenced in the pickle.
+class _StubClass(tuple):
+    """Generic stand-in for AP-specific classes (NetworkSlot, SlotType, etc.).
 
-    Behaves like a namedtuple-ish struct: stores positional args and any attributes
-    set during unpickling, so attribute lookups by `_coerce_slot_info` succeed.
+    Inherits tuple so NamedTuple-based AP classes reconstruct correctly via
+    `tuple.__new__(cls, args)` during unpickling. Exposes the NetworkSlot
+    field names as properties so `_coerce_slot_info` can read them.
     """
-    __slots__ = ("_fields", "name", "game", "type", "group_members")
     _ap_class_name = ""
 
-    def __init__(self, *args):
-        self._fields = args
-        # Best-effort positional mapping for NetworkSlot(name, game, type, group_members).
-        names = ("name", "game", "type", "group_members")
-        for i, val in enumerate(args[:4]):
-            object.__setattr__(self, names[i], val)
+    def __new__(cls, *args):
+        return tuple.__new__(cls, args)
 
     def __setstate__(self, state):
+        # Tuple subclasses can grow a __dict__, so this is harmless if state is a dict.
         if isinstance(state, dict):
             for k, v in state.items():
-                object.__setattr__(self, k, v)
-        elif isinstance(state, tuple) and len(state) == 2 and isinstance(state[1], dict):
-            for k, v in state[1].items():
-                object.__setattr__(self, k, v)
+                try:
+                    object.__setattr__(self, k, v)
+                except AttributeError:
+                    pass
 
-    def __iter__(self):
-        return iter(self._fields)
+    @property
+    def name(self) -> str:
+        return self[0] if len(self) > 0 else ""
 
-    def __getitem__(self, i):
-        return self._fields[i]
+    @property
+    def game(self) -> str:
+        return self[1] if len(self) > 1 else ""
 
-    def __len__(self):
-        return len(self._fields)
+    @property
+    def type(self) -> int:
+        if len(self) <= 2:
+            return 1
+        try:
+            return int(self[2])
+        except (TypeError, ValueError):
+            # SlotType stub: peek at its underlying tuple value if any.
+            inner = self[2]
+            try:
+                return int(inner[0])
+            except Exception:
+                return 1
+
+    @property
+    def group_members(self) -> tuple:
+        return tuple(self[3]) if len(self) > 3 else ()
 
 
 class _PermissiveUnpickler(pickle.Unpickler):
@@ -185,6 +199,9 @@ def load_multidata(path: str) -> MultiData:
 
     games = {int(k): v for k, v in (data.get("games") or {}).items()}
     slots = _coerce_slot_info(data.get("slot_info") or data.get("slots"), games)
+    # If the multidata doesn't ship a top-level games map, derive it from slot_info.
+    if not games:
+        games = {s.slot: s.game for s in slots.values() if s.game}
 
     raw_locations = data.get("locations") or {}
     locations: dict[int, dict[int, tuple[int, int, int]]] = {}
