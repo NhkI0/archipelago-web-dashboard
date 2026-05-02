@@ -126,6 +126,51 @@ def _coerce_datapackage(raw_dp: Any) -> dict[str, GamePackage]:
     return out
 
 
+class _StubClass:
+    """Generic stand-in for AP-specific classes (NetworkSlot, etc.) referenced in the pickle.
+
+    Behaves like a namedtuple-ish struct: stores positional args and any attributes
+    set during unpickling, so attribute lookups by `_coerce_slot_info` succeed.
+    """
+    __slots__ = ("_fields", "name", "game", "type", "group_members")
+    _ap_class_name = ""
+
+    def __init__(self, *args):
+        self._fields = args
+        # Best-effort positional mapping for NetworkSlot(name, game, type, group_members).
+        names = ("name", "game", "type", "group_members")
+        for i, val in enumerate(args[:4]):
+            object.__setattr__(self, names[i], val)
+
+    def __setstate__(self, state):
+        if isinstance(state, dict):
+            for k, v in state.items():
+                object.__setattr__(self, k, v)
+        elif isinstance(state, tuple) and len(state) == 2 and isinstance(state[1], dict):
+            for k, v in state[1].items():
+                object.__setattr__(self, k, v)
+
+    def __iter__(self):
+        return iter(self._fields)
+
+    def __getitem__(self, i):
+        return self._fields[i]
+
+    def __len__(self):
+        return len(self._fields)
+
+
+class _PermissiveUnpickler(pickle.Unpickler):
+    """Resolve unknown classes (NetUtils.NetworkSlot, BaseClasses.MultiWorld, …) to stubs."""
+
+    def find_class(self, module: str, name: str):
+        try:
+            return super().find_class(module, name)
+        except (ImportError, AttributeError):
+            stub = type(name, (_StubClass,), {"_ap_class_name": f"{module}.{name}"})
+            return stub
+
+
 def load_multidata(path: str) -> MultiData:
     with open(path, "rb") as fp:
         raw = fp.read()
@@ -135,8 +180,8 @@ def load_multidata(path: str) -> MultiData:
         payload = zlib.decompress(raw[1:])
     except zlib.error:
         payload = zlib.decompress(raw)
-    # Multidata is a regular pickle.  Trusted source (the server we control).
-    data: dict[str, Any] = pickle.load(io.BytesIO(payload))
+    # Multidata is a regular pickle. Trusted source (the server we control).
+    data: dict[str, Any] = _PermissiveUnpickler(io.BytesIO(payload)).load()
 
     games = {int(k): v for k, v in (data.get("games") or {}).items()}
     slots = _coerce_slot_info(data.get("slot_info") or data.get("slots"), games)
