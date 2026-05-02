@@ -6,7 +6,7 @@ set -e
 WEB_DIR="/opt/archipelago/web"
 VENV="$WEB_DIR/.venv"
 SESSION="archipelago-web"
-PORT="${WEB_PORT:-8080}"
+PORT="${WEB_PORT:-8090}"
 
 if [ ! -x "$VENV/bin/uvicorn" ]; then
     echo "!! venv missing or incomplete at $VENV"
