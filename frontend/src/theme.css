@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  background: #0f0f0f;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  letter-spacing: -0.005em;
+}
+
+/* Spotlight glow used behind the hero. */
+.spotlight-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side at 50% 40%,
+    rgba(26, 38, 255, 0.45),
+    rgba(0, 7, 205, 0.15) 35%,
+    transparent 65%
+  );
+  filter: blur(12px);
+}
+
+/* Brightness-step hairline */
+.hair { border-color: #222; }
+.hair-soft { border-color: #1a1a1a; }
+.hair-strong { border-color: #333; }
+
+/* Custom scrollbar — keep it thin, dark */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0f0f0f; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
