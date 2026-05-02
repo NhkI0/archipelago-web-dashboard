@@ -72,7 +72,7 @@ export default function Hints() {
       else setReply(r.reply ?? (r.queued ? "command sent" : "ok"));
       // Refresh balances
       api.me().then(setMe);
-      if (me.logged_in) api.slot(me.slot).then(setDetail);
+      if (me && me.logged_in) api.slot(me.slot).then(setDetail);
     } catch (e: any) {
       setReply(`error: ${e.message || e}`);
     } finally {
