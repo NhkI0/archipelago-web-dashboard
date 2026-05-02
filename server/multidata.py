@@ -128,8 +128,13 @@ def _coerce_datapackage(raw_dp: Any) -> dict[str, GamePackage]:
 
 def load_multidata(path: str) -> MultiData:
     with open(path, "rb") as fp:
-        compressed = fp.read()
-    payload = zlib.decompress(compressed)
+        raw = fp.read()
+    # `.archipelago` files start with a 1-byte multidata format version;
+    # AP's own loader skips it. Try both forms for older files.
+    try:
+        payload = zlib.decompress(raw[1:])
+    except zlib.error:
+        payload = zlib.decompress(raw)
     # Multidata is a regular pickle.  Trusted source (the server we control).
     data: dict[str, Any] = pickle.load(io.BytesIO(payload))
 
