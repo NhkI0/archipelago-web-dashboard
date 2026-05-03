@@ -10,7 +10,7 @@ Fields consumed:
     seed_name           : str
     slot_data           : dict[int, dict]              (per-slot game settings)
     slot_info           : dict[int, NetworkSlot|tuple] (slot -> (name, game, type, group_members))
-    locations           : dict[int, dict[int, tuple]]  (recv_slot -> {loc_id: (item_id, sender_slot, flags)})
+    locations           : dict[int, dict[int, tuple]]  (finder_slot -> {loc_id: (item_id, recv_slot, flags)})
     connect_names       : dict[str, tuple]             (player name -> (team, slot))
     datapackage         : dict[str, GamePackage]       game -> {item_name_to_id, location_name_to_id, ...}
     games               : dict[int, str]               (slot -> game)

@@ -79,26 +79,30 @@ async def api_slot(name: str) -> dict[str, Any]:
         if h.finding_slot == slot.slot or h.receiving_slot == slot.slot
     ]
 
+    # locs is keyed by FINDER slot — slot.slot finds these in its own world,
+    # but each item there belongs to the RECIPIENT's game (recv = the second
+    # tuple field).
     locations_payload = []
-    for loc_id, (item_id, sender, _flags) in locs.items():
+    for loc_id, (item_id, recv, _flags) in locs.items():
         locations_payload.append({
             "id": loc_id,
             "name": md.location_name(slot.slot, loc_id),
             "checked": loc_id in checked,
-            # Don't leak item identity unless the location is hinted/checked
-            "item_for_slot": sender,
-            "item_name": md.item_name(sender, item_id) if any(
+            "item_for_slot": recv,
+            "item_name": md.item_name(recv, item_id) if any(
                 h["location_id"] == loc_id and h["finding_slot"] == slot.slot
                 for h in related_hints
             ) or loc_id in checked else None,
         })
     locations_payload.sort(key=lambda x: x["name"])
 
-    # Unique items the slot will receive — used by the hint manager.
-    available_items = sorted({
-        md.item_name(slot.slot, item_id)
-        for (item_id, _sender, _flags) in locs.values()
-    })
+    # Items the slot will RECEIVE: scan every world for entries with recv==slot.slot.
+    received_items: set[str] = set()
+    for finder_slot, table in md.locations.items():
+        for (item_id, recv, _flags) in table.values():
+            if recv == slot.slot:
+                received_items.add(md.item_name(slot.slot, item_id))
+    available_items = sorted(received_items)
 
     return {
         "slot": slot.to_dict(),
