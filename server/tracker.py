@@ -86,6 +86,9 @@ class Tracker:
         if cmd in ("Connected", "RoomUpdate"):
             self.state.apply_room_update(packet)
         elif cmd == "PrintJSON":
+            log.info("PrintJSON type=%s keys=%s", packet.get("type"), list(packet.keys()))
             self.state.apply_print_json(packet)
         elif cmd == "ConnectionRefused":
             log.error("tracker refused: %s", packet.get("errors"))
+        else:
+            log.debug("packet cmd=%s", cmd)
