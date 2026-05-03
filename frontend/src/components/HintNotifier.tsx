@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Hint, api, liveSocket } from "../api";
+import { useT } from "../i18n";
 
 type Toast = { id: number; text: string };
 
@@ -8,6 +9,7 @@ function hintKey(h: Hint) {
 }
 
 export default function HintNotifier() {
+  const { t } = useT();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seen = useRef<Set<string>>(new Set());
   const mySlot = useRef<number | null>(null);
@@ -38,7 +40,7 @@ export default function HintNotifier() {
       if (!seen.current.has(k)) {
         if (!initial.current && mySlot.current !== null && h.receiving_slot === mySlot.current) {
           const finder = slotNames.current.get(h.finding_slot) ?? `slot ${h.finding_slot}`;
-          notify(`Hint for you: ${h.item_name} — in ${finder}'s world (${h.location_name})`);
+          notify(t("notify.hint_for_you", { item: h.item_name, finder, loc: h.location_name }));
         }
         seen.current.add(k);
       }
@@ -79,12 +81,12 @@ export default function HintNotifier() {
 
   return (
     <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-2">
-      {toasts.map((t) => (
+      {toasts.map((toast) => (
         <div
-          key={t.id}
-          className="pointer-events-auto max-w-sm rounded-md border hair bg-surface-card px-4 py-3 text-body-sm text-bodyStrong shadow-lg"
+          key={toast.id}
+          className="pointer-events-auto max-w-sm rounded-md border hair bg-canvas px-4 py-3 text-body-sm text-ink shadow-card"
         >
-          {t.text}
+          {toast.text}
         </div>
       ))}
     </div>

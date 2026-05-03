@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Hint, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
+import { useT } from "../i18n";
 
 type Tab = "location" | "item" | "hints";
 type HintFilter = "mine_for" | "mine_in" | "all";
 
 export default function Hints() {
+  const { t } = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [detail, setDetail] = useState<SlotDetail | null>(null);
@@ -29,7 +31,6 @@ export default function Hints() {
     if (me?.logged_in) api.slot(me.slot).then(setDetail);
   }, [me]);
 
-  // Refresh slot detail when the live snapshot indicates new hints.
   useEffect(() => {
     if (me?.logged_in && snap) api.slot(me.slot).then(setDetail);
   }, [snap?.hints.length, me?.logged_in ? me.slot : null]);
@@ -43,9 +44,7 @@ export default function Hints() {
   const allItems = useMemo(() => {
     if (!detail) return [];
     const hinted = new Set(
-      detail.hints
-        .filter(h => h.receiving_slot === detail.slot.slot)
-        .map(h => h.item_name)
+      detail.hints.filter(h => h.receiving_slot === detail.slot.slot).map(h => h.item_name)
     );
     return detail.available_items.filter(name => !hinted.has(name));
   }, [detail]);
@@ -72,21 +71,19 @@ export default function Hints() {
   }, [snap, me, detail, hintFilter, hideFound, search]);
 
   if (me === null || snap === null) {
-    return <div className="mx-auto max-w-[1200px] px-6 py-12 text-body">Loading…</div>;
+    return <div className="mx-auto max-w-[1200px] px-6 py-12 text-slate">{t("common.loading")}</div>;
   }
 
   if (!me.logged_in) {
     return (
       <div className="mx-auto max-w-md px-6 py-section text-center">
-        <h1 className="text-display-sm text-bodyStrong">Sign in to hint</h1>
-        <p className="mt-2 text-body-sm text-body">
-          Hints cost your slot's hint points, so you need to be logged in as that slot.
-        </p>
+        <h1 className="text-display-sm text-ink">{t("hints.signin_title")}</h1>
+        <p className="mt-2 text-body-sm text-slate">{t("hints.signin_body")}</p>
         <Link
           to="/login"
           className="mt-6 inline-flex h-10 items-center rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active"
         >
-          Sign in
+          {t("nav.signin")}
         </Link>
       </div>
     );
@@ -105,9 +102,7 @@ export default function Hints() {
       r.includes("unknown") ||
       r.includes("no such") ||
       r.includes("already hinted")
-    ) {
-      return reply;
-    }
+    ) return reply;
     return null;
   }
 
@@ -121,7 +116,6 @@ export default function Hints() {
         setError(failure);
         return;
       }
-      // Refresh state, jump to Hints tab so the user sees what was registered.
       await Promise.all([
         api.me().then(setMe),
         api.state().then(setSnap),
@@ -145,58 +139,56 @@ export default function Hints() {
     <div className="mx-auto max-w-[1200px] px-6 py-12">
       <header className="flex flex-wrap items-end gap-6 border-b hair pb-8">
         <div>
-          <div className="text-caption-up uppercase text-primary-glow">Hint manager</div>
-          <h1 className="mt-2 text-display-md text-bodyStrong">{me.slot}</h1>
+          <div className="text-caption-up uppercase text-primary">{t("hints.kicker")}</div>
+          <h1 className="mt-2 text-display-md text-ink">{me.slot}</h1>
         </div>
-        <div className="ml-auto flex items-end gap-8 text-body-sm">
-          <Stat label="hint pts" value={String(me.hint_points)} />
-          {detail && <Stat label="checks" value={`${detail.slot.checked} / ${detail.slot.total}`} />}
-          {detail && <Stat label="open hints" value={String(detail.slot.open_hints)} />}
+        <div className="ml-auto flex flex-wrap items-end gap-x-8 gap-y-3 text-body-sm">
+          <Stat label={t("slot.hint_pts")} value={String(me.hint_points)} />
+          {detail && <Stat label={t("slot.checks")} value={`${detail.slot.checked} / ${detail.slot.total}`} />}
+          {detail && <Stat label={t("slot.open_hints")} value={String(detail.slot.open_hints)} />}
         </div>
       </header>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <Tab2 active={tab === "item"} onClick={() => setTab("item")}>Hint an item</Tab2>
-        <Tab2 active={tab === "location"} onClick={() => setTab("location")}>Hint a location</Tab2>
-        <Tab2 active={tab === "hints"} onClick={() => setTab("hints")}>
-          Hints {snap.hints.length > 0 && <span className="ml-2 text-mutedSoft">{snap.hints.length}</span>}
-        </Tab2>
+        <PillTab active={tab === "item"} onClick={() => setTab("item")}>{t("hints.tab.item")}</PillTab>
+        <PillTab active={tab === "location"} onClick={() => setTab("location")}>{t("hints.tab.location")}</PillTab>
+        <PillTab active={tab === "hints"} onClick={() => setTab("hints")}>
+          {t("hints.tab.hints")} {snap.hints.length > 0 && <span className="ml-2 opacity-70">{snap.hints.length}</span>}
+        </PillTab>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter…"
-          className="ml-auto h-10 w-64 rounded-md bg-surface-card px-4 text-body-md text-bodyStrong placeholder:text-mutedSoft outline-none focus:ring-1 focus:ring-primary-glow"
+          placeholder={t("hints.filter.placeholder")}
+          className="ml-auto h-10 w-64 rounded-md border hair-strong bg-surface px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2 focus:bg-canvas"
         />
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md bg-canvas-deep p-3 font-mono text-code text-semantic-error">
+        <div className="mt-4 rounded-md border border-semantic-error/30 bg-card-rose px-4 py-3 text-body-sm text-semantic-error">
           {error}
         </div>
       )}
 
-      <div className="mt-6 rounded-xl border hair bg-surface-card">
+      <div className="mt-6 rounded-lg border hair bg-canvas">
         {tab === "location" && (
           <ul className="divide-y hair-soft">
             {remainingLocations
               .filter((l) => l.name.toLowerCase().includes(search.toLowerCase()))
               .map((l) => (
                 <li key={l.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className="h-1.5 w-1.5 rounded-pill bg-hairline-strong" />
-                  <span className="text-body-sm text-bodyStrong">{l.name}</span>
+                  <span className="h-1.5 w-1.5 rounded-pill bg-stone" />
+                  <span className="text-body-sm text-ink">{l.name}</span>
                   <button
                     onClick={() => requestSubmit("location", l.name)}
                     disabled={busy === l.name}
                     className="ml-auto h-8 rounded-md bg-primary px-3 text-btn text-white hover:bg-primary-active disabled:opacity-60"
                   >
-                    {busy === l.name ? "…" : "Hint"}
+                    {busy === l.name ? "…" : t("hints.button.hint")}
                   </button>
                 </li>
               ))}
             {remainingLocations.length === 0 && (
-              <li className="px-4 py-8 text-center text-body-sm text-mutedSoft">
-                No remaining locations to hint.
-              </li>
+              <li className="px-4 py-8 text-center text-body-sm text-stone">{t("hints.empty.locations")}</li>
             )}
           </ul>
         )}
@@ -207,21 +199,19 @@ export default function Hints() {
               .filter((n) => n.toLowerCase().includes(search.toLowerCase()))
               .map((name) => (
                 <li key={name} className="flex items-center gap-3 px-4 py-3">
-                  <span className="h-1.5 w-1.5 rounded-pill bg-hairline-strong" />
-                  <span className="text-body-sm text-bodyStrong">{name}</span>
+                  <span className="h-1.5 w-1.5 rounded-pill bg-stone" />
+                  <span className="text-body-sm text-ink">{name}</span>
                   <button
                     onClick={() => requestSubmit("item", name)}
                     disabled={busy === name}
                     className="ml-auto h-8 rounded-md bg-primary px-3 text-btn text-white hover:bg-primary-active disabled:opacity-60"
                   >
-                    {busy === name ? "…" : "Hint"}
+                    {busy === name ? "…" : t("hints.button.hint")}
                   </button>
                 </li>
               ))}
             {allItems.length === 0 && (
-              <li className="px-4 py-8 text-center text-body-sm text-mutedSoft">
-                No items left to hint.
-              </li>
+              <li className="px-4 py-8 text-center text-body-sm text-stone">{t("hints.empty.items")}</li>
             )}
           </ul>
         )}
@@ -229,21 +219,21 @@ export default function Hints() {
         {tab === "hints" && (
           <div>
             <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b hair-soft">
-              <SubTab active={hintFilter === "mine_for"} onClick={() => setHintFilter("mine_for")}>For my world</SubTab>
-              <SubTab active={hintFilter === "mine_in"} onClick={() => setHintFilter("mine_in")}>In my world</SubTab>
-              <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>All</SubTab>
+              <SubTab active={hintFilter === "mine_for"} onClick={() => setHintFilter("mine_for")}>{t("hints.subtab.mine_for")}</SubTab>
+              <SubTab active={hintFilter === "mine_in"} onClick={() => setHintFilter("mine_in")}>{t("hints.subtab.mine_in")}</SubTab>
+              <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>{t("hints.subtab.all")}</SubTab>
               <Toggle
                 className="ml-auto"
-                label="Hide found"
+                label={t("hints.toggle.hide_found")}
                 checked={hideFound}
                 onChange={setHideFound}
               />
             </div>
-            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-mutedSoft border-b hair-soft">
-              <div>Item</div>
-              <div>Location</div>
-              <div>Finder → Receiver</div>
-              <div>Status</div>
+            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
+              <div>{t("hints.col.item")}</div>
+              <div>{t("hints.col.location")}</div>
+              <div>{t("hints.col.parties")}</div>
+              <div>{t("hints.col.status")}</div>
             </div>
             <ul className="divide-y hair-soft">
               {visibleHints.map((h, i) => {
@@ -254,22 +244,22 @@ export default function Hints() {
                     key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
                     className="grid grid-cols-[1fr_1fr_auto_auto] items-center gap-x-4 px-4 py-3 text-body-sm"
                   >
-                    <span className="text-bodyStrong">{h.item_name}</span>
-                    <span className="text-body">{h.location_name}</span>
-                    <span className="text-mutedSoft tabular-nums">{finder} → {receiver}</span>
-                    <span className={`inline-flex h-6 items-center rounded-pill px-2 text-caption-up uppercase ${
-                      h.found ? "bg-semantic-success/20 text-semantic-success" : "bg-canvas-deep text-mutedSoft"
+                    <span className="text-ink font-medium">{h.item_name}</span>
+                    <span className="text-slate">{h.location_name}</span>
+                    <span className="text-steel tabular-nums">{finder} → {receiver}</span>
+                    <span className={`inline-flex h-6 items-center rounded-pill px-2.5 text-caption-up uppercase ${
+                      h.found ? "bg-card-mint text-brand-green" : "bg-card-gray text-steel"
                     }`}>
-                      {h.found ? "found" : "open"}
+                      {h.found ? t("slot.status.found") : t("slot.status.open")}
                     </span>
                   </li>
                 );
               })}
               {visibleHints.length === 0 && (
-                <li className="px-4 py-8 text-center text-body-sm text-mutedSoft">
-                  {hintFilter === "mine_for" && "No hints for items you'll receive yet."}
-                  {hintFilter === "mine_in" && "No hints in your world yet."}
-                  {hintFilter === "all" && "No hints anywhere yet."}
+                <li className="px-4 py-8 text-center text-body-sm text-stone">
+                  {hintFilter === "mine_for" && t("hints.empty.mine_for")}
+                  {hintFilter === "mine_in"  && t("hints.empty.mine_in")}
+                  {hintFilter === "all"      && t("hints.empty.all")}
                 </li>
               )}
             </ul>
@@ -283,50 +273,49 @@ export default function Hints() {
         const cost = Math.max(1, Math.ceil((pct / 100) * total));
         const enough = me.hint_points >= cost;
         return (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => !busy && setConfirm(null)}
-        >
           <div
-            className="w-full max-w-md rounded-xl border hair bg-surface-card p-6"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-inkDeep/40 p-4"
+            onClick={() => !busy && setConfirm(null)}
           >
-            <h2 className="text-title-md text-bodyStrong">Confirm hint</h2>
-            <p className="mt-2 text-body-sm text-body">
-              Hint {confirm.kind === "item" ? "item" : "location"}{" "}
-              <span className="text-bodyStrong">{confirm.target}</span>?
-            </p>
-            <div className="mt-4 grid grid-cols-3 gap-3 text-body-sm">
-              <Stat label="cost" value={`~${cost}`} />
-              <Stat label="balance" value={String(me.hint_points)} />
-              <Stat label="after" value={enough ? String(me.hint_points - cost) : "—"} />
-            </div>
-            <div className="mt-3 text-body-sm text-mutedSoft">
-              Server hint cost is <span className="text-bodyStrong tabular-nums">{pct}%</span> of your total checks.
-              {!enough && <span className="ml-1 text-semantic-error">Not enough hint points.</span>}
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setConfirm(null)}
-                disabled={!!busy}
-                className="h-10 rounded-md bg-canvas-deep px-5 text-btn text-body hover:text-bodyStrong disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  const c = confirm;
-                  await performSubmit(c.kind, c.target);
-                  setConfirm(null);
-                }}
-                disabled={!!busy || !enough}
-                className="h-10 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
-              >
-                {busy ? "Sending…" : "Confirm"}
-              </button>
+            <div
+              className="w-full max-w-md rounded-lg border hair bg-canvas p-6 shadow-mockup"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-title-md text-ink">{t("hints.confirm.title")}</h2>
+              <p className="mt-2 text-body-sm text-slate">
+                {t(confirm.kind === "item" ? "hints.confirm.body_item" : "hints.confirm.body_location", { target: confirm.target })}
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-3 text-body-sm">
+                <Stat label={t("hints.confirm.cost")} value={`~${cost}`} />
+                <Stat label={t("hints.confirm.balance")} value={String(me.hint_points)} />
+                <Stat label={t("hints.confirm.after")} value={enough ? String(me.hint_points - cost) : "—"} />
+              </div>
+              <div className="mt-3 text-body-sm text-steel">
+                {t("hints.confirm.note", { pct })}
+                {!enough && <span className="ml-1 text-semantic-error">{t("hints.confirm.not_enough")}</span>}
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirm(null)}
+                  disabled={!!busy}
+                  className="h-10 rounded-md border hair-strong bg-canvas px-5 text-btn text-ink hover:bg-surface disabled:opacity-60"
+                >
+                  {t("hints.confirm.cancel")}
+                </button>
+                <button
+                  onClick={async () => {
+                    const c = confirm;
+                    await performSubmit(c.kind, c.target);
+                    setConfirm(null);
+                  }}
+                  disabled={!!busy || !enough}
+                  className="h-10 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
+                >
+                  {busy ? t("hints.button.sending") : t("hints.confirm.confirm")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         );
       })()}
     </div>
@@ -336,18 +325,31 @@ export default function Hints() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-caption text-mutedSoft uppercase tracking-[0.08em]">{label}</div>
-      <div className="text-title-md text-bodyStrong tabular-nums">{value}</div>
+      <div className="text-caption text-steel uppercase tracking-[0.06em]">{label}</div>
+      <div className="text-title-sm text-ink tabular-nums">{value}</div>
     </div>
   );
 }
 
-function Tab2({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function PillTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`h-10 rounded-md px-5 text-btn transition-colors ${
-        active ? "bg-primary text-white" : "bg-surface-card text-body hover:text-bodyStrong"
+      className={`h-10 rounded-pill border px-5 text-body-sm font-medium transition-colors ${
+        active ? "bg-inkDeep text-white border-inkDeep" : "border-hairline text-steel hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SubTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`h-7 rounded-pill px-3 text-caption-up uppercase tracking-wider transition-colors ${
+        active ? "bg-primary text-white" : "bg-surface text-steel hover:text-ink"
       }`}
     >
       {children}
@@ -367,15 +369,15 @@ function Toggle({
   className?: string;
 }) {
   return (
-    <label className={`inline-flex cursor-pointer items-center gap-3 text-body-sm text-body select-none ${className}`}>
+    <label className={`inline-flex cursor-pointer items-center gap-3 text-body-sm text-slate select-none ${className}`}>
       <span>{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-pill border hair transition-colors ${
-          checked ? "bg-primary border-primary" : "bg-canvas-deep"
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-pill border transition-colors ${
+          checked ? "bg-primary border-primary" : "bg-surface border-hairline-strong"
         }`}
       >
         <span
@@ -385,18 +387,5 @@ function Toggle({
         />
       </button>
     </label>
-  );
-}
-
-function SubTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`h-7 rounded-pill px-3 text-caption-up uppercase tracking-wider transition-colors ${
-        active ? "bg-primary text-white" : "bg-canvas-deep text-mutedSoft hover:text-bodyStrong"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Snapshot, api } from "../api";
+import { useT } from "../i18n";
 
 export default function Login() {
   const nav = useNavigate();
+  const { t } = useT();
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [slot, setSlot] = useState("");
   const [password, setPassword] = useState("");
@@ -20,44 +22,41 @@ export default function Login() {
       await api.login(slot, password);
       nav("/hints");
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      setError(err.message || t("login.error.default"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="relative mx-auto max-w-md px-6 py-section">
-      <div className="spotlight-glow" aria-hidden />
-      <div className="relative rounded-xl border hair bg-surface-card p-12">
-        <div className="text-caption-up uppercase text-primary-glow">Sign in</div>
-        <h1 className="mt-3 text-display-sm text-bodyStrong">Log in as your slot</h1>
-        <p className="mt-2 text-body-sm text-body">
-          Required to spend hint points from the browser. Sessions are scoped to this device only.
-        </p>
-        <form onSubmit={submit} className="mt-8 space-y-4">
+    <div className="mx-auto max-w-md px-6 py-section">
+      <div className="rounded-lg border hair bg-canvas p-10">
+        <div className="text-caption-up uppercase text-primary">{t("login.kicker")}</div>
+        <h1 className="mt-3 text-display-sm text-ink">{t("login.title")}</h1>
+        <p className="mt-2 text-body-sm text-slate">{t("login.body")}</p>
+        <form onSubmit={submit} className="mt-8 space-y-5">
           <label className="block">
-            <div className="mb-1 text-caption text-mutedSoft uppercase tracking-[0.08em]">Slot name</div>
+            <div className="mb-1.5 text-body-sm font-medium text-charcoal">{t("login.field.slot")}</div>
             <input
               list="slot-options"
               value={slot}
               onChange={(e) => setSlot(e.target.value)}
               required
-              className="h-11 w-full rounded-md bg-canvas-deep px-4 text-body-md text-bodyStrong outline-none focus:ring-1 focus:ring-primary-glow"
-              placeholder="e.g. dopamine"
+              className="h-11 w-full rounded-md border hair-strong bg-canvas px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2"
+              placeholder={t("login.placeholder.slot")}
             />
             <datalist id="slot-options">
               {snap?.slots.map((s) => <option key={s.slot} value={s.name}>{s.game}</option>)}
             </datalist>
           </label>
           <label className="block">
-            <div className="mb-1 text-caption text-mutedSoft uppercase tracking-[0.08em]">Password (if set)</div>
+            <div className="mb-1.5 text-body-sm font-medium text-charcoal">{t("login.field.password")}</div>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 w-full rounded-md bg-canvas-deep px-4 text-body-md text-bodyStrong outline-none focus:ring-1 focus:ring-primary-glow"
-              placeholder="optional"
+              className="h-11 w-full rounded-md border hair-strong bg-canvas px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2"
+              placeholder={t("login.placeholder.password")}
             />
           </label>
 
@@ -68,7 +67,7 @@ export default function Login() {
             disabled={busy}
             className="h-10 w-full rounded-md bg-primary text-btn text-white hover:bg-primary-active disabled:opacity-60"
           >
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? t("login.button.signing") : t("login.button.signin")}
           </button>
         </form>
       </div>

@@ -1,3 +1,5 @@
+import { useT } from "../i18n";
+
 type Props = {
   seed: string;
   totalChecked: number;
@@ -7,46 +9,43 @@ type Props = {
 };
 
 export default function Hero({ seed, totalChecked, totalLocations, slots, hints }: Props) {
+  const { t } = useT();
   const pct = totalLocations > 0 ? (100 * totalChecked) / totalLocations : 0;
   return (
-    <section className="relative overflow-hidden border-b hair bg-canvas">
-      <div className="spotlight-glow" aria-hidden />
-      <div className="relative mx-auto max-w-[1200px] px-6 py-section">
-        <div className="text-caption-up uppercase text-primary-glow">Multiworld</div>
-        <h1 className="mt-4 text-display-xl text-bodyStrong">
-          {seed || "—"}
-        </h1>
-        <p className="mt-4 max-w-xl text-body-md text-body">
-          Live progression for every slot in this world. Sign in as your slot to spend hint
-          points without leaving the browser.
-        </p>
+    <section className="relative overflow-hidden bg-brand-navy text-onDark">
+      {/* Sticky-note dot decorations */}
+      <Decoration />
+      <div className="relative mx-auto max-w-[1200px] px-6 py-20 lg:py-28">
+        <div className="text-caption-up uppercase text-brand-purple-300">{t("hero.kicker")}</div>
+        <h1 className="mt-4 text-display-mega text-onDark">{seed || "—"}</h1>
+        <p className="mt-5 max-w-xl text-subtitle text-onDarkMuted">{t("hero.intro")}</p>
 
-        {/* 2×2 terminal-mockup grid — Composio brand signature */}
-        <div className="mt-12 max-w-3xl rounded-xl bg-canvas-deep p-8">
-          <div className="grid grid-cols-2 gap-4">
-            <Pane label="world.summary">
-              <Line c="text-body">seed</Line>
-              <Line c="text-bodyStrong">{seed || "—"}</Line>
-              <Line c="text-body">slots</Line>
-              <Line c="text-bodyStrong">{slots}</Line>
+        {/* Workspace-mockup-card breaking out of the navy band */}
+        <div className="mt-12 rounded-lg border hair bg-canvas p-6 shadow-mockup">
+          <div className="mb-4 flex items-center gap-1.5">
+            <span className="dot bg-semantic-error/70" />
+            <span className="dot bg-brand-yellow" />
+            <span className="dot bg-semantic-success/70" />
+            <span className="ml-2 font-mono text-code text-stone">archipelago / dashboard</span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Pane label={t("hero.pane.world")} tint="lavender">
+              <Line label={t("hero.field.seed")} value={seed || "—"} />
+              <Line label={t("hero.field.slots")} value={String(slots)} />
             </Pane>
-            <Pane label="checks.global">
-              <Line c="text-body">progress</Line>
-              <Line c="text-bodyStrong">{pct.toFixed(1)}%</Line>
-              <Line c="text-body">checked / total</Line>
-              <Line c="text-bodyStrong">{totalChecked} / {totalLocations}</Line>
+            <Pane label={t("hero.pane.checks")} tint="mint">
+              <Line label={t("hero.field.progress")} value={`${pct.toFixed(1)}%`} />
+              <Line label={t("hero.field.checked_total")} value={`${totalChecked} / ${totalLocations}`} />
             </Pane>
-            <Pane label="hints.in_flight">
-              <Line c="text-body">open</Line>
-              <Line c="text-bodyStrong">{hints}</Line>
-              <Line c="text-mutedSoft">$ hint &lt;item&gt;</Line>
-              <Line c="text-mutedSoft">$ hint_location &lt;loc&gt;</Line>
+            <Pane label={t("hero.pane.hints")} tint="peach">
+              <Line label={t("hero.field.open")} value={String(hints)} />
+              <Line label="$ hint" value="<item>" mono />
+              <Line label="$ hint_location" value="<loc>" mono />
             </Pane>
-            <Pane label="server.status">
-              <Line c="text-semantic-success">● running</Line>
-              <Line c="text-body">port 38281</Line>
-              <Line c="text-mutedSoft">tracker · live ws</Line>
-              <Line c="text-mutedSoft">spec by composio</Line>
+            <Pane label={t("hero.pane.server")} tint="sky">
+              <div className="text-body-sm text-semantic-success font-medium">{t("hero.field.running")}</div>
+              <div className="text-body-sm text-charcoal">{t("hero.field.port")}</div>
+              <div className="text-body-sm text-stone">{t("hero.field.tracker")}</div>
             </Pane>
           </div>
         </div>
@@ -55,20 +54,51 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
   );
 }
 
-function Pane({ label, children }: { label: string; children: React.ReactNode }) {
+function Pane({ label, tint, children }: { label: string; tint: "peach" | "rose" | "mint" | "lavender" | "sky" | "yellow"; children: React.ReactNode }) {
+  const bg = {
+    peach: "bg-card-peach",
+    rose: "bg-card-rose",
+    mint: "bg-card-mint",
+    lavender: "bg-card-lavender",
+    sky: "bg-card-sky",
+    yellow: "bg-card-yellow",
+  }[tint];
   return (
-    <div className="rounded-lg bg-surface-card p-5">
-      <div className="mb-2 flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-pill bg-semantic-error/70" />
-        <span className="h-2 w-2 rounded-pill bg-[#e8c547]/70" />
-        <span className="h-2 w-2 rounded-pill bg-semantic-success/70" />
-        <span className="ml-2 font-mono text-code text-mutedSoft">{label}</span>
-      </div>
-      <div className="space-y-1 font-mono text-code">{children}</div>
+    <div className={`rounded-lg ${bg} p-5`}>
+      <div className="text-caption-up uppercase text-charcoal/60">{label}</div>
+      <div className="mt-3 space-y-1">{children}</div>
     </div>
   );
 }
 
-function Line({ c, children }: { c: string; children: React.ReactNode }) {
-  return <div className={c}>{children}</div>;
+function Line({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className={`${mono ? "font-mono text-code" : "text-body-sm"} text-charcoal/70`}>{label}</span>
+      <span className={`${mono ? "font-mono text-code" : "text-body-sm font-medium"} text-charcoal tabular-nums`}>{value}</span>
+    </div>
+  );
+}
+
+function Decoration() {
+  // Sticky-note dots scattered around the headline.
+  const dots: { left: string; top: string; cls: string; size: number }[] = [
+    { left: "8%",  top: "20%", cls: "bg-brand-purple", size: 12 },
+    { left: "82%", top: "18%", cls: "bg-brand-pink",   size: 10 },
+    { left: "92%", top: "70%", cls: "bg-brand-orange", size: 14 },
+    { left: "12%", top: "75%", cls: "bg-brand-teal",   size: 10 },
+    { left: "70%", top: "85%", cls: "bg-brand-yellow", size: 12 },
+    { left: "30%", top: "12%", cls: "bg-brand-green",  size: 8 },
+  ];
+  return (
+    <div aria-hidden className="absolute inset-0 pointer-events-none">
+      {dots.map((d, i) => (
+        <span
+          key={i}
+          className={`absolute rounded-pill ${d.cls} opacity-90`}
+          style={{ left: d.left, top: d.top, width: d.size, height: d.size }}
+        />
+      ))}
+    </div>
+  );
 }

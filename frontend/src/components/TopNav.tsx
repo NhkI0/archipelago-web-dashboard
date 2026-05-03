@@ -1,12 +1,14 @@
 import { Link, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, Me } from "../api";
+import { useT } from "../i18n";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `text-body-sm transition-colors ${isActive ? "text-bodyStrong" : "text-body hover:text-bodyStrong"}`;
+  `text-body-sm transition-colors ${isActive ? "text-ink" : "text-steel hover:text-ink"}`;
 
 export default function TopNav() {
   const [me, setMe] = useState<Me | null>(null);
+  const { t, lang, setLang } = useT();
 
   useEffect(() => {
     api.me().then(setMe).catch(() => setMe({ logged_in: false }));
@@ -16,27 +18,33 @@ export default function TopNav() {
     <header className="sticky top-0 z-30 h-16 border-b hair bg-canvas/95 backdrop-blur">
       <div className="mx-auto flex h-full max-w-[1200px] items-center px-6">
         <Link to="/" className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-pill bg-primary shadow-[0_0_10px_#1a26ff]" />
-          <span className="font-medium tracking-tight text-bodyStrong">Archipelago</span>
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white font-bold">A</span>
+          <span className="font-semibold tracking-tight text-ink">{t("nav.brand")}</span>
         </Link>
         <nav className="ml-10 flex items-center gap-7">
-          <NavLink to="/" end className={linkClass}>Dashboard</NavLink>
-          <NavLink to="/hints" className={linkClass}>Hint Manager</NavLink>
+          <NavLink to="/" end className={linkClass}>{t("nav.dashboard")}</NavLink>
+          <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={() => setLang(lang === "en" ? "fr" : "en")}
+            className="h-9 rounded-md border hair-strong px-3 text-btn text-ink hover:bg-surface"
+            aria-label="Switch language"
+          >
+            {t("common.lang.toggle")}
+          </button>
           {me?.logged_in ? (
             <>
-              <span className="text-body-sm text-body">
-                <span className="text-mutedSoft">slot </span>
-                <span className="text-bodyStrong">{me.slot}</span>
-                <span className="ml-3 text-mutedSoft">hint pts </span>
-                <span className="text-bodyStrong">{me.hint_points}</span>
+              <span className="text-body-sm text-steel">
+                {t("nav.slot")} <span className="text-ink font-medium">{me.slot}</span>
+                <span className="ml-3">{t("nav.hint_pts")} </span>
+                <span className="text-ink font-medium tabular-nums">{me.hint_points}</span>
               </span>
               <button
                 onClick={async () => { await api.logout(); location.reload(); }}
-                className="h-9 rounded-md border hair-strong px-4 text-btn text-body hover:text-bodyStrong"
+                className="h-9 rounded-md border hair-strong bg-canvas px-4 text-btn text-ink hover:bg-surface"
               >
-                Sign out
+                {t("nav.signout")}
               </button>
             </>
           ) : (
@@ -44,7 +52,7 @@ export default function TopNav() {
               to="/login"
               className="h-9 inline-flex items-center rounded-md bg-primary px-4 text-btn text-white hover:bg-primary-active"
             >
-              Sign in
+              {t("nav.signin")}
             </Link>
           )}
         </div>
