@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Me, SlotDetail, Snapshot, api } from "../api";
+import { Hint, Me, SlotDetail, Snapshot, api } from "../api";
 
-type Tab = "location" | "item";
+type Tab = "location" | "item" | "hints";
+type HintFilter = "mine_for" | "mine_in" | "all";
 
 export default function Hints() {
   const [me, setMe] = useState<Me | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [detail, setDetail] = useState<SlotDetail | null>(null);
   const [tab, setTab] = useState<Tab>("location");
+  const [hintFilter, setHintFilter] = useState<HintFilter>("mine_for");
   const [search, setSearch] = useState("");
-  const [reply, setReply] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,7 +24,12 @@ export default function Hints() {
     if (me?.logged_in) api.slot(me.slot).then(setDetail);
   }, [me]);
 
-  // ── Build candidate lists (must run before any early returns to satisfy hooks rules) ──
+  const slotNames = useMemo(() => {
+    const m = new Map<number, string>();
+    if (snap) for (const s of snap.slots) m.set(s.slot, s.name);
+    return m;
+  }, [snap]);
+
   const allItems = useMemo(() => {
     if (!detail) return [];
     const hinted = new Set(
@@ -38,6 +45,20 @@ export default function Hints() {
     const hinted = new Set(detail.hints.filter(h => h.finding_slot === detail.slot.slot).map(h => h.location_id));
     return detail.locations.filter(l => !l.checked && !hinted.has(l.id));
   }, [detail]);
+
+  const visibleHints = useMemo(() => {
+    if (!snap || !me || !me.logged_in) return [];
+    const mySlot = detail?.slot.slot;
+    let list: Hint[] = snap.hints;
+    if (hintFilter === "mine_for") list = list.filter(h => h.receiving_slot === mySlot);
+    else if (hintFilter === "mine_in") list = list.filter(h => h.finding_slot === mySlot);
+    const q = search.toLowerCase();
+    if (q) list = list.filter(h =>
+      h.item_name.toLowerCase().includes(q) ||
+      h.location_name.toLowerCase().includes(q)
+    );
+    return list;
+  }, [snap, me, detail, hintFilter, search]);
 
   if (me === null || snap === null) {
     return <div className="mx-auto max-w-[1200px] px-6 py-12 text-body">Loading…</div>;
@@ -62,16 +83,24 @@ export default function Hints() {
 
   async function submit(kind: "item" | "location", target: string) {
     setBusy(target);
-    setReply(null);
+    setError(null);
     try {
       const r = await api.hint(kind, target);
-      if (r.error) setReply(`error: ${r.error}`);
-      else setReply(r.reply ?? (r.queued ? "command sent" : "ok"));
-      // Refresh balances
-      api.me().then(setMe);
-      if (me && me.logged_in) api.slot(me.slot).then(setDetail);
+      if (r.error) {
+        setError(r.error);
+      } else {
+        // Refresh state, jump to Hints tab so the user sees what was registered.
+        const [, freshSnap] = await Promise.all([
+          api.me().then(setMe),
+          api.state().then(s => { setSnap(s); return s; }),
+        ]);
+        if (me && me.logged_in) api.slot(me.slot).then(setDetail);
+        setTab("hints");
+        setSearch("");
+        void freshSnap;
+      }
     } catch (e: any) {
-      setReply(`error: ${e.message || e}`);
+      setError(e.message || String(e));
     } finally {
       setBusy(null);
     }
@@ -91,9 +120,12 @@ export default function Hints() {
         </div>
       </header>
 
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex flex-wrap gap-3">
         <Tab2 active={tab === "location"} onClick={() => setTab("location")}>Hint a location</Tab2>
         <Tab2 active={tab === "item"} onClick={() => setTab("item")}>Hint an item</Tab2>
+        <Tab2 active={tab === "hints"} onClick={() => setTab("hints")}>
+          Hints {snap.hints.length > 0 && <span className="ml-2 text-mutedSoft">{snap.hints.length}</span>}
+        </Tab2>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -102,12 +134,14 @@ export default function Hints() {
         />
       </div>
 
-      {reply && (
-        <div className="mt-4 rounded-md bg-canvas-deep p-3 font-mono text-code text-body">{reply}</div>
+      {error && (
+        <div className="mt-4 rounded-md bg-canvas-deep p-3 font-mono text-code text-semantic-error">
+          {error}
+        </div>
       )}
 
       <div className="mt-6 rounded-xl border hair bg-surface-card">
-        {tab === "location" ? (
+        {tab === "location" && (
           <ul className="divide-y hair-soft">
             {remainingLocations
               .filter((l) => l.name.toLowerCase().includes(search.toLowerCase()))
@@ -130,7 +164,9 @@ export default function Hints() {
               </li>
             )}
           </ul>
-        ) : (
+        )}
+
+        {tab === "item" && (
           <ul className="divide-y hair-soft">
             {allItems
               .filter((n) => n.toLowerCase().includes(search.toLowerCase()))
@@ -149,10 +185,54 @@ export default function Hints() {
               ))}
             {allItems.length === 0 && (
               <li className="px-4 py-8 text-center text-body-sm text-mutedSoft">
-                No items in the index yet — type the exact item name in the AP client to hint freeform.
+                No items left to hint.
               </li>
             )}
           </ul>
+        )}
+
+        {tab === "hints" && (
+          <div>
+            <div className="flex gap-2 px-4 py-3 border-b hair-soft">
+              <SubTab active={hintFilter === "mine_for"} onClick={() => setHintFilter("mine_for")}>For my world</SubTab>
+              <SubTab active={hintFilter === "mine_in"} onClick={() => setHintFilter("mine_in")}>In my world</SubTab>
+              <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>All</SubTab>
+            </div>
+            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-mutedSoft border-b hair-soft">
+              <div>Item</div>
+              <div>Location</div>
+              <div>Finder → Receiver</div>
+              <div>Status</div>
+            </div>
+            <ul className="divide-y hair-soft">
+              {visibleHints.map((h, i) => {
+                const finder = slotNames.get(h.finding_slot) ?? `slot ${h.finding_slot}`;
+                const receiver = slotNames.get(h.receiving_slot) ?? `slot ${h.receiving_slot}`;
+                return (
+                  <li
+                    key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
+                    className="grid grid-cols-[1fr_1fr_auto_auto] items-center gap-x-4 px-4 py-3 text-body-sm"
+                  >
+                    <span className="text-bodyStrong">{h.item_name}</span>
+                    <span className="text-body">{h.location_name}</span>
+                    <span className="text-mutedSoft tabular-nums">{finder} → {receiver}</span>
+                    <span className={`inline-flex h-6 items-center rounded-pill px-2 text-caption-up uppercase ${
+                      h.found ? "bg-semantic-success/20 text-semantic-success" : "bg-canvas-deep text-mutedSoft"
+                    }`}>
+                      {h.found ? "found" : "open"}
+                    </span>
+                  </li>
+                );
+              })}
+              {visibleHints.length === 0 && (
+                <li className="px-4 py-8 text-center text-body-sm text-mutedSoft">
+                  {hintFilter === "mine_for" && "No hints for items you'll receive yet."}
+                  {hintFilter === "mine_in" && "No hints in your world yet."}
+                  {hintFilter === "all" && "No hints anywhere yet."}
+                </li>
+              )}
+            </ul>
+          </div>
         )}
       </div>
     </div>
@@ -174,6 +254,19 @@ function Tab2({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       className={`h-10 rounded-md px-5 text-btn transition-colors ${
         active ? "bg-primary text-white" : "bg-surface-card text-body hover:text-bodyStrong"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SubTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`h-7 rounded-pill px-3 text-caption-up uppercase tracking-wider transition-colors ${
+        active ? "bg-primary text-white" : "bg-canvas-deep text-mutedSoft hover:text-bodyStrong"
       }`}
     >
       {children}
