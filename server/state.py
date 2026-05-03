@@ -194,6 +194,45 @@ class WorldState:
                 self.slots[slot_num].goal_completed = True
                 self._emit({"type": "goal", "slot": slot_num})
 
+    def apply_hint_store(self, key: str, value: Any) -> None:
+        """Replace hints for one slot from `_read_hints_0_<slot>` data store entry."""
+        if not key.startswith("_read_hints_") or not isinstance(value, list):
+            return
+        try:
+            slot_num = int(key.rsplit("_", 1)[-1])
+        except ValueError:
+            return
+
+        # Drop existing hints owned by this slot, then re-add from the store.
+        self.hints = [
+            h for h in self.hints
+            if h.finding_slot != slot_num and h.receiving_slot != slot_num
+        ]
+        added = 0
+        for raw in value:
+            if not isinstance(raw, dict):
+                continue
+            recv = int(raw.get("receiving_player", 0))
+            send = int(raw.get("finding_player", 0))
+            item_id = int(raw.get("item", 0))
+            location_id = int(raw.get("location", 0))
+            found = bool(raw.get("found", False))
+            rec = HintRecord(
+                finding_slot=send,
+                receiving_slot=recv,
+                item_id=item_id,
+                location_id=location_id,
+                item_name=self.multidata.item_name(recv, item_id),
+                location_name=self.multidata.location_name(send, location_id),
+                found=found,
+            )
+            key_t = (rec.finding_slot, rec.receiving_slot, rec.item_id, rec.location_id)
+            if not any((h.finding_slot, h.receiving_slot, h.item_id, h.location_id) == key_t for h in self.hints):
+                self.hints.append(rec)
+                added += 1
+        self._recount_open_hints()
+        self._emit({"type": "hints_replaced", "snapshot": self.snapshot()})
+
     def _recount_open_hints(self) -> None:
         per_slot: dict[int, int] = {}
         for h in self.hints:

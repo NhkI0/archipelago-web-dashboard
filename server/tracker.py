@@ -38,6 +38,7 @@ class Tracker:
         self.game = game
         self.password = password
         self._task: asyncio.Task | None = None
+        self._ws: "websockets.WebSocketClientProtocol | None" = None
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -80,11 +81,31 @@ class Tracker:
             "version": {"major": 0, "minor": 6, "build": 7, "class": "Version"},
             "items_handling": 0,
         }]))
+        self._ws = ws
+
+    async def _subscribe_to_hints(self, ws: "websockets.WebSocketClientProtocol") -> None:
+        """Pull initial hints + subscribe for updates via the AP data store."""
+        keys = [f"_read_hints_0_{slot}" for slot in self.state.slots]
+        if not keys:
+            return
+        await ws.send(json.dumps([{"cmd": "Get", "keys": keys}]))
+        await ws.send(json.dumps([{"cmd": "SetNotify", "keys": keys}]))
 
     async def _dispatch(self, packet: dict) -> None:
         cmd = packet.get("cmd")
-        if cmd in ("Connected", "RoomUpdate"):
+        if cmd == "Connected":
             self.state.apply_room_update(packet)
+            if self._ws is not None:
+                await self._subscribe_to_hints(self._ws)
+        elif cmd == "RoomUpdate":
+            self.state.apply_room_update(packet)
+        elif cmd == "Retrieved":
+            for key, value in (packet.get("keys") or {}).items():
+                self.state.apply_hint_store(key, value)
+        elif cmd == "SetReply":
+            key = packet.get("key")
+            if key and key.startswith("_read_hints_"):
+                self.state.apply_hint_store(key, packet.get("value"))
         elif cmd == "PrintJSON":
             log.info("PrintJSON type=%s keys=%s", packet.get("type"), list(packet.keys()))
             self.state.apply_print_json(packet)
