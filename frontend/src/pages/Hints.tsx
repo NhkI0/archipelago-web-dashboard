@@ -11,9 +11,11 @@ export default function Hints() {
   const [detail, setDetail] = useState<SlotDetail | null>(null);
   const [tab, setTab] = useState<Tab>("location");
   const [hintFilter, setHintFilter] = useState<HintFilter>("mine_for");
+  const [hideFound, setHideFound] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: "item" | "location"; target: string } | null>(null);
 
   useEffect(() => {
     api.me().then(setMe);
@@ -52,13 +54,14 @@ export default function Hints() {
     let list: Hint[] = snap.hints;
     if (hintFilter === "mine_for") list = list.filter(h => h.receiving_slot === mySlot);
     else if (hintFilter === "mine_in") list = list.filter(h => h.finding_slot === mySlot);
+    if (hideFound) list = list.filter(h => !h.found);
     const q = search.toLowerCase();
     if (q) list = list.filter(h =>
       h.item_name.toLowerCase().includes(q) ||
       h.location_name.toLowerCase().includes(q)
     );
     return list;
-  }, [snap, me, detail, hintFilter, search]);
+  }, [snap, me, detail, hintFilter, hideFound, search]);
 
   if (me === null || snap === null) {
     return <div className="mx-auto max-w-[1200px] px-6 py-12 text-body">Loading…</div>;
@@ -81,29 +84,53 @@ export default function Hints() {
     );
   }
 
-  async function submit(kind: "item" | "location", target: string) {
+  function looksLikeFailure(reply: string | undefined): string | null {
+    if (!reply) return null;
+    const r = reply.toLowerCase();
+    if (
+      r.includes("not enough") ||
+      r.includes("do not have") ||
+      r.includes("cannot afford") ||
+      r.includes("can't afford") ||
+      r.includes("could not find") ||
+      r.includes("ambiguous") ||
+      r.includes("unknown") ||
+      r.includes("no such") ||
+      r.includes("already hinted")
+    ) {
+      return reply;
+    }
+    return null;
+  }
+
+  async function performSubmit(kind: "item" | "location", target: string) {
     setBusy(target);
     setError(null);
     try {
       const r = await api.hint(kind, target);
-      if (r.error) {
-        setError(r.error);
-      } else {
-        // Refresh state, jump to Hints tab so the user sees what was registered.
-        const [, freshSnap] = await Promise.all([
-          api.me().then(setMe),
-          api.state().then(s => { setSnap(s); return s; }),
-        ]);
-        if (me && me.logged_in) api.slot(me.slot).then(setDetail);
-        setTab("hints");
-        setSearch("");
-        void freshSnap;
+      const failure = r.error || looksLikeFailure(r.reply);
+      if (failure) {
+        setError(failure);
+        return;
       }
+      // Refresh state, jump to Hints tab so the user sees what was registered.
+      await Promise.all([
+        api.me().then(setMe),
+        api.state().then(setSnap),
+      ]);
+      if (me && me.logged_in) api.slot(me.slot).then(setDetail);
+      setTab("hints");
+      setSearch("");
     } catch (e: any) {
       setError(e.message || String(e));
     } finally {
       setBusy(null);
     }
+  }
+
+  function requestSubmit(kind: "item" | "location", target: string) {
+    setError(null);
+    setConfirm({ kind, target });
   }
 
   return (
@@ -150,7 +177,7 @@ export default function Hints() {
                   <span className="h-1.5 w-1.5 rounded-pill bg-hairline-strong" />
                   <span className="text-body-sm text-bodyStrong">{l.name}</span>
                   <button
-                    onClick={() => submit("location", l.name)}
+                    onClick={() => requestSubmit("location", l.name)}
                     disabled={busy === l.name}
                     className="ml-auto h-8 rounded-md bg-primary px-3 text-btn text-white hover:bg-primary-active disabled:opacity-60"
                   >
@@ -175,7 +202,7 @@ export default function Hints() {
                   <span className="h-1.5 w-1.5 rounded-pill bg-hairline-strong" />
                   <span className="text-body-sm text-bodyStrong">{name}</span>
                   <button
-                    onClick={() => submit("item", name)}
+                    onClick={() => requestSubmit("item", name)}
                     disabled={busy === name}
                     className="ml-auto h-8 rounded-md bg-primary px-3 text-btn text-white hover:bg-primary-active disabled:opacity-60"
                   >
@@ -193,10 +220,19 @@ export default function Hints() {
 
         {tab === "hints" && (
           <div>
-            <div className="flex gap-2 px-4 py-3 border-b hair-soft">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b hair-soft">
               <SubTab active={hintFilter === "mine_for"} onClick={() => setHintFilter("mine_for")}>For my world</SubTab>
               <SubTab active={hintFilter === "mine_in"} onClick={() => setHintFilter("mine_in")}>In my world</SubTab>
               <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>All</SubTab>
+              <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-body-sm text-body select-none">
+                <input
+                  type="checkbox"
+                  checked={hideFound}
+                  onChange={(e) => setHideFound(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                Hide found
+              </label>
             </div>
             <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-mutedSoft border-b hair-soft">
               <div>Item</div>
@@ -235,6 +271,48 @@ export default function Hints() {
           </div>
         )}
       </div>
+
+      {confirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !busy && setConfirm(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border hair bg-surface-card p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-title-md text-bodyStrong">Confirm hint</h2>
+            <p className="mt-2 text-body-sm text-body">
+              Hint {confirm.kind === "item" ? "item" : "location"}{" "}
+              <span className="text-bodyStrong">{confirm.target}</span>?
+              This will spend hint points from your slot.
+            </p>
+            <div className="mt-3 text-body-sm text-mutedSoft">
+              You currently have <span className="text-bodyStrong tabular-nums">{me.hint_points}</span> hint points.
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirm(null)}
+                disabled={!!busy}
+                className="h-10 rounded-md bg-canvas-deep px-5 text-btn text-body hover:text-bodyStrong disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const c = confirm;
+                  await performSubmit(c.kind, c.target);
+                  setConfirm(null);
+                }}
+                disabled={!!busy}
+                className="h-10 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
+              >
+                {busy ? "Sending…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
