@@ -22,6 +22,24 @@ export default function Hints() {
     if (me?.logged_in) api.slot(me.slot).then(setDetail);
   }, [me]);
 
+  // ── Build candidate lists (must run before any early returns to satisfy hooks rules) ──
+  const allItems = useMemo(() => {
+    if (!snap) return [];
+    const set = new Set<string>();
+    for (const slot of snap.slots) {
+      for (const h of snap.hints) {
+        if (h.receiving_slot === slot.slot) set.add(h.item_name);
+      }
+    }
+    return Array.from(set).sort();
+  }, [snap]);
+
+  const remainingLocations = useMemo(() => {
+    if (!detail) return [];
+    const hinted = new Set(detail.hints.filter(h => h.finding_slot === detail.slot.slot).map(h => h.location_id));
+    return detail.locations.filter(l => !l.checked && !hinted.has(l.id));
+  }, [detail]);
+
   if (me === null || snap === null) {
     return <div className="mx-auto max-w-[1200px] px-6 py-12 text-body">Loading…</div>;
   }
@@ -42,26 +60,6 @@ export default function Hints() {
       </div>
     );
   }
-
-  // ── Build candidate lists ──────────────────────────────────────────────────
-  const allItems = useMemo(() => {
-    if (!snap) return [];
-    const set = new Set<string>();
-    for (const slot of snap.slots) {
-      // We don't have a per-slot item index from /api/state — fall back to hints we already know
-      for (const h of snap.hints) {
-        if (h.receiving_slot === slot.slot) set.add(h.item_name);
-      }
-    }
-    // Plus items the logged-in player has been hinted to receive
-    return Array.from(set).sort();
-  }, [snap]);
-
-  const remainingLocations = useMemo(() => {
-    if (!detail) return [];
-    const hinted = new Set(detail.hints.filter(h => h.finding_slot === detail.slot.slot).map(h => h.location_id));
-    return detail.locations.filter(l => !l.checked && !hinted.has(l.id));
-  }, [detail]);
 
   async function submit(kind: "item" | "location", target: string) {
     setBusy(target);
