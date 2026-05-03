@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { SlotDetail as SlotDetailT, api } from "../api";
+import { SlotDetail as SlotDetailT, api, liveSocket } from "../api";
 import ProgressBar from "../components/ProgressBar";
 import BadgePill from "../components/BadgePill";
 
@@ -14,6 +14,10 @@ export default function SlotDetail() {
 
   useEffect(() => {
     api.slot(name).then(setData).catch(console.error);
+    return liveSocket(() => {
+      // Any live event → refetch the slot detail. Cheap; one HTTP roundtrip.
+      api.slot(name).then(setData).catch(() => {});
+    });
   }, [name]);
 
   const hintedLocIds = useMemo(

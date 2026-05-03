@@ -32,6 +32,7 @@ AP_HOST = os.environ.get("AP_HOST", "localhost")
 AP_PORT = int(os.environ.get("AP_PORT", "38281"))
 AP_FILE = os.environ.get("AP_FILE", "/opt/archipelago/output/latest.archipelago")
 AP_TRACKER_SLOT = os.environ.get("AP_TRACKER_SLOT", "DeathTracker")
+DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
 
 STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).parent.parent / "frontend" / "dist"))
 
@@ -61,6 +62,35 @@ async def _on_stop() -> None:
 @app.get("/api/state")
 async def api_state() -> dict[str, Any]:
     return world.snapshot()
+
+
+@app.get("/api/deaths")
+async def api_deaths() -> dict[str, Any]:
+    """Read the death leaderboard JSON the existing TUI maintains."""
+    import json as _json
+    p = pathlib.Path(DEATHS_FILE)
+    if not p.exists():
+        return {"available": False, "rows": []}
+    try:
+        raw = _json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {"available": False, "rows": []}
+    rows: list[dict[str, Any]] = []
+    if isinstance(raw, dict):
+        for name, count in raw.items():
+            try:
+                rows.append({"name": str(name), "deaths": int(count)})
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(raw, list):
+        for entry in raw:
+            if isinstance(entry, dict) and "name" in entry and "deaths" in entry:
+                try:
+                    rows.append({"name": str(entry["name"]), "deaths": int(entry["deaths"])})
+                except (TypeError, ValueError):
+                    continue
+    rows.sort(key=lambda r: -r["deaths"])
+    return {"available": True, "rows": rows}
 
 
 @app.get("/api/slot/{name}")

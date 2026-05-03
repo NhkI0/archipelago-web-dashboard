@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import HintNotifier from "./components/HintNotifier";
 import TopNav from "./components/TopNav";
 import Dashboard from "./pages/Dashboard";
 import SlotDetail from "./pages/SlotDetail";
@@ -9,6 +10,7 @@ export default function App() {
   return (
     <div className="min-h-full flex flex-col">
       <TopNav />
+      <HintNotifier />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Dashboard />} />

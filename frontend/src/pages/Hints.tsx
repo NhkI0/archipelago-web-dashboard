@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Hint, Me, SlotDetail, Snapshot, api } from "../api";
+import { Hint, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
 
 type Tab = "location" | "item" | "hints";
 type HintFilter = "mine_for" | "mine_in" | "all";
@@ -20,11 +20,19 @@ export default function Hints() {
   useEffect(() => {
     api.me().then(setMe);
     api.state().then(setSnap);
+    return liveSocket((e) => {
+      if (e?.snapshot) setSnap(e.snapshot);
+    });
   }, []);
 
   useEffect(() => {
     if (me?.logged_in) api.slot(me.slot).then(setDetail);
   }, [me]);
+
+  // Refresh slot detail when the live snapshot indicates new hints.
+  useEffect(() => {
+    if (me?.logged_in && snap) api.slot(me.slot).then(setDetail);
+  }, [snap?.hints.length, me?.logged_in ? me.slot : null]);
 
   const slotNames = useMemo(() => {
     const m = new Map<number, string>();
@@ -269,7 +277,12 @@ export default function Hints() {
         )}
       </div>
 
-      {confirm && (
+      {confirm && (() => {
+        const total = detail?.slot.total ?? 0;
+        const pct = snap.hint_cost ?? 10;
+        const cost = Math.max(1, Math.ceil((pct / 100) * total));
+        const enough = me.hint_points >= cost;
+        return (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => !busy && setConfirm(null)}
@@ -282,10 +295,15 @@ export default function Hints() {
             <p className="mt-2 text-body-sm text-body">
               Hint {confirm.kind === "item" ? "item" : "location"}{" "}
               <span className="text-bodyStrong">{confirm.target}</span>?
-              This will spend hint points from your slot.
             </p>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-body-sm">
+              <Stat label="cost" value={`~${cost}`} />
+              <Stat label="balance" value={String(me.hint_points)} />
+              <Stat label="after" value={enough ? String(me.hint_points - cost) : "—"} />
+            </div>
             <div className="mt-3 text-body-sm text-mutedSoft">
-              You currently have <span className="text-bodyStrong tabular-nums">{me.hint_points}</span> hint points.
+              Server hint cost is <span className="text-bodyStrong tabular-nums">{pct}%</span> of your total checks.
+              {!enough && <span className="ml-1 text-semantic-error">Not enough hint points.</span>}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -301,7 +319,7 @@ export default function Hints() {
                   await performSubmit(c.kind, c.target);
                   setConfirm(null);
                 }}
-                disabled={!!busy}
+                disabled={!!busy || !enough}
                 className="h-10 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
               >
                 {busy ? "Sending…" : "Confirm"}
@@ -309,7 +327,8 @@ export default function Hints() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

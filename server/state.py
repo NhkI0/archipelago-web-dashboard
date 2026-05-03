@@ -27,7 +27,7 @@ class SlotState:
     online: bool = False
     hint_points: int = 0
     goal_completed: bool = False
-    open_hints: int = 0   # hints found-but-not-collected count
+    open_hints: int = 0   # hints whose item is in this slot's world but hasn't been checked yet
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,6 +65,7 @@ class WorldState:
         self.seed_name = multidata.seed_name
         self.slots: dict[int, SlotState] = {}
         self.hints: list[HintRecord] = []
+        self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
         self._subscribers: set[asyncio.Queue] = set()
         self._init_from_multidata()
 
@@ -86,6 +87,7 @@ class WorldState:
             "seed_name": self.seed_name,
             "slots": [s.to_dict() for s in self.slots.values()],
             "hints": [h.to_dict() for h in self.hints],
+            "hint_cost": self.hint_cost,
             "totals": {
                 "total_locations": sum(s.total for s in self.slots.values()),
                 "total_checked": sum(len(s.checked) for s in self.slots.values()),
@@ -117,6 +119,15 @@ class WorldState:
     def apply_room_update(self, payload: dict[str, Any]) -> None:
         """RoomUpdate from AP — covers checked_locations, hint_points, players."""
         changed = False
+
+        if "hint_cost" in payload:
+            try:
+                hc = int(payload["hint_cost"])
+                if hc != self.hint_cost:
+                    self.hint_cost = hc
+                    changed = True
+            except (TypeError, ValueError):
+                pass
 
         # `checked_locations` arrives as a list[int] for the server view in some
         # versions; in others it is broken down per slot via `players` updates.

@@ -26,8 +26,12 @@ export type Snapshot = {
   seed_name: string;
   slots: Slot[];
   hints: Hint[];
+  hint_cost: number;
   totals: { total_locations: number; total_checked: number };
 };
+
+export type DeathRow = { name: string; deaths: number };
+export type Deaths = { available: boolean; rows: DeathRow[] };
 
 export type SlotDetail = {
   slot: Slot;
@@ -53,6 +57,7 @@ const j = async <T,>(r: Response): Promise<T> => {
 
 export const api = {
   state: () => fetch("/api/state").then(j<Snapshot>),
+  deaths: () => fetch("/api/deaths").then(j<Deaths>),
   slot: (name: string) => fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>),
   me: () => fetch("/api/me").then(j<Me>),
   login: (slot: string, password: string) =>
