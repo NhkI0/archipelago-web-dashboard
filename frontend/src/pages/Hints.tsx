@@ -9,7 +9,7 @@ export default function Hints() {
   const [me, setMe] = useState<Me | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [detail, setDetail] = useState<SlotDetail | null>(null);
-  const [tab, setTab] = useState<Tab>("location");
+  const [tab, setTab] = useState<Tab>("item");
   const [hintFilter, setHintFilter] = useState<HintFilter>("mine_for");
   const [hideFound, setHideFound] = useState(false);
   const [search, setSearch] = useState("");
@@ -148,8 +148,8 @@ export default function Hints() {
       </header>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <Tab2 active={tab === "location"} onClick={() => setTab("location")}>Hint a location</Tab2>
         <Tab2 active={tab === "item"} onClick={() => setTab("item")}>Hint an item</Tab2>
+        <Tab2 active={tab === "location"} onClick={() => setTab("location")}>Hint a location</Tab2>
         <Tab2 active={tab === "hints"} onClick={() => setTab("hints")}>
           Hints {snap.hints.length > 0 && <span className="ml-2 text-mutedSoft">{snap.hints.length}</span>}
         </Tab2>
@@ -224,15 +224,12 @@ export default function Hints() {
               <SubTab active={hintFilter === "mine_for"} onClick={() => setHintFilter("mine_for")}>For my world</SubTab>
               <SubTab active={hintFilter === "mine_in"} onClick={() => setHintFilter("mine_in")}>In my world</SubTab>
               <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>All</SubTab>
-              <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-body-sm text-body select-none">
-                <input
-                  type="checkbox"
-                  checked={hideFound}
-                  onChange={(e) => setHideFound(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Hide found
-              </label>
+              <Toggle
+                className="ml-auto"
+                label="Hide found"
+                checked={hideFound}
+                onChange={setHideFound}
+              />
             </div>
             <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-mutedSoft border-b hair-soft">
               <div>Item</div>
@@ -336,6 +333,39 @@ function Tab2({ active, onClick, children }: { active: boolean; onClick: () => v
     >
       {children}
     </button>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <label className={`inline-flex cursor-pointer items-center gap-3 text-body-sm text-body select-none ${className}`}>
+      <span>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-pill border hair transition-colors ${
+          checked ? "bg-primary border-primary" : "bg-canvas-deep"
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 rounded-pill bg-white shadow transition-transform ${
+            checked ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </label>
   );
 }
 
