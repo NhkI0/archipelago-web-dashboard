@@ -94,10 +94,17 @@ async def api_slot(name: str) -> dict[str, Any]:
         })
     locations_payload.sort(key=lambda x: x["name"])
 
+    # Unique items the slot will receive — used by the hint manager.
+    available_items = sorted({
+        md.item_name(slot.slot, item_id)
+        for (item_id, _sender, _flags) in locs.values()
+    })
+
     return {
         "slot": slot.to_dict(),
         "locations": locations_payload,
         "hints": related_hints,
+        "available_items": available_items,
     }
 
 

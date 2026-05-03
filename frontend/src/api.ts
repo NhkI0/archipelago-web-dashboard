@@ -39,6 +39,7 @@ export type SlotDetail = {
     item_name: string | null;
   }[];
   hints: Hint[];
+  available_items: string[];
 };
 
 export type Me =

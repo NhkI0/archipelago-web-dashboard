@@ -24,15 +24,14 @@ export default function Hints() {
 
   // ── Build candidate lists (must run before any early returns to satisfy hooks rules) ──
   const allItems = useMemo(() => {
-    if (!snap) return [];
-    const set = new Set<string>();
-    for (const slot of snap.slots) {
-      for (const h of snap.hints) {
-        if (h.receiving_slot === slot.slot) set.add(h.item_name);
-      }
-    }
-    return Array.from(set).sort();
-  }, [snap]);
+    if (!detail) return [];
+    const hinted = new Set(
+      detail.hints
+        .filter(h => h.receiving_slot === detail.slot.slot)
+        .map(h => h.item_name)
+    );
+    return detail.available_items.filter(name => !hinted.has(name));
+  }, [detail]);
 
   const remainingLocations = useMemo(() => {
     if (!detail) return [];
