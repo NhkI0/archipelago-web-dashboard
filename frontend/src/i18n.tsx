@@ -8,6 +8,7 @@ const en: Dict = {
   // Top nav
   "nav.dashboard": "Dashboard",
   "nav.hints": "Hint manager",
+  "nav.hof": "Hall of Fame",
   "nav.signin": "Sign in",
   "nav.signout": "Sign out",
   "nav.slot": "slot",
@@ -119,17 +120,25 @@ const en: Dict = {
   "common.lang.toggle": "FR",
   "common.theme.toggle_aria": "Toggle theme",
 
+  // Hall of Fame
+  "hof.kicker": "Hall of Fame",
+  "hof.title": "Player art",
+  "hof.intro": "Because I love yall and you are super funny and talented <3.",
+  "hof.empty": "Nothing here yet.",
+  "hof.by": "by",
+
   // Notifier
   "notify.hint_for_you": "Hint for you: {item} — in {finder}'s world ({loc})",
 
   // Footer
   "footer.left": "archipelago · nguengant.fr",
-  "footer.right": "self-hosted multiworld",
+  "footer.right": "Have fun guys :)",
 };
 
 const fr: Dict = {
   "nav.dashboard": "Tableau de bord",
   "nav.hints": "Gestion d'indices",
+  "nav.hof": "Panthéon",
   "nav.signin": "Connexion",
   "nav.signout": "Déconnexion",
   "nav.slot": "joueur",
@@ -235,10 +244,17 @@ const fr: Dict = {
   "common.lang.toggle": "EN",
   "common.theme.toggle_aria": "Changer le thème",
 
+  // Hall of Fame
+  "hof.kicker": "Panthéon",
+  "hof.title": "Vos masterclass",
+  "hof.intro": "Parceque je vous aime et que vous êtes super drôle et talentueux <3.",
+  "hof.empty": "Rien à afficher pour l'instant.",
+  "hof.by": "par",
+
   "notify.hint_for_you": "Indice pour vous : {item} — dans le monde de {finder} ({loc})",
 
   "footer.left": "archipelago · nguengant.fr",
-  "footer.right": "multimonde auto-hébergé",
+  "footer.right": "Have fun la team :)",
 };
 
 const dictionaries: Record<Lang, Dict> = { en, fr };

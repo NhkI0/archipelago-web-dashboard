@@ -4,6 +4,7 @@ import TopNav from "./components/TopNav";
 import Dashboard from "./pages/Dashboard";
 import SlotDetail from "./pages/SlotDetail";
 import Hints from "./pages/Hints";
+import HallOfFame from "./pages/HallOfFame";
 import Login from "./pages/Login";
 import { LanguageProvider, useT } from "./i18n";
 import { ThemeProvider } from "./theme";
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/slot/:name" element={<SlotDetail />} />
             <Route path="/hints" element={<Hints />} />
+            <Route path="/hall-of-fame" element={<HallOfFame />} />
             <Route path="/login" element={<Login />} />
           </Routes>
         </main>

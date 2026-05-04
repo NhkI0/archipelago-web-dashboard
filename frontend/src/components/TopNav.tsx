@@ -25,6 +25,7 @@ export default function TopNav() {
         <nav className="ml-10 flex items-center gap-7">
           <NavLink to="/" end className={linkClass}>{t("nav.dashboard")}</NavLink>
           <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
+          <NavLink to="/hall-of-fame" className={linkClass}>{t("nav.hof")}</NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <ThemeToggle />
