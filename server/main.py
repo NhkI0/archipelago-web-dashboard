@@ -238,7 +238,17 @@ if STATIC_DIR.is_dir():
 
     @app.get("/{full_path:path}")
     async def spa(full_path: str) -> FileResponse:
-        # SPA fallback — every non-/api route serves index.html
+        # Serve any real file at the top of dist/ (favicon.ico, robots.txt,
+        # public assets like /games/<slug>.png, etc.) before falling back to
+        # the SPA shell.
+        if full_path:
+            candidate = (STATIC_DIR / full_path).resolve()
+            try:
+                candidate.relative_to(STATIC_DIR.resolve())
+            except ValueError:
+                candidate = None  # path traversal — refuse
+            if candidate and candidate.is_file():
+                return FileResponse(candidate)
         index = STATIC_DIR / "index.html"
         if not index.exists():
             return JSONResponse({"error": "frontend not built"}, status_code=503)
