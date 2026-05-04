@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Slot } from "../api";
 import ProgressBar from "./ProgressBar";
 import BadgePill from "./BadgePill";
+import GameIcon from "./GameIcon";
 import { useT } from "../i18n";
 
 const TINTS = [
@@ -27,6 +28,7 @@ export default function SlotCard({ slot }: { slot: Slot }) {
           className={`h-1.5 w-1.5 rounded-pill ${slot.online ? "bg-semantic-success" : "bg-stone"}`}
           aria-label={slot.online ? t("slot.online") : t("slot.offline")}
         />
+        <GameIcon game={slot.game} size={16} />
         <span className="font-mono text-caption text-charcoal truncate">{slot.game}</span>
       </div>
       <div className="flex items-center gap-2">

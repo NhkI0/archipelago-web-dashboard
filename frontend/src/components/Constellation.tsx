@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Hint, Slot } from "../api";
 import { useT } from "../i18n";
+import GameIcon from "./GameIcon";
 
 const TINTS = [
   "bg-card-peach",
@@ -131,7 +132,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
               }}
             >
               <div className={`relative mx-auto inline-flex h-[72px] w-[72px] items-center justify-center rounded-pill ${tint} border-4 border-canvas font-semibold text-charcoal shadow-mockup`}>
-                {s.name.slice(0, 2).toUpperCase()}
+                <GameIcon game={s.game} size={36} />
                 <span
                   className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas ${s.online ? "bg-semantic-success" : "bg-stone"}`}
                   aria-label={s.online ? t("slot.online") : t("slot.offline")}

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { SlotDetail as SlotDetailT, api, liveSocket } from "../api";
 import ProgressBar from "../components/ProgressBar";
 import BadgePill from "../components/BadgePill";
+import GameIcon from "../components/GameIcon";
 import { useT } from "../i18n";
 
 type Filter = "all" | "remaining" | "checked" | "hinted";
@@ -54,7 +55,10 @@ export default function SlotDetail() {
             <h1 className="text-display-md text-ink">{s.name}</h1>
             {s.goal_completed && <BadgePill tone="success">{t("slot.goal")}</BadgePill>}
           </div>
-          <div className="mt-1 font-mono text-body-sm text-slate">{s.game}</div>
+          <div className="mt-1 flex items-center gap-2 font-mono text-body-sm text-slate">
+            <GameIcon game={s.game} size={18} />
+            <span>{s.game}</span>
+          </div>
         </div>
         <div className="ml-auto flex flex-wrap items-end gap-x-8 gap-y-3 text-body-sm">
           <Stat label={t("slot.progress")} value={`${s.percent.toFixed(1)}%`} />
