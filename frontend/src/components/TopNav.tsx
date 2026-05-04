@@ -2,7 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, Me } from "../api";
 import { useT } from "../i18n";
-import { useTheme } from "../theme";
+import ThemeToggle from "./ThemeToggle";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `text-body-sm transition-colors ${isActive ? "text-ink" : "text-steel hover:text-ink"}`;
@@ -10,14 +10,13 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export default function TopNav() {
   const [me, setMe] = useState<Me | null>(null);
   const { t, lang, setLang } = useT();
-  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     api.me().then(setMe).catch(() => setMe({ logged_in: false }));
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b hair bg-canvas/95 backdrop-blur">
+    <header className="sticky top-0 z-30 h-16 border-b hair bg-canvas/95 backdrop-blur transition-colors duration-300">
       <div className="mx-auto flex h-full max-w-[1200px] items-center px-6">
         <Link to="/" className="flex items-center gap-2">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white font-bold">A</span>
@@ -28,14 +27,7 @@ export default function TopNav() {
           <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-3">
-          <button
-            onClick={toggleTheme}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-md border hair-strong text-ink hover:bg-surface"
-            aria-label={t("common.theme.toggle_aria")}
-            title={t("common.theme.toggle_aria")}
-          >
-            {theme === "dark" ? "☀" : "☾"}
-          </button>
+          <ThemeToggle />
           <button
             onClick={() => setLang(lang === "en" ? "fr" : "en")}
             className="h-9 rounded-md border hair-strong px-3 text-btn text-ink hover:bg-surface"
@@ -52,7 +44,7 @@ export default function TopNav() {
               </span>
               <button
                 onClick={async () => { await api.logout(); location.reload(); }}
-                className="h-9 rounded-md border hair-strong bg-canvas px-4 text-btn text-ink hover:bg-surface"
+                className="h-9 rounded-md border hair-strong bg-canvas px-4 text-btn text-ink hover:bg-surface transition-colors duration-300"
               >
                 {t("nav.signout")}
               </button>

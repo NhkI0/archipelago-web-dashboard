@@ -54,6 +54,13 @@ html, body, #root {
   color: rgb(var(--c-ink));
 }
 
+/* Body-level fade only. CSS variables swap instantly on every element,
+   but the page background eases between the two values, which gives a
+   soft visual transition without paying any per-element transition cost. */
+html, body {
+  transition: background-color 250ms ease, color 250ms ease;
+}
+
 body {
   font-family: "Inter", "Notion Sans", ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
@@ -64,6 +71,70 @@ body {
 .hair        { border-color: rgb(var(--c-hairline)); }
 .hair-soft   { border-color: rgb(var(--c-hairline-soft)); }
 .hair-strong { border-color: rgb(var(--c-hairline-strong)); }
+
+/* ── Moon/Sun theme toggle (adapted from RefractedColor's CodePen) ────────── */
+.ms-toggle {
+  --toggleHeight: 16em;
+  --toggleWidth:  30em;
+  --toggleBtnRadius: 10em;
+  --bgColor--night: #423966;
+  --bgColor--day:   #9ee3fb;
+  --mooncolor:      #D9FBFF;
+
+  /* Scale: nav height is 36px → font-size 11% gives ~28px tall toggle. */
+  font-size: 11%;
+  position: relative;
+  height: var(--toggleHeight);
+  width:  var(--toggleWidth);
+  border-radius: var(--toggleHeight);
+  background: var(--bgColor--night);
+  transition: background 500ms ease-in-out;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  display: inline-block;
+}
+.ms-toggle.day { background: #FFBF71; }
+
+.ms-toggle .ms-orb {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  transition: all 400ms ease-in-out;
+  top: 3em;
+  left: 3em;
+  transform: rotate(-75deg);
+  width: var(--toggleBtnRadius);
+  height: var(--toggleBtnRadius);
+  background: var(--bgColor--night);
+  box-shadow:
+    3em 2.5em 0 0em var(--mooncolor) inset,
+    rgba(255, 255, 255, 0.1) 0em -7em 0 -4.5em,
+    rgba(255, 255, 255, 0.1) 3em 7em 0 -4.5em,
+    rgba(255, 255, 255, 0.1) 2em 13em 0 -4em,
+    rgba(255, 255, 255, 0.1) 6em 2em 0 -4.1em,
+    rgba(255, 255, 255, 0.1) 8em 8em 0 -4.5em,
+    rgba(255, 255, 255, 0.1) 6em 13em 0 -4.5em,
+    rgba(255, 255, 255, 0.1) -4em 7em 0 -4.5em,
+    rgba(255, 255, 255, 0.1) -1em 10em 0 -4.5em;
+}
+.ms-toggle .ms-orb.sun {
+  top: 4.5em;
+  left: 18em;
+  transform: rotate(0deg);
+  width: 7em;
+  height: 7em;
+  background: #fff;
+  box-shadow: 3em 3em 0 5em #fff inset,
+    0 -5em 0 -2.7em #fff,
+    3.5em -3.5em 0 -3em #fff,
+    5em 0 0 -2.7em #fff,
+    3.5em 3.5em 0 -3em #fff,
+    0 5em 0 -2.7em #fff,
+    -3.5em 3.5em 0 -3em #fff,
+    -5em 0 0 -2.7em #fff,
+    -3.5em -3.5em 0 -3em #fff;
+}
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: rgb(var(--c-surface)); }

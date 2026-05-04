@@ -78,7 +78,7 @@ export default function Dashboard() {
               {t("deaths.contenders", { n: deaths.rows.length, plural: deaths.rows.length === 1 ? "" : "s" })}
             </div>
           </div>
-          <ol className="rounded-lg border hair bg-canvas divide-y hair-soft">
+          <ol className="rounded-lg border hair bg-canvas divide-y hair-soft transition-colors duration-300">
             {deaths.rows.slice(0, 10).map((row, i) => (
               <li key={row.name} className="flex items-center gap-4 px-5 py-3">
                 <span className="w-6 text-stone tabular-nums">{i + 1}.</span>

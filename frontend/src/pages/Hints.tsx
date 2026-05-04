@@ -159,7 +159,7 @@ export default function Hints() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("hints.filter.placeholder")}
-          className="ml-auto h-10 w-64 rounded-md border hair-strong bg-surface px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2 focus:bg-canvas"
+          className="ml-auto h-10 w-64 rounded-md border hair-strong bg-surface px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2 focus:bg-canvas transition-colors duration-300"
         />
       </div>
 
@@ -169,7 +169,7 @@ export default function Hints() {
         </div>
       )}
 
-      <div className="mt-6 rounded-lg border hair bg-canvas">
+      <div className="mt-6 rounded-lg border hair bg-canvas transition-colors duration-300">
         {tab === "location" && (
           <ul className="divide-y hair-soft">
             {remainingLocations

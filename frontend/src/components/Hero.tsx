@@ -12,7 +12,7 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
   const { t } = useT();
   const pct = totalLocations > 0 ? (100 * totalChecked) / totalLocations : 0;
   return (
-    <section className="relative overflow-hidden bg-brand-navy text-onDark">
+    <section className="relative overflow-hidden bg-brand-navy text-onDark transition-colors duration-300">
       {/* leEm portrait — pinned to the right edge, mirrored, with a left-side fade into the navy */}
       <img
         src="/leEm.png"

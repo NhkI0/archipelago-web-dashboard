@@ -21,7 +21,7 @@ export default function SlotCard({ slot }: { slot: Slot }) {
   return (
     <Link
       to={`/slot/${encodeURIComponent(slot.name)}`}
-      className="group block rounded-lg border hair bg-canvas p-6 transition-shadow hover:shadow-card"
+      className="group block rounded-lg border hair bg-canvas p-6 transition-colors duration-300 hover:shadow-card"
     >
       <div className={`mb-4 inline-flex items-center gap-2 rounded-md ${tint} px-2.5 py-1`}>
         <span
