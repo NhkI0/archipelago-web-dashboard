@@ -5,6 +5,7 @@ import type { Config } from "tailwindcss";
 // possible (`bg-canvas`, `text-body`, `text-bodyStrong`, …) so existing JSX
 // continues to type-check; values are remapped to the Notion palette.
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -46,38 +47,42 @@ export default {
           gray: "#f0eeec",
         },
 
-        // Page surfaces — light Notion canvas
+        // Page surfaces — light by default, themed via CSS vars (dark mode swaps).
         canvas: {
-          DEFAULT: "#ffffff",
-          deep: "#f6f5f4",          // formerly used as a darker card bg; now the soft surface
+          DEFAULT: "rgb(var(--c-canvas) / <alpha-value>)",
+          deep:    "rgb(var(--c-canvas-deep) / <alpha-value>)",
         },
         surface: {
-          DEFAULT: "#f6f5f4",
-          soft: "#fafaf9",
-          card: "#ffffff",
-          cardElevated: "#ffffff",
-          strong: "#f6f5f4",
+          DEFAULT:      "rgb(var(--c-surface) / <alpha-value>)",
+          soft:         "rgb(var(--c-surface-soft) / <alpha-value>)",
+          card:         "rgb(var(--c-surface-card) / <alpha-value>)",
+          cardElevated: "rgb(var(--c-surface-card) / <alpha-value>)",
+          strong:       "rgb(var(--c-surface-strong) / <alpha-value>)",
         },
 
         hairline: {
-          DEFAULT: "#e5e3df",
-          soft: "#ede9e4",
-          strong: "#c8c4be",
+          DEFAULT: "rgb(var(--c-hairline) / <alpha-value>)",
+          soft:    "rgb(var(--c-hairline-soft) / <alpha-value>)",
+          strong:  "rgb(var(--c-hairline-strong) / <alpha-value>)",
         },
 
         // Text
-        ink: "#1a1a1a",
-        inkDeep: "#000000",
-        bodyStrong: "#1a1a1a",     // primary copy
-        body: "#5d5b54",           // slate
-        muted: "#bbb8b1",
-        mutedSoft: "#787671",      // steel
-        charcoal: "#37352f",
-        slate: "#5d5b54",
-        steel: "#787671",
-        stone: "#a4a097",
-        onDark: "#ffffff",
-        onDarkMuted: "#a4a097",
+        ink:        "rgb(var(--c-ink) / <alpha-value>)",
+        inkDeep:    "rgb(var(--c-ink-deep) / <alpha-value>)",
+        bodyStrong: "rgb(var(--c-ink) / <alpha-value>)",
+        body:       "rgb(var(--c-slate) / <alpha-value>)",
+        muted:      "rgb(var(--c-muted) / <alpha-value>)",
+        mutedSoft:  "rgb(var(--c-steel) / <alpha-value>)",
+        charcoal:   "rgb(var(--c-charcoal) / <alpha-value>)",
+        slate:      "rgb(var(--c-slate) / <alpha-value>)",
+        steel:      "rgb(var(--c-steel) / <alpha-value>)",
+        stone:      "rgb(var(--c-stone) / <alpha-value>)",
+        onDark:     "#ffffff",
+        onDarkMuted:"#a4a097",
+        // Static text colour for use over the pastel `card-*` tints; doesn't
+        // swap in dark mode because the tint backgrounds don't either.
+        tintInk:    "#37352f",
+        tintInkSoft:"#5d5b54",
 
         semantic: {
           error: "#e03131",

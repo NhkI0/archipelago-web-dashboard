@@ -58,8 +58,8 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
             </Pane>
             <Pane label={t("hero.pane.server")} tint="sky">
               <div className="text-body-sm text-semantic-success font-medium">{t("hero.field.running")}</div>
-              <div className="text-body-sm text-charcoal">{t("hero.field.port")}</div>
-              <div className="text-body-sm text-stone">{t("hero.field.tracker")}</div>
+              <div className="text-body-sm text-tintInk">{t("hero.field.port")}</div>
+              <div className="text-body-sm text-tintInkSoft">{t("hero.field.tracker")}</div>
             </Pane>
           </div>
         </div>
@@ -79,7 +79,7 @@ function Pane({ label, tint, children }: { label: string; tint: "peach" | "rose"
   }[tint];
   return (
     <div className={`rounded-lg ${bg} p-5`}>
-      <div className="text-caption-up uppercase text-charcoal/60">{label}</div>
+      <div className="text-caption-up uppercase text-tintInk/60">{label}</div>
       <div className="mt-3 space-y-1">{children}</div>
     </div>
   );
@@ -88,8 +88,8 @@ function Pane({ label, tint, children }: { label: string; tint: "peach" | "rose"
 function Line({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className={`${mono ? "font-mono text-code" : "text-body-sm"} text-charcoal/70`}>{label}</span>
-      <span className={`${mono ? "font-mono text-code" : "text-body-sm font-medium"} text-charcoal tabular-nums`}>{value}</span>
+      <span className={`${mono ? "font-mono text-code" : "text-body-sm"} text-tintInkSoft`}>{label}</span>
+      <span className={`${mono ? "font-mono text-code" : "text-body-sm font-medium"} text-tintInk tabular-nums`}>{value}</span>
     </div>
   );
 }

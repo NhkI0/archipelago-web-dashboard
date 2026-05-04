@@ -148,7 +148,7 @@ function Tab({ active, onClick, children }: { active: boolean; onClick: () => vo
     <button
       onClick={onClick}
       className={`h-9 rounded-pill border px-4 text-body-sm font-medium transition-colors ${
-        active ? "bg-inkDeep text-white border-inkDeep" : "border-hairline text-steel hover:text-ink"
+        active ? "bg-primary text-white border-primary" : "border-hairline text-ink hover:bg-surface"
       }`}
     >
       {children}

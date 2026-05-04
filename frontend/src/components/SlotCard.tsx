@@ -29,7 +29,7 @@ export default function SlotCard({ slot }: { slot: Slot }) {
           aria-label={slot.online ? t("slot.online") : t("slot.offline")}
         />
         <GameIcon game={slot.game} size={16} />
-        <span className="font-mono text-caption text-charcoal truncate">{slot.game}</span>
+        <span className="font-mono text-caption text-tintInk truncate">{slot.game}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-title-sm text-ink truncate">{slot.name}</span>
