@@ -6,6 +6,7 @@ import SlotDetail from "./pages/SlotDetail";
 import Hints from "./pages/Hints";
 import Login from "./pages/Login";
 import { LanguageProvider, useT } from "./i18n";
+import { ThemeProvider } from "./theme";
 
 function Footer() {
   const { t } = useT();
@@ -21,6 +22,7 @@ function Footer() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <LanguageProvider>
       <div className="min-h-full flex flex-col bg-canvas">
         <TopNav />
@@ -36,5 +38,6 @@ export default function App() {
         <Footer />
       </div>
     </LanguageProvider>
+    </ThemeProvider>
   );
 }

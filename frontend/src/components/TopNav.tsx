@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, Me } from "../api";
 import { useT } from "../i18n";
+import { useTheme } from "../theme";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `text-body-sm transition-colors ${isActive ? "text-ink" : "text-steel hover:text-ink"}`;
@@ -9,6 +10,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export default function TopNav() {
   const [me, setMe] = useState<Me | null>(null);
   const { t, lang, setLang } = useT();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     api.me().then(setMe).catch(() => setMe({ logged_in: false }));
@@ -26,6 +28,14 @@ export default function TopNav() {
           <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className="h-9 w-9 inline-flex items-center justify-center rounded-md border hair-strong text-ink hover:bg-surface"
+            aria-label={t("common.theme.toggle_aria")}
+            title={t("common.theme.toggle_aria")}
+          >
+            {theme === "dark" ? "☀" : "☾"}
+          </button>
           <button
             onClick={() => setLang(lang === "en" ? "fr" : "en")}
             className="h-9 rounded-md border hair-strong px-3 text-btn text-ink hover:bg-surface"

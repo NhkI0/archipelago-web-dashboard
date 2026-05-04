@@ -117,6 +117,7 @@ const en: Dict = {
   // Loading
   "common.loading": "Loading…",
   "common.lang.toggle": "FR",
+  "common.theme.toggle_aria": "Toggle theme",
 
   // Notifier
   "notify.hint_for_you": "Hint for you: {item} — in {finder}'s world ({loc})",
@@ -232,6 +233,7 @@ const fr: Dict = {
 
   "common.loading": "Chargement…",
   "common.lang.toggle": "EN",
+  "common.theme.toggle_aria": "Changer le thème",
 
   "notify.hint_for_you": "Indice pour vous : {item} — dans le monde de {finder} ({loc})",
 

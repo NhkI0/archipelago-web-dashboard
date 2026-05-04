@@ -2,14 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light theme (default) ────────────────────────────────────────────────── */
 :root {
   color-scheme: light;
+  --c-canvas:        255 255 255;  /* #ffffff */
+  --c-canvas-deep:   246 245 244;
+  --c-surface:       246 245 244;
+  --c-surface-soft:  250 250 249;
+  --c-surface-card:  255 255 255;
+  --c-surface-strong:246 245 244;
+
+  --c-hairline:        229 227 223;
+  --c-hairline-soft:   237 233 228;
+  --c-hairline-strong: 200 196 190;
+
+  --c-ink:       26 26 26;     /* #1a1a1a */
+  --c-ink-deep:  0 0 0;
+  --c-charcoal:  55 53 47;
+  --c-slate:     93 91 84;
+  --c-steel:     120 118 113;
+  --c-stone:     164 160 151;
+  --c-muted:     187 184 177;
+}
+
+/* ── Dark theme ────────────────────────────────────────────────────────────── */
+html.dark {
+  color-scheme: dark;
+  --c-canvas:        15 18 30;     /* deep navy-charcoal */
+  --c-canvas-deep:   10 12 22;
+  --c-surface:       22 26 42;
+  --c-surface-soft:  18 22 36;
+  --c-surface-card:  26 32 50;
+  --c-surface-strong:32 40 60;
+
+  --c-hairline:        50 60 80;
+  --c-hairline-soft:   38 46 64;
+  --c-hairline-strong: 78 90 116;
+
+  --c-ink:       240 240 245;
+  --c-ink-deep:  255 255 255;
+  --c-charcoal:  220 220 226;
+  --c-slate:     180 182 192;
+  --c-steel:     150 154 168;
+  --c-stone:     120 124 140;
+  --c-muted:     100 104 120;
 }
 
 html, body, #root {
   height: 100%;
-  background: #ffffff;
-  color: #1a1a1a;
+  background: rgb(var(--c-canvas));
+  color: rgb(var(--c-ink));
 }
 
 body {
@@ -17,16 +59,13 @@ body {
   font-feature-settings: "ss01", "cv11";
 }
 
-/* Brand-decorated dots used in the hero band. */
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 9999px; }
 
-/* Hairline helpers — match Tailwind tokens defined in tailwind.config.ts. */
-.hair        { border-color: #e5e3df; }
-.hair-soft   { border-color: #ede9e4; }
-.hair-strong { border-color: #c8c4be; }
+.hair        { border-color: rgb(var(--c-hairline)); }
+.hair-soft   { border-color: rgb(var(--c-hairline-soft)); }
+.hair-strong { border-color: rgb(var(--c-hairline-strong)); }
 
-/* Custom scrollbar — light, narrow. */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #f6f5f4; }
-::-webkit-scrollbar-thumb { background: #c8c4be; border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #a4a097; }
+::-webkit-scrollbar-track { background: rgb(var(--c-surface)); }
+::-webkit-scrollbar-thumb { background: rgb(var(--c-hairline-strong)); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-stone)); }
