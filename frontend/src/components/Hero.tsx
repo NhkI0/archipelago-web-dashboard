@@ -13,11 +13,25 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
   const pct = totalLocations > 0 ? (100 * totalChecked) / totalLocations : 0;
   return (
     <section className="relative overflow-hidden bg-brand-navy text-onDark">
+      {/* leEm portrait — pinned to the right edge, mirrored, with a left-side fade into the navy */}
+      <img
+        src="/leEm.png"
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-0 z-0 h-full select-none opacity-40"
+        style={{
+          objectFit: "contain",
+          objectPosition: "right center",
+          transform: "scaleX(-1)",
+          WebkitMaskImage: "linear-gradient(to left, transparent 0%, rgba(0,0,0,0.35) 30%, #000 70%)",
+          maskImage:       "linear-gradient(to left, transparent 0%, rgba(0,0,0,0.35) 30%, #000 70%)",
+        }}
+      />
       {/* Sticky-note dot decorations */}
       <Decoration />
-      <div className="relative mx-auto max-w-[1200px] px-6 py-20 lg:py-28">
+      <div className="relative z-10 mx-auto max-w-[1200px] px-6 py-20 lg:py-28">
         <div className="text-caption-up uppercase text-brand-purple-300">{t("hero.kicker")}</div>
-        <h1 className="mt-4 text-display-mega text-onDark">{seed || "—"}</h1>
+        <h1 className="mt-4 text-display-mega text-onDark">ArchipelaGoats</h1>
         <p className="mt-5 max-w-xl text-subtitle text-onDarkMuted">{t("hero.intro")}</p>
 
         {/* Workspace-mockup-card breaking out of the navy band */}

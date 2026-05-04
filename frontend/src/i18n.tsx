@@ -149,7 +149,7 @@ const fr: Dict = {
   "dash.title": "Progression des joueurs",
   "dash.active_n": "{n} actifs",
   "deaths.kicker": "Classement des morts",
-  "deaths.title": "Échecs les plus spectaculaires",
+  "deaths.title": "Noobs Of All Time",
   "deaths.contenders": "{n} candidat{plural}",
 
   "slot.online": "en ligne",
