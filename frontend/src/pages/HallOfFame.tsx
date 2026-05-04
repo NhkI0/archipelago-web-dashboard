@@ -46,14 +46,15 @@ export default function HallOfFame() {
               onClick={() => setOpen(e)}
               className="group block w-full overflow-hidden rounded-lg border hair bg-canvas text-left transition-colors duration-300 hover:shadow-card"
             >
-              <img
-                src={`/hall-of-fame/${e.file}`}
-                alt={e.title || `${t("hof.by")} ${e.artist}`}
-                className="block w-full bg-surface object-cover transition-opacity group-hover:opacity-95"
-                style={{ aspectRatio: "auto" }}
-                loading="lazy"
-              />
-              <div className="p-4">
+              <div className="flex items-center justify-center bg-surface" style={{ aspectRatio: "3 / 4" }}>
+                <img
+                  src={`/hall-of-fame/${e.file}`}
+                  alt={e.title || `${t("hof.by")} ${e.artist}`}
+                  className="max-h-full max-w-full object-contain transition-opacity group-hover:opacity-95"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-4 text-center">
                 {e.title && <div className="text-title-sm text-ink">{e.title}</div>}
                 <div className="mt-1 text-body-sm text-slate">
                   <span className="text-stone">{t("hof.by")} </span>
