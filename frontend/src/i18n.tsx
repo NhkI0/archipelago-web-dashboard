@@ -122,7 +122,7 @@ const en: Dict = {
 
   // Hall of Fame
   "hof.kicker": "Hall of Fame",
-  "hof.title": "Player art",
+  "hof.title": "Your masterclasses",
   "hof.intro": "Because I love yall and you are super funny and talented <3.",
   "hof.empty": "Nothing here yet.",
   "hof.by": "by",
