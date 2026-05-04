@@ -19,7 +19,7 @@ export default function TopNav() {
     <header className="sticky top-0 z-30 h-16 border-b hair bg-canvas/95 backdrop-blur transition-colors duration-300">
       <div className="mx-auto flex h-full max-w-[1200px] items-center px-6">
         <Link to="/" className="flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white font-bold">A</span>
+          <img src="/favicon.ico" alt="" aria-hidden className="h-7 w-7 rounded-md" />
           <span className="font-semibold tracking-tight text-ink">{t("nav.brand")}</span>
         </Link>
         <nav className="ml-10 flex items-center gap-7">
