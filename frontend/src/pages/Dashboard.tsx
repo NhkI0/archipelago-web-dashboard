@@ -40,10 +40,10 @@ export default function Dashboard() {
       />
       <section className="mx-auto max-w-[1200px] px-6 pt-section">
         <div className="mb-10 text-center">
-          <div className="text-caption-up uppercase text-primary">Multiworld map</div>
-          <h2 className="mt-2 text-display-md text-ink">A constellation of {snap.slots.length} players</h2>
+          <div className="text-caption-up uppercase text-primary">{t("constellation.kicker")}</div>
+          <h2 className="mt-2 text-display-md text-ink">{t("constellation.title", { n: snap.slots.length })}</h2>
           <p className="mx-auto mt-3 max-w-xl text-body-md text-slate">
-            Each avatar is a player; each thread is an item that has been hinted between two of their worlds.
+            {t("constellation.intro")}
           </p>
         </div>
         <Constellation

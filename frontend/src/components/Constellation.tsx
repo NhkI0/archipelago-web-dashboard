@@ -158,15 +158,13 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         {hoveredSlot ? (
           <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
             <Field label={t("nav.slot")} value={hoveredSlot.name} />
-            <Field label="game" value={hoveredSlot.game} />
+            <Field label={t("constellation.field.game")} value={hoveredSlot.game} />
             <Field label={t("slot.progress")} value={`${hoveredSlot.percent.toFixed(1)}%`} />
             <Field label={t("hints.subtab.mine_in")} value={String(hoveredOutgoing.length)} />
             <Field label={t("hints.subtab.mine_for")} value={String(hoveredIncoming.length)} />
           </div>
         ) : (
-          <div className="text-steel italic">
-            Hover a player to highlight their hint threads · click to open the detail page.
-          </div>
+          <div className="text-steel italic">{t("constellation.hover_hint")}</div>
         )}
       </div>
 
