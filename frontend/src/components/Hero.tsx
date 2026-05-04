@@ -18,7 +18,7 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
         src="/leEm.png"
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 z-0 h-full select-none opacity-40"
+        className="pointer-events-none absolute inset-y-0 right-0 z-0 h-full select-none opacity-20 sm:opacity-40"
         style={{
           objectFit: "contain",
           objectPosition: "right center",
@@ -29,13 +29,13 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
       />
       {/* Sticky-note dot decorations */}
       <Decoration />
-      <div className="relative z-10 mx-auto max-w-[1200px] px-6 py-20 lg:py-28">
+      <div className="relative z-10 mx-auto max-w-[1200px] px-4 sm:px-6 py-12 sm:py-20 lg:py-28">
         <div className="text-caption-up uppercase text-brand-purple-300">{t("hero.kicker")}</div>
-        <h1 className="mt-4 text-display-mega text-onDark">ArchipelaGoats</h1>
-        <p className="mt-5 max-w-xl text-subtitle text-onDarkMuted">{t("hero.intro")}</p>
+        <h1 className="mt-4 text-display-md sm:text-display-xl lg:text-display-mega text-onDark">ArchipelaGoats</h1>
+        <p className="mt-5 max-w-xl text-body-md sm:text-subtitle text-onDarkMuted">{t("hero.intro")}</p>
 
         {/* Workspace-mockup-card breaking out of the navy band */}
-        <div className="mt-12 rounded-lg border hair bg-canvas p-6 shadow-mockup">
+        <div className="mt-8 sm:mt-12 rounded-lg border hair bg-canvas p-4 sm:p-6 shadow-mockup">
           <div className="mb-4 flex items-center gap-1.5">
             <span className="dot bg-semantic-error/70" />
             <span className="dot bg-brand-yellow" />

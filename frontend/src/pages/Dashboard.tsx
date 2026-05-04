@@ -26,7 +26,7 @@ export default function Dashboard() {
   }, []);
 
   if (!snap) {
-    return <div className="mx-auto max-w-[1200px] px-6 py-section text-slate">{t("common.loading")}</div>;
+    return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-section text-slate">{t("common.loading")}</div>;
   }
 
   return (
@@ -38,10 +38,10 @@ export default function Dashboard() {
         slots={snap.slots.length}
         hints={snap.hints.filter((h) => !h.found).length}
       />
-      <section className="mx-auto max-w-[1200px] px-6 pt-section">
-        <div className="mb-10 text-center">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pt-12 sm:pt-section">
+        <div className="mb-8 sm:mb-10 text-center">
           <div className="text-caption-up uppercase text-primary">{t("constellation.kicker")}</div>
-          <h2 className="mt-2 text-display-md text-ink">{t("constellation.title", { n: snap.slots.length })}</h2>
+          <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("constellation.title", { n: snap.slots.length })}</h2>
           <p className="mx-auto mt-3 max-w-xl text-body-md text-slate">
             {t("constellation.intro")}
           </p>
@@ -54,11 +54,11 @@ export default function Dashboard() {
         />
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-6 py-section">
-        <div className="mb-8 flex items-end justify-between">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 sm:py-section">
+        <div className="mb-6 sm:mb-8 flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="text-caption-up uppercase text-primary">{t("dash.kicker")}</div>
-            <h2 className="mt-2 text-display-md text-ink">{t("dash.title")}</h2>
+            <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("dash.title")}</h2>
           </div>
           <div className="text-body-sm text-steel">{t("dash.active_n", { n: snap.slots.length })}</div>
         </div>
@@ -68,11 +68,11 @@ export default function Dashboard() {
       </section>
 
       {deaths?.available && deaths.rows.length > 0 && (
-        <section className="mx-auto max-w-[1200px] px-6 pb-section">
-          <div className="mb-6 flex items-end justify-between">
+        <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pb-12 sm:pb-section">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="text-caption-up uppercase text-brand-orange">{t("deaths.kicker")}</div>
-              <h2 className="mt-2 text-display-md text-ink">{t("deaths.title")}</h2>
+              <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("deaths.title")}</h2>
             </div>
             <div className="text-body-sm text-steel">
               {t("deaths.contenders", { n: deaths.rows.length, plural: deaths.rows.length === 1 ? "" : "s" })}

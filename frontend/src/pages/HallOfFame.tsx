@@ -26,10 +26,10 @@ export default function HallOfFame() {
   }, [open]);
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-section">
-      <header className="mb-10 text-center">
+    <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 sm:py-section">
+      <header className="mb-8 sm:mb-10 text-center">
         <div className="text-caption-up uppercase text-primary">{t("hof.kicker")}</div>
-        <h1 className="mt-2 text-display-md text-ink">{t("hof.title")}</h1>
+        <h1 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("hof.title")}</h1>
         <p className="mx-auto mt-3 max-w-xl text-body-md text-slate">{t("hof.intro")}</p>
       </header>
 

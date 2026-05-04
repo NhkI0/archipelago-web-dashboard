@@ -12,8 +12,8 @@ import { ThemeProvider } from "./theme";
 function Footer() {
   const { t } = useT();
   return (
-    <footer className="border-t hair bg-canvas px-12 py-12 text-body text-body-sm transition-colors duration-300">
-      <div className="mx-auto max-w-[1200px] flex justify-between">
+    <footer className="border-t hair bg-canvas px-4 sm:px-12 py-8 sm:py-12 text-body text-body-sm transition-colors duration-300">
+      <div className="mx-auto max-w-[1200px] flex flex-col sm:flex-row sm:justify-between gap-2 text-center sm:text-left">
         <span className="text-steel">{t("footer.left")}</span>
         <span className="text-steel">{t("footer.right")}</span>
       </div>

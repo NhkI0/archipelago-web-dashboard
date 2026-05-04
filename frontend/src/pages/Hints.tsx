@@ -71,7 +71,7 @@ export default function Hints() {
   }, [snap, me, detail, hintFilter, hideFound, search]);
 
   if (me === null || snap === null) {
-    return <div className="mx-auto max-w-[1200px] px-6 py-12 text-slate">{t("common.loading")}</div>;
+    return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 text-slate">{t("common.loading")}</div>;
   }
 
   if (!me.logged_in) {
@@ -136,11 +136,11 @@ export default function Hints() {
   }
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-12">
+    <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12">
       <header className="flex flex-wrap items-end gap-6 border-b hair pb-8">
         <div>
           <div className="text-caption-up uppercase text-primary">{t("hints.kicker")}</div>
-          <h1 className="mt-2 text-display-md text-ink">{me.slot}</h1>
+          <h1 className="mt-2 text-display-sm sm:text-display-md text-ink">{me.slot}</h1>
         </div>
         <div className="ml-auto flex flex-wrap items-end gap-x-8 gap-y-3 text-body-sm">
           <Stat label={t("slot.hint_pts")} value={String(me.hint_points)} />
@@ -159,7 +159,7 @@ export default function Hints() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("hints.filter.placeholder")}
-          className="ml-auto h-10 w-64 rounded-md border hair-strong bg-surface px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2 focus:bg-canvas transition-colors duration-300"
+          className="w-full sm:ml-auto sm:w-64 h-10 rounded-md border hair-strong bg-surface px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2 focus:bg-canvas transition-colors duration-300"
         />
       </div>
 
@@ -229,7 +229,7 @@ export default function Hints() {
                 onChange={setHideFound}
               />
             </div>
-            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
+            <div className="hidden sm:grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
               <div>{t("hints.col.item")}</div>
               <div>{t("hints.col.location")}</div>
               <div>{t("hints.col.parties")}</div>
@@ -242,12 +242,12 @@ export default function Hints() {
                 return (
                   <li
                     key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
-                    className="grid grid-cols-[1fr_1fr_auto_auto] items-center gap-x-4 px-4 py-3 text-body-sm"
+                    className="flex flex-col gap-1 px-4 py-3 text-body-sm sm:grid sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center sm:gap-x-4 sm:gap-y-0"
                   >
                     <span className="text-ink font-medium">{h.item_name}</span>
-                    <span className="text-slate">{h.location_name}</span>
-                    <span className="text-steel tabular-nums">{finder} → {receiver}</span>
-                    <span className={`inline-flex h-6 items-center rounded-pill px-2.5 text-caption-up uppercase ${
+                    <span className="text-slate break-words">{h.location_name}</span>
+                    <span className="text-steel tabular-nums text-caption sm:text-body-sm">{finder} → {receiver}</span>
+                    <span className={`self-start sm:self-auto inline-flex h-6 items-center rounded-pill px-2.5 text-caption-up uppercase ${
                       h.found ? "bg-card-mint text-brand-green" : "bg-card-gray text-steel"
                     }`}>
                       {h.found ? t("slot.status.found") : t("slot.status.open")}

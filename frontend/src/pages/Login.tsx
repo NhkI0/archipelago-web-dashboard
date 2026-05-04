@@ -29,8 +29,8 @@ export default function Login() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-6 py-section">
-      <div className="rounded-lg border hair bg-canvas p-10 transition-colors duration-300">
+    <div className="mx-auto max-w-md px-4 sm:px-6 py-12 sm:py-section">
+      <div className="rounded-lg border hair bg-canvas p-6 sm:p-10 transition-colors duration-300">
         <div className="text-caption-up uppercase text-primary">{t("login.kicker")}</div>
         <h1 className="mt-3 text-display-sm text-ink">{t("login.title")}</h1>
         <p className="mt-2 text-body-sm text-slate">{t("login.body")}</p>

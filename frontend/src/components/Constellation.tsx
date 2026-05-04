@@ -98,7 +98,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         </svg>
 
         {/* Centre medallion */}
-        <div className="absolute left-1/2 top-1/2 z-10 w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl border hair bg-canvas p-5 text-center shadow-mockup transition-colors duration-300">
+        <div className="absolute left-1/2 top-1/2 z-10 w-36 sm:w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl border hair bg-canvas p-3 sm:p-5 text-center shadow-mockup transition-colors duration-300">
           <div className="text-caption-up uppercase text-primary">{t("dash.kicker")}</div>
           <div className="mt-1 text-display-sm text-ink tabular-nums tracking-tight">{totalPct.toFixed(1)}%</div>
           <div className="mt-1 font-mono text-caption text-steel tabular-nums">
@@ -122,17 +122,16 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
               to={`/slot/${encodeURIComponent(s.name)}`}
               onMouseEnter={() => setHover(s.slot)}
               onMouseLeave={() => setHover(null)}
-              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 text-center"
+              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 text-center w-[88px] sm:w-[148px]"
               style={{
                 left: `${x}%`,
                 top: `${y}%`,
-                width: 148,
                 opacity: dimmed ? 0.35 : 1,
                 transition: "opacity 200ms ease, transform 200ms ease",
               }}
             >
-              <div className={`relative mx-auto inline-flex h-[72px] w-[72px] items-center justify-center rounded-pill ${tint} border-4 border-canvas font-semibold text-charcoal shadow-mockup transition-colors duration-300`}>
-                <GameIcon game={s.game} size={36} />
+              <div className={`relative mx-auto inline-flex h-12 w-12 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-pill ${tint} border-4 border-canvas font-semibold text-charcoal shadow-mockup transition-colors duration-300`}>
+                <GameIcon game={s.game} size={24} />
                 <span
                   className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas ${s.online ? "bg-semantic-success" : "bg-stone"}`}
                   aria-label={s.online ? t("slot.online") : t("slot.offline")}

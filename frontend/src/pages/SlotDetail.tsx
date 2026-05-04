@@ -39,20 +39,20 @@ export default function SlotDetail() {
   }, [data, filter, search, hintedLocIds]);
 
   if (!data) {
-    return <div className="mx-auto max-w-[1200px] px-6 py-12 text-slate">{t("common.loading")}</div>;
+    return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 text-slate">{t("common.loading")}</div>;
   }
 
   const s = data.slot;
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-12">
+    <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12">
       <Link to="/" className="text-body-sm text-steel hover:text-ink">{t("slot.back")}</Link>
 
       <header className="mt-4 flex flex-wrap items-end gap-6 border-b hair pb-8">
         <div>
           <div className="flex items-center gap-3">
             <span className={`h-2.5 w-2.5 rounded-pill ${s.online ? "bg-semantic-success" : "bg-stone"}`} />
-            <h1 className="text-display-md text-ink">{s.name}</h1>
+            <h1 className="text-display-sm sm:text-display-md text-ink break-words">{s.name}</h1>
             {s.goal_completed && <BadgePill tone="success">{t("slot.goal")}</BadgePill>}
           </div>
           <div className="mt-1 flex items-center gap-2 font-mono text-body-sm text-slate">
@@ -82,7 +82,7 @@ export default function SlotDetail() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("slot.search_locations")}
-              className="ml-auto h-10 rounded-md border hair-strong bg-canvas px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2"
+              className="w-full sm:ml-auto sm:w-auto h-10 rounded-md border hair-strong bg-canvas px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2"
             />
           </div>
 
