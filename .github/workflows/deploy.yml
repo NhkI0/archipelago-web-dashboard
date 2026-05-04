@@ -74,4 +74,5 @@ jobs:
               "$VENV/bin/pip" install --upgrade pip
             fi
             "$VENV/bin/pip" install -r $WEB_DIR/server/requirements.txt
+            tmux kill-session -t archipelago-web 2>/dev/null || true
             $WEB_DIR/scripts/start.sh
