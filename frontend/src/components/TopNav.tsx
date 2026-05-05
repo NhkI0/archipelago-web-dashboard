@@ -1,4 +1,4 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, Me } from "../api";
 import { useT } from "../i18n";
@@ -11,10 +11,11 @@ export default function TopNav() {
   const [me, setMe] = useState<Me | null>(null);
   const [open, setOpen] = useState(false);
   const { t, lang, setLang } = useT();
+  const location = useLocation();
 
   useEffect(() => {
     api.me().then(setMe).catch(() => setMe({ logged_in: false }));
-  }, []);
+  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-30 border-b hair bg-canvas/95 backdrop-blur transition-colors duration-300">
