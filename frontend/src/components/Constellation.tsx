@@ -137,7 +137,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                   className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas ${s.online ? "bg-semantic-success" : "bg-stone"}`}
                   aria-label={s.online ? t("slot.online") : t("slot.offline")}
                 />
-                <span className="absolute -bottom-2 -right-2 inline-flex h-6 items-center rounded-pill border-[3px] border-canvas bg-ink px-2 text-caption-up tabular-nums text-white">
+                <span className="absolute -bottom-2 -right-2 inline-flex h-6 items-center rounded-pill border-[3px] border-canvas bg-ink px-2 text-caption-up tabular-nums text-canvas">
                   {s.percent.toFixed(0)}%
                 </span>
               </div>
