@@ -49,7 +49,10 @@ class SessionManager:
         return self._sessions.get(sid)
 
     async def login(self, slot: str, password: str = "", game: str = "") -> Session:
-        ws = await websockets.connect(self.uri, max_size=2**24)
+        try:
+            ws = await websockets.connect(self.uri, max_size=2**24)
+        except (OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException) as e:
+            raise ConnectionError(f"AP server unreachable at {self.uri}: {e}") from e
         await ws.recv()  # RoomInfo
 
         await ws.send(json.dumps([{

@@ -180,6 +180,8 @@ async def api_login(body: LoginBody, response: Response) -> dict[str, Any]:
         sess = await sessions.login(body.slot, body.password, slot_info.game)
     except PermissionError as e:
         raise HTTPException(401, str(e))
+    except ConnectionError as e:
+        raise HTTPException(503, str(e))
     response.set_cookie(
         "ap_session",
         sess.sid,
