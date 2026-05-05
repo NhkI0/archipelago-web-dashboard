@@ -270,7 +270,7 @@ export default function Hints() {
       {confirm && (() => {
         const total = detail?.slot.total ?? 0;
         const pct = snap.hint_cost ?? 10;
-        const cost = Math.max(1, Math.ceil((pct / 100) * total));
+        const cost = Math.ceil((pct / 100) * total);
         const enough = me.hint_points >= cost;
         return (
           <div
