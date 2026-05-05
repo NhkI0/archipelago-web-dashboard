@@ -139,4 +139,18 @@ body {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: rgb(var(--c-surface)); }
 ::-webkit-scrollbar-thumb { background: rgb(var(--c-hairline-strong)); border-radius: 9999px; }
+
+/* Marquee for overflowing labels */
+@keyframes mq-scroll {
+  0%, 10%   { transform: translateX(0); }
+  45%, 55%  { transform: translateX(var(--mq-shift, 0)); }
+  90%, 100% { transform: translateX(0); }
+}
+.mq-anim {
+  animation: mq-scroll var(--mq-duration, 8s) linear infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mq-anim { animation: none; }
+}
 ::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-stone)); }

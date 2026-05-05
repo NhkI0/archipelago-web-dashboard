@@ -3,6 +3,7 @@ import { Slot } from "../api";
 import ProgressBar from "./ProgressBar";
 import BadgePill from "./BadgePill";
 import GameIcon from "./GameIcon";
+import MarqueeText from "./MarqueeText";
 import { useT } from "../i18n";
 
 const TINTS = [
@@ -23,13 +24,13 @@ export default function SlotCard({ slot }: { slot: Slot }) {
       to={`/slot/${encodeURIComponent(slot.name)}`}
       className="group block rounded-lg border hair bg-canvas p-6 transition-colors duration-300 hover:shadow-card"
     >
-      <div className={`mb-4 inline-flex items-center gap-2 rounded-md ${tint} px-2.5 py-1`}>
+      <div className={`mb-4 inline-flex max-w-full items-center gap-2 rounded-md ${tint} px-2.5 py-1`}>
         <span
-          className={`h-1.5 w-1.5 rounded-pill ${slot.online ? "bg-semantic-success" : "bg-stone"}`}
+          className={`h-1.5 w-1.5 shrink-0 rounded-pill ${slot.online ? "bg-semantic-success" : "bg-stone"}`}
           aria-label={slot.online ? t("slot.online") : t("slot.offline")}
         />
-        <GameIcon game={slot.game} size={16} />
-        <span className="font-mono text-caption text-tintInk truncate">{slot.game}</span>
+        <span className="shrink-0"><GameIcon game={slot.game} size={16} /></span>
+        <MarqueeText className="font-mono text-caption text-tintInk">{slot.game}</MarqueeText>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-title-sm text-ink truncate">{slot.name}</span>

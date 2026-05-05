@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Hint, Slot } from "../api";
 import { useT } from "../i18n";
 import GameIcon from "./GameIcon";
+import MarqueeText from "./MarqueeText";
 
 const TINTS = [
   "bg-card-peach",
@@ -141,7 +142,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                 </span>
               </div>
               <div className="mt-3 text-body-sm font-medium text-ink truncate">{s.name}</div>
-              <div className="font-mono text-caption text-steel truncate">{s.game}</div>
+              <MarqueeText className="font-mono text-caption text-steel">{s.game}</MarqueeText>
               {s.goal_completed && (
                 <div className="mt-1 inline-block rounded-pill bg-semantic-success px-2 py-[1px] text-caption-up uppercase text-white">
                   {t("slot.goal")}
