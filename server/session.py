@@ -110,13 +110,24 @@ class SessionManager:
         else:
             return {"ok": False, "error": f"unknown hint kind {kind!r}"}
 
+        log.info("send_hint sid=%s slot=%s -> %r (hp=%d)", sid[:8], sess.slot, cmd, sess.hint_points)
         await sess.ws.send(json.dumps([{"cmd": "Say", "text": cmd}]))
-        # Wait briefly for a PrintJSON reply addressed to us.
-        try:
-            reply = await asyncio.wait_for(sess.inbox.get(), timeout=4)
-        except asyncio.TimeoutError:
+        # Drain any replies that arrive within a window — AP often emits
+        # several PrintJSON lines (chat echo, error, hint result).
+        replies: list[str] = []
+        deadline = asyncio.get_event_loop().time() + 4
+        while True:
+            remaining = deadline - asyncio.get_event_loop().time()
+            if remaining <= 0:
+                break
+            try:
+                replies.append(await asyncio.wait_for(sess.inbox.get(), timeout=remaining))
+            except asyncio.TimeoutError:
+                break
+        log.info("send_hint sid=%s replies=%r", sid[:8], replies)
+        if not replies:
             return {"ok": True, "queued": True}
-        return {"ok": True, "reply": reply}
+        return {"ok": True, "reply": replies[-1], "all": replies}
 
     async def _pump(self, sess: Session) -> None:
         try:
@@ -140,10 +151,13 @@ class SessionManager:
                             for p in (packet.get("data") or [])
                         )
                         sess.last_text = text
+                        log.info("session %s PrintJSON type=%s text=%r", sess.sid[:8], packet.get("type"), text)
                         try:
                             sess.inbox.put_nowait(text)
                         except asyncio.QueueFull:
                             pass
+                    else:
+                        log.debug("session %s packet cmd=%s", sess.sid[:8], cmd)
         except Exception as e:
             log.info("session %s closed: %s", sess.sid[:8], e)
         finally:
