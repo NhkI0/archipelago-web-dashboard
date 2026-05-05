@@ -4,14 +4,12 @@ type Props = {
   children: string;
   className?: string;
   speedPxPerSec?: number;
-  pausePerEndMs?: number;
 };
 
 export default function MarqueeText({
   children,
   className,
-  speedPxPerSec = 40,
-  pausePerEndMs = 1200,
+  speedPxPerSec = 18,
 }: Props) {
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const innerRef = useRef<HTMLSpanElement | null>(null);
@@ -35,9 +33,10 @@ export default function MarqueeText({
   }, [children]);
 
   const animating = shift > 0;
+  // Travel occupies 25% of each cycle (see mq-scroll keyframe in theme.css);
+  // the remaining 75% is split into a long start pause and a short end pause.
   const travelSec = animating ? shift / speedPxPerSec : 0;
-  const pauseSec = (pausePerEndMs / 1000) * 2;
-  const duration = animating ? travelSec * 2 + pauseSec : 0;
+  const duration = animating ? travelSec / 0.25 : 0;
 
   const style: CSSProperties = animating
     ? ({

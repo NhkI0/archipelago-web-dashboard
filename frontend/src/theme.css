@@ -142,9 +142,9 @@ body {
 
 /* Marquee for overflowing labels */
 @keyframes mq-scroll {
-  0%, 10%   { transform: translateX(0); }
-  45%, 55%  { transform: translateX(var(--mq-shift, 0)); }
-  90%, 100% { transform: translateX(0); }
+  0%, 25%   { transform: translateX(0); }
+  50%, 58%  { transform: translateX(var(--mq-shift, 0)); }
+  83%, 100% { transform: translateX(0); }
 }
 .mq-anim {
   animation: mq-scroll var(--mq-duration, 8s) linear infinite;
