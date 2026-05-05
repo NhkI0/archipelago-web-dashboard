@@ -85,6 +85,7 @@ export const GAME_EMOJI: Record<string, string> = {
   // Indies & modern
   "Hollow Knight": "🦋",
   "Celeste": "🏔️",
+  "Celeste (Open World)": "🏔️",
   "Stardew Valley": "🌽",
   "Terraria": "⛏️",
   "Minecraft": "🟫",
@@ -114,6 +115,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Adventure": "🐉",
   "Yacht Dice": "🎲",
   "Hatsune Miku Project Diva Mega Mix+": "🎤",
+  "Clair Obscur Expedition 33": "🥀",
 
   // Doom / Retro shooters
   "DOOM 1993": "👹",
@@ -131,6 +133,18 @@ export const GAME_EMOJI: Record<string, string> = {
 
 const FALLBACK_EMOJI = "🎮";
 
+/*
+Examples:
+slugify("Subnautica")                -> "subnautica"
+slugify("A Link to the Past")        -> "a-link-to-the-past"
+slugify("Majora's Mask Recompiled")  -> "majoras-mask-recompiled"
+slugify("Pokemon Red and Blue")      -> "pokemon-red-and-blue"
+slugify("Sonic Adventure 2: Battle") -> "sonic-adventure-2-battle"
+slugify("DOOM 1993")                 -> "doom-1993"
+slugify("Paper Mario: TTYD")         -> "paper-mario-ttyd"
+slugify("Pokémon Crystal")           -> "pokemon-crystal"   (diacritic stripped)
+slugify("  Hollow   Knight  ")       -> "hollow-knight"     (whitespace collapsed)
+*/
 export function slugify(game: string): string {
   return game
     .toLowerCase()
