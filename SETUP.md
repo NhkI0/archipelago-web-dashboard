@@ -197,14 +197,14 @@ tail -f /tmp/ap_web.log
 tmux attach -t archipelago-web
 ```
 
-### When you regenerate the multiworld
-The dashboard parses `latest.archipelago` **once at boot**. After
-`scripts/regenerate.sh` produces a new world, restart the web service so it
-picks up the new totals/names:
+### When you launch a new multiworld
+The dashboard parses `latest.archipelago` **once at boot**. World generation
+now happens locally; once the new zip is uploaded to
+`/opt/archipelago/output/latest.zip`, run:
 ```bash
-/opt/archipelago/web/scripts/start.sh
+/opt/archipelago/scripts/start.sh
 ```
-Add this line to the bottom of `regenerate.sh` if you want it automatic.
+That script already restarts this dashboard, so no separate step is needed.
 
 ### When players need to hint
 1. They visit `https://play.nguengant.fr/login`
