@@ -46,7 +46,7 @@ export default function TopNav() {
                 <span className="text-ink font-medium tabular-nums">{me.hint_points}</span>
               </span>
               <button
-                onClick={async () => { await api.logout(); location.reload(); }}
+                onClick={async () => { await api.logout(); window.location.reload(); }}
                 className="hidden sm:inline-flex h-9 items-center rounded-md border hair-strong bg-canvas px-4 text-btn text-ink hover:bg-surface transition-colors duration-300"
               >
                 {t("nav.signout")}
@@ -98,7 +98,7 @@ export default function TopNav() {
                   <span className="text-ink font-medium tabular-nums">{me.hint_points}</span>
                 </span>
                 <button
-                  onClick={async () => { await api.logout(); location.reload(); }}
+                  onClick={async () => { await api.logout(); window.location.reload(); }}
                   className="h-9 self-start rounded-md border hair-strong bg-canvas px-4 text-btn text-ink hover:bg-surface"
                 >
                   {t("nav.signout")}
