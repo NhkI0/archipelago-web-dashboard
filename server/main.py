@@ -32,7 +32,33 @@ AP_HOST = os.environ.get("AP_HOST", "localhost")
 AP_PORT = int(os.environ.get("AP_PORT", "38281"))
 AP_FILE = os.environ.get("AP_FILE", "/opt/archipelago/output/latest.archipelago")
 AP_TRACKER_SLOT = os.environ.get("AP_TRACKER_SLOT", "DeathTracker")
+AP_HOST_YAML = os.environ.get("AP_HOST_YAML", "/opt/archipelago/host.yaml")
 DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
+
+
+def _read_hint_cost_from_host_yaml(path: str) -> int | None:
+    """Parse `server_options.hint_cost` (a percent) from Archipelago's host.yaml.
+
+    Tiny ad-hoc YAML parse: we only need a single integer scalar under a known
+    section, so avoiding a PyYAML dependency keeps the web service slim.
+    """
+    try:
+        with open(path, encoding="utf-8") as fp:
+            in_server_options = False
+            for line in fp:
+                stripped = line.split("#", 1)[0].rstrip()
+                if not stripped:
+                    continue
+                if not line.startswith((" ", "\t")):
+                    in_server_options = stripped.rstrip(":") == "server_options"
+                    continue
+                if in_server_options and ":" in stripped:
+                    key, _, value = stripped.strip().partition(":")
+                    if key.strip() == "hint_cost":
+                        return int(value.strip())
+    except (OSError, ValueError):
+        return None
+    return None
 
 STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).parent.parent / "frontend" / "dist"))
 
@@ -41,6 +67,12 @@ STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).pare
 
 multidata = load_multidata(AP_FILE)
 world = WorldState(multidata)
+_hc = _read_hint_cost_from_host_yaml(AP_HOST_YAML)
+if _hc is not None:
+    world.hint_cost = _hc
+    log.info("hint_cost = %d%% (from %s)", _hc, AP_HOST_YAML)
+else:
+    log.warning("could not read hint_cost from %s; using default %d%%", AP_HOST_YAML, world.hint_cost)
 tracker = Tracker(world, host=AP_HOST, port=AP_PORT, slot_name=AP_TRACKER_SLOT)
 sessions = SessionManager(host=AP_HOST, port=AP_PORT)
 

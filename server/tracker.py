@@ -70,15 +70,7 @@ class Tracker:
                 delay = min(delay * 2, 60)
 
     async def _connect(self, ws: "websockets.WebSocketClientProtocol") -> None:
-        # RoomInfo carries the server's current hint_cost percentage — apply it
-        # so a regenerated world with different hint settings is picked up.
-        room_info_raw = await ws.recv()
-        try:
-            for packet in json.loads(room_info_raw):
-                if packet.get("cmd") == "RoomInfo":
-                    self.state.apply_room_update(packet)
-        except (ValueError, TypeError):
-            pass
+        await ws.recv()  # RoomInfo
         await ws.send(json.dumps([{
             "cmd": "Connect",
             "password": self.password,
