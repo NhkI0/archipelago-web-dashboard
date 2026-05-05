@@ -27,7 +27,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
     tmux send-keys -t "$SESSION" "$CMD" Enter
 else
     echo "==> Starting $SESSION on port $PORT"
-    tmux new-session -d -s "$SESSION" -x 220 -y 50 \; \
+    tmux new-session -d -s "$SESSION" \; \
         set-option -t "$SESSION" window-size largest \; \
         set-option -t "$SESSION" aggressive-resize on \; \
         send-keys -t "$SESSION" "$CMD 2>&1 | tee /tmp/ap_web.log" Enter
