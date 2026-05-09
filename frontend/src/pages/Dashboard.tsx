@@ -37,6 +37,8 @@ export default function Dashboard() {
         totalLocations={snap.totals.total_locations}
         slots={snap.slots.length}
         hints={snap.hints.filter((h) => !h.found).length}
+        hintsFound={snap.hints.filter((h) => h.found).length}
+        latestHint={snap.hints.length > 0 ? snap.hints[snap.hints.length - 1].item_name : null}
       />
       <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pt-12 sm:pt-section">
         <div className="mb-8 sm:mb-10 text-center">

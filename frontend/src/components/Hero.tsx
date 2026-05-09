@@ -6,9 +6,11 @@ type Props = {
   totalLocations: number;
   slots: number;
   hints: number;
+  hintsFound: number;
+  latestHint: string | null;
 };
 
-export default function Hero({ seed, totalChecked, totalLocations, slots, hints }: Props) {
+export default function Hero({ seed, totalChecked, totalLocations, slots, hints, hintsFound, latestHint }: Props) {
   const { t } = useT();
   const pct = totalLocations > 0 ? (100 * totalChecked) / totalLocations : 0;
   return (
@@ -53,8 +55,8 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints 
             </Pane>
             <Pane label={t("hero.pane.hints")} tint="peach">
               <Line label={t("hero.field.open")} value={String(hints)} />
-              <Line label="$ hint" value="<item>" mono />
-              <Line label="$ hint_location" value="<loc>" mono />
+              <Line label={t("hero.field.found")} value={String(hintsFound)} />
+              <Line label={t("hero.field.latest")} value={latestHint ?? "—"} />
             </Pane>
             <Pane label={t("hero.pane.server")} tint="sky">
               <div className="text-body-sm text-semantic-success font-medium">{t("hero.field.running")}</div>
