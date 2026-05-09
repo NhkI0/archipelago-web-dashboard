@@ -116,6 +116,9 @@ export const GAME_EMOJI: Record<string, string> = {
   "Yacht Dice": "🎲",
   "Hatsune Miku Project Diva Mega Mix+": "🎤",
   "Clair Obscur Expedition 33": "🥀",
+  "Slime Rancher": "💩",
+  "Undertale": "💀",
+  "Monster Hunter World": "🐉",
 
   // Doom / Retro shooters
   "DOOM 1993": "👹",
