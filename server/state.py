@@ -181,16 +181,23 @@ class WorldState:
         if changed:
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
 
-    def apply_slot_checks(self, slot_num: int, location_ids: list[int]) -> None:
-        """Replace one slot's checked-set from a per-slot tracker connection.
+    def apply_slot_checks(self, slot_num: int, location_ids: list[int], *, replace: bool) -> None:
+        """Update one slot's checked set.
 
-        AP sends authoritative per-slot `checked_locations` on Connected and on
-        each RoomUpdate to that slot's client; we trust it as the full set.
+        Connected packets carry the *full* current set (replace=True).
+        RoomUpdate packets carry *new* checks only — and AP broadcasts those
+        team-wide, so we filter to IDs that actually belong to this slot's
+        location pool before unioning (replace=False).
         """
         slot = self.slots.get(slot_num)
         if slot is None:
             return
-        new_set = set(int(x) for x in location_ids)
+        ids = set(int(x) for x in location_ids)
+        if replace:
+            new_set = ids
+        else:
+            valid = set(self.multidata.locations.get(slot_num, {}).keys())
+            new_set = slot.checked | (ids & valid)
         if new_set != slot.checked:
             slot.checked = new_set
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
@@ -208,12 +215,16 @@ class WorldState:
             except (TypeError, ValueError):
                 pass
 
-        for p in payload.get("players", []) or []:
-            slot_num = int(p.get("slot", 0))
-            if slot_num in self.slots:
-                online = bool(p.get("status", 0)) or p.get("connected", True) is True
-                if self.slots[slot_num].online != online:
-                    self.slots[slot_num].online = online
+        # AP's RoomUpdate.players is the authoritative full list of currently
+        # connected clients. Anyone listed is online; anyone absent is offline.
+        if "players" in payload:
+            connected_slots = {
+                int(p.get("slot", 0)) for p in (payload.get("players") or [])
+            }
+            for slot_num, slot in self.slots.items():
+                online = slot_num in connected_slots
+                if slot.online != online:
+                    slot.online = online
                     changed = True
 
         if "hint_points" in payload:

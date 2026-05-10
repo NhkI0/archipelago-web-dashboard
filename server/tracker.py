@@ -104,15 +104,14 @@ class _SlotClient:
             cl = packet.get("checked_locations") or []
             log.info("[%s] Connected, initial checks=%d", self.slot_name, len(cl) if isinstance(cl, list) else 0)
             if isinstance(cl, list):
-                self.state.apply_slot_checks(self.slot_num, [int(x) for x in cl])
+                self.state.apply_slot_checks(self.slot_num, [int(x) for x in cl], replace=True)
+            self.state.apply_room_update_meta(packet)
             if self.subscribe_hints and self._ws is not None:
                 await self._subscribe_to_hints(self._ws)
         elif cmd == "RoomUpdate":
             cl = packet.get("checked_locations")
             if isinstance(cl, list):
-                log.info("[%s] RoomUpdate checked=%d", self.slot_name, len(cl))
-                self.state.apply_slot_checks(self.slot_num, [int(x) for x in cl])
-            # Forward goal/online flips & hint_points (these are global).
+                self.state.apply_slot_checks(self.slot_num, [int(x) for x in cl], replace=False)
             self.state.apply_room_update_meta(packet)
         elif cmd == "Retrieved":
             for key, value in (packet.get("keys") or {}).items():
