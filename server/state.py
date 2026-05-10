@@ -181,6 +181,53 @@ class WorldState:
         if changed:
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
 
+    def apply_slot_checks(self, slot_num: int, location_ids: list[int]) -> None:
+        """Replace one slot's checked-set from a per-slot tracker connection.
+
+        AP sends authoritative per-slot `checked_locations` on Connected and on
+        each RoomUpdate to that slot's client; we trust it as the full set.
+        """
+        slot = self.slots.get(slot_num)
+        if slot is None:
+            return
+        new_set = set(int(x) for x in location_ids)
+        if new_set != slot.checked:
+            slot.checked = new_set
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
+    def apply_room_update_meta(self, payload: dict[str, Any]) -> None:
+        """Apply non-check RoomUpdate fields (hint_cost, hint_points, players)."""
+        changed = False
+
+        if "hint_cost" in payload:
+            try:
+                hc = int(payload["hint_cost"])
+                if hc != self.hint_cost:
+                    self.hint_cost = hc
+                    changed = True
+            except (TypeError, ValueError):
+                pass
+
+        for p in payload.get("players", []) or []:
+            slot_num = int(p.get("slot", 0))
+            if slot_num in self.slots:
+                online = bool(p.get("status", 0)) or p.get("connected", True) is True
+                if self.slots[slot_num].online != online:
+                    self.slots[slot_num].online = online
+                    changed = True
+
+        if "hint_points" in payload:
+            hp = payload["hint_points"]
+            if isinstance(hp, dict):
+                for s, v in hp.items():
+                    s = int(s)
+                    if s in self.slots:
+                        self.slots[s].hint_points = int(v)
+                        changed = True
+
+        if changed:
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
     def apply_print_json(self, payload: dict[str, Any]) -> None:
         """Surface hint and goal-completion events to the frontend log."""
         msg_type = payload.get("type", "")
