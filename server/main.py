@@ -36,12 +36,14 @@ AP_HOST_YAML = os.environ.get("AP_HOST_YAML", "/opt/archipelago/host.yaml")
 DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
 
 
-def _read_hint_cost_from_host_yaml(path: str) -> int | None:
-    """Parse `server_options.hint_cost` (a percent) from Archipelago's host.yaml.
+def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
+    """Parse scalars under `server_options:` from Archipelago's host.yaml.
 
-    Tiny ad-hoc YAML parse: we only need a single integer scalar under a known
+    Tiny ad-hoc YAML parse: we only need single-line scalars under a known
     section, so avoiding a PyYAML dependency keeps the web service slim.
+    Values are returned as raw strings; callers cast as needed.
     """
+    out: dict[str, str] = {}
     try:
         with open(path, encoding="utf-8") as fp:
             in_server_options = False
@@ -54,11 +56,20 @@ def _read_hint_cost_from_host_yaml(path: str) -> int | None:
                     continue
                 if in_server_options and ":" in stripped:
                     key, _, value = stripped.strip().partition(":")
-                    if key.strip() == "hint_cost":
-                        return int(value.strip())
-    except (OSError, ValueError):
-        return None
-    return None
+                    out[key.strip()] = value.strip()
+    except OSError:
+        return out
+    return out
+
+
+def _coerce_yaml_scalar(raw: str) -> str:
+    """Strip quotes and turn YAML null sentinels into empty strings."""
+    s = raw.strip()
+    if s.lower() in ("null", "~", ""):
+        return ""
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1]
+    return s
 
 STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).parent.parent / "frontend" / "dist"))
 
@@ -67,13 +78,17 @@ STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).pare
 
 multidata = load_multidata(AP_FILE)
 world = WorldState(multidata)
-_hc = _read_hint_cost_from_host_yaml(AP_HOST_YAML)
-if _hc is not None:
+_server_opts = _read_server_options_from_host_yaml(AP_HOST_YAML)
+try:
+    _hc = int(_server_opts["hint_cost"])
     world.hint_cost = _hc
     log.info("hint_cost = %d%% (from %s)", _hc, AP_HOST_YAML)
-else:
+except (KeyError, ValueError):
     log.warning("could not read hint_cost from %s; using default %d%%", AP_HOST_YAML, world.hint_cost)
-tracker = Tracker(world, host=AP_HOST, port=AP_PORT, slot_name=AP_TRACKER_SLOT)
+AP_PASSWORD = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(_server_opts.get("password", ""))
+if AP_PASSWORD:
+    log.info("server password loaded (%d chars)", len(AP_PASSWORD))
+tracker = Tracker(world, host=AP_HOST, port=AP_PORT, slot_name=AP_TRACKER_SLOT, password=AP_PASSWORD)
 sessions = SessionManager(host=AP_HOST, port=AP_PORT, multidata=multidata)
 
 app = FastAPI(title="Archipelago Web", version="0.1.0")
