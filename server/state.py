@@ -125,62 +125,6 @@ class WorldState:
 
     # ── mutators (called by tracker.py) ───────────────────────────────────────
 
-    def apply_room_update(self, payload: dict[str, Any]) -> None:
-        """RoomUpdate from AP — covers checked_locations, hint_points, players."""
-        changed = False
-
-        if "hint_cost" in payload:
-            try:
-                hc = int(payload["hint_cost"])
-                if hc != self.hint_cost:
-                    self.hint_cost = hc
-                    changed = True
-            except (TypeError, ValueError):
-                pass
-
-        # `checked_locations` arrives as a list[int] for the server view in some
-        # versions; in others it is broken down per slot via `players` updates.
-        # We accept both: a flat list applies to every slot via membership check.
-        # AP's RoomUpdate sends the *incremental* set of newly-checked location
-        # IDs (the Connected packet sends the initial full set). Either way we
-        # UNION into existing checked sets so live updates accumulate.
-        if "checked_locations" in payload:
-            cl = payload["checked_locations"]
-            if isinstance(cl, list):
-                flat = set(int(x) for x in cl)
-                for slot in self.slots.values():
-                    valid = set(self.multidata.locations.get(slot.slot, {}).keys())
-                    additions = (flat & valid) - slot.checked
-                    if additions:
-                        slot.checked |= additions
-                        changed = True
-            elif isinstance(cl, dict):
-                for s, ids in cl.items():
-                    s = int(s)
-                    if s in self.slots:
-                        new_set = set(int(x) for x in ids)
-                        if not new_set.issubset(self.slots[s].checked):
-                            self.slots[s].checked |= new_set
-                            changed = True
-
-        for p in payload.get("players", []) or []:
-            slot_num = int(p.get("slot", 0))
-            if slot_num in self.slots:
-                self.slots[slot_num].online = bool(p.get("status", 0)) or p.get("connected", True) is True
-                changed = True
-
-        if "hint_points" in payload:
-            hp = payload["hint_points"]
-            if isinstance(hp, dict):
-                for s, v in hp.items():
-                    s = int(s)
-                    if s in self.slots:
-                        self.slots[s].hint_points = int(v)
-                        changed = True
-
-        if changed:
-            self._emit({"type": "room_update", "snapshot": self.snapshot()})
-
     def apply_slot_checks(self, slot_num: int, location_ids: list[int], *, replace: bool) -> None:
         """Update one slot's checked set.
 
@@ -202,8 +146,13 @@ class WorldState:
             slot.checked = new_set
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
 
-    def apply_room_update_meta(self, payload: dict[str, Any]) -> None:
-        """Apply non-check RoomUpdate fields (hint_cost, hint_points, players)."""
+    def apply_room_update_meta(self, payload: dict[str, Any], *, owner_slot: int | None = None) -> None:
+        """Apply non-check RoomUpdate fields (hint_cost, hint_points, players).
+
+        `owner_slot` identifies whose connection produced this packet, used to
+        attribute single-int `hint_points` (AP sends it as the connected slot's
+        balance, not a per-slot map).
+        """
         changed = False
 
         if "hint_cost" in payload:
@@ -233,8 +182,21 @@ class WorldState:
                 for s, v in hp.items():
                     s = int(s)
                     if s in self.slots:
-                        self.slots[s].hint_points = int(v)
-                        changed = True
+                        try:
+                            new_hp = int(v)
+                        except (TypeError, ValueError):
+                            continue
+                        if self.slots[s].hint_points != new_hp:
+                            self.slots[s].hint_points = new_hp
+                            changed = True
+            elif owner_slot is not None and owner_slot in self.slots:
+                try:
+                    new_hp = int(hp)
+                except (TypeError, ValueError):
+                    new_hp = None
+                if new_hp is not None and self.slots[owner_slot].hint_points != new_hp:
+                    self.slots[owner_slot].hint_points = new_hp
+                    changed = True
 
         if changed:
             self._emit({"type": "room_update", "snapshot": self.snapshot()})

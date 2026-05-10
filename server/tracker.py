@@ -105,14 +105,14 @@ class _SlotClient:
             log.info("[%s] Connected, initial checks=%d", self.slot_name, len(cl) if isinstance(cl, list) else 0)
             if isinstance(cl, list):
                 self.state.apply_slot_checks(self.slot_num, [int(x) for x in cl], replace=True)
-            self.state.apply_room_update_meta(packet)
+            self.state.apply_room_update_meta(packet, owner_slot=self.slot_num)
             if self.subscribe_hints and self._ws is not None:
                 await self._subscribe_to_hints(self._ws)
         elif cmd == "RoomUpdate":
             cl = packet.get("checked_locations")
             if isinstance(cl, list):
                 self.state.apply_slot_checks(self.slot_num, [int(x) for x in cl], replace=False)
-            self.state.apply_room_update_meta(packet)
+            self.state.apply_room_update_meta(packet, owner_slot=self.slot_num)
         elif cmd == "Retrieved":
             for key, value in (packet.get("keys") or {}).items():
                 self.state.apply_hint_store(key, value)
