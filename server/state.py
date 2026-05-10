@@ -138,22 +138,27 @@ class WorldState:
         # `checked_locations` arrives as a list[int] for the server view in some
         # versions; in others it is broken down per slot via `players` updates.
         # We accept both: a flat list applies to every slot via membership check.
+        # AP's RoomUpdate sends the *incremental* set of newly-checked location
+        # IDs (the Connected packet sends the initial full set). Either way we
+        # UNION into existing checked sets so live updates accumulate.
         if "checked_locations" in payload:
             cl = payload["checked_locations"]
             if isinstance(cl, list):
                 flat = set(int(x) for x in cl)
                 for slot in self.slots.values():
                     valid = set(self.multidata.locations.get(slot.slot, {}).keys())
-                    new_checked = flat & valid
-                    if new_checked != slot.checked:
-                        slot.checked = new_checked
+                    additions = (flat & valid) - slot.checked
+                    if additions:
+                        slot.checked |= additions
                         changed = True
             elif isinstance(cl, dict):
                 for s, ids in cl.items():
                     s = int(s)
                     if s in self.slots:
-                        self.slots[s].checked = set(int(x) for x in ids)
-                        changed = True
+                        new_set = set(int(x) for x in ids)
+                        if not new_set.issubset(self.slots[s].checked):
+                            self.slots[s].checked |= new_set
+                            changed = True
 
         for p in payload.get("players", []) or []:
             slot_num = int(p.get("slot", 0))

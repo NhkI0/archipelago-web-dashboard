@@ -98,6 +98,12 @@ class Tracker:
             if self._ws is not None:
                 await self._subscribe_to_hints(self._ws)
         elif cmd == "RoomUpdate":
+            cl = packet.get("checked_locations")
+            log.info(
+                "RoomUpdate keys=%s checked_locations=%s",
+                list(packet.keys()),
+                (len(cl) if isinstance(cl, (list, dict)) else cl),
+            )
             self.state.apply_room_update(packet)
         elif cmd == "Retrieved":
             for key, value in (packet.get("keys") or {}).items():
