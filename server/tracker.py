@@ -71,10 +71,23 @@ class Tracker:
 
     async def _connect(self, ws: "websockets.WebSocketClientProtocol") -> None:
         await ws.recv()  # RoomInfo
+        # AP rejects Connect with InvalidGame if `game` doesn't match the
+        # slot's game in the multidata. When piggy-backing on a real player
+        # slot (e.g. no dedicated DeathTracker), look up the slot's actual
+        # game; fall back to the configured default for dedicated slots.
+        slot_info = self.state.multidata.slot_by_name(self.slot_name)
+        game = slot_info.game if slot_info and slot_info.game else self.game
+        log.info(
+            "tracker connect: slot_name=%r resolved=%r game=%r (known slots: %s)",
+            self.slot_name,
+            slot_info.name if slot_info else None,
+            game,
+            [(s.name, s.game) for s in self.state.multidata.slots.values()],
+        )
         await ws.send(json.dumps([{
             "cmd": "Connect",
             "password": self.password,
-            "game": self.game,
+            "game": game,
             "name": self.slot_name,
             "uuid": str(uuid.uuid4()),
             "tags": ["Tracker"],
