@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
 from .multidata import MultiData
+
+log = logging.getLogger("ap.state")
 
 
 @dataclass
@@ -230,15 +233,25 @@ class WorldState:
             h for h in self.hints
             if h.finding_slot != slot_num and h.receiving_slot != slot_num
         ]
-        added = 0
         for raw in value:
-            if not isinstance(raw, dict):
+            # AP's data store ships hints as `Hint` NamedTuples, which JSON-
+            # encode to lists like [recv, find, loc, item, found, entrance,
+            # flags, status]. Older / patched servers may send dicts; accept
+            # both shapes.
+            if isinstance(raw, dict):
+                recv = int(raw.get("receiving_player", 0))
+                send = int(raw.get("finding_player", 0))
+                item_id = int(raw.get("item", 0))
+                location_id = int(raw.get("location", 0))
+                found = bool(raw.get("found", False))
+            elif isinstance(raw, (list, tuple)) and len(raw) >= 5:
+                recv = int(raw[0])
+                send = int(raw[1])
+                location_id = int(raw[2])
+                item_id = int(raw[3])
+                found = bool(raw[4])
+            else:
                 continue
-            recv = int(raw.get("receiving_player", 0))
-            send = int(raw.get("finding_player", 0))
-            item_id = int(raw.get("item", 0))
-            location_id = int(raw.get("location", 0))
-            found = bool(raw.get("found", False))
             rec = HintRecord(
                 finding_slot=send,
                 receiving_slot=recv,
@@ -251,8 +264,10 @@ class WorldState:
             key_t = (rec.finding_slot, rec.receiving_slot, rec.item_id, rec.location_id)
             if not any((h.finding_slot, h.receiving_slot, h.item_id, h.location_id) == key_t for h in self.hints):
                 self.hints.append(rec)
-                added += 1
         self._recount_open_hints()
+        log.info("apply_hint_store key=%s parsed %d hints", key, sum(
+            1 for h in self.hints if h.finding_slot == slot_num or h.receiving_slot == slot_num
+        ))
         self._emit({"type": "hints_replaced", "snapshot": self.snapshot()})
 
     def _recount_open_hints(self) -> None:
