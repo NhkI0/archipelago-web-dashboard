@@ -20,7 +20,37 @@ from typing import Any
 
 import websockets
 
+from .multidata import MultiData
+
 log = logging.getLogger("ap.session")
+
+
+def _render_print_json(parts: list[dict], md: "MultiData | None") -> str:
+    """Resolve typed PrintJSON parts (player_id/item_id/location_id) to names."""
+    out: list[str] = []
+    for p in parts or []:
+        ptype = p.get("type") or "text"
+        text = p.get("text") or ""
+        if md is None or ptype in ("text", "color"):
+            out.append(text)
+            continue
+        try:
+            num = int(text)
+        except (TypeError, ValueError):
+            out.append(text)
+            continue
+        if ptype == "player_id":
+            slot = md.slots.get(num)
+            out.append(slot.name if slot else text)
+        elif ptype == "item_id":
+            recv = int(p.get("player") or 0)
+            out.append(md.item_name(recv, num))
+        elif ptype == "location_id":
+            send = int(p.get("player") or 0)
+            out.append(md.location_name(send, num))
+        else:
+            out.append(text)
+    return "".join(out)
 
 
 @dataclass
@@ -40,10 +70,11 @@ class Session:
 
 
 class SessionManager:
-    def __init__(self, host: str = "localhost", port: int = 38281) -> None:
+    def __init__(self, host: str = "localhost", port: int = 38281, multidata: "MultiData | None" = None) -> None:
         self.uri = f"ws://{host}:{port}"
         self._sessions: dict[str, Session] = {}
         self._lock = asyncio.Lock()
+        self.multidata = multidata
 
     def get(self, sid: str) -> Session | None:
         return self._sessions.get(sid)
@@ -146,10 +177,7 @@ class SessionManager:
                             except Exception:
                                 pass
                     elif cmd == "PrintJSON":
-                        text = "".join(
-                            (p.get("text") or "")
-                            for p in (packet.get("data") or [])
-                        )
+                        text = _render_print_json(packet.get("data") or [], self.multidata)
                         sess.last_text = text
                         log.info("session %s PrintJSON type=%s text=%r", sess.sid[:8], packet.get("type"), text)
                         try:

@@ -74,7 +74,7 @@ if _hc is not None:
 else:
     log.warning("could not read hint_cost from %s; using default %d%%", AP_HOST_YAML, world.hint_cost)
 tracker = Tracker(world, host=AP_HOST, port=AP_PORT, slot_name=AP_TRACKER_SLOT)
-sessions = SessionManager(host=AP_HOST, port=AP_PORT)
+sessions = SessionManager(host=AP_HOST, port=AP_PORT, multidata=multidata)
 
 app = FastAPI(title="Archipelago Web", version="0.1.0")
 
