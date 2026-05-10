@@ -66,16 +66,11 @@ class _SlotClient:
                 async with websockets.connect(self.uri, max_size=2**24) as ws:
                     self._ws = ws
                     await self._connect(ws)
-                    self.state.tracker_slots.add(self.slot_num)
                     delay = 5
-                    try:
-                        async for raw in ws:
-                            for packet in json.loads(raw):
-                                await self._dispatch(packet)
-                    finally:
-                        self.state.tracker_slots.discard(self.slot_num)
+                    async for raw in ws:
+                        for packet in json.loads(raw):
+                            await self._dispatch(packet)
             except asyncio.CancelledError:
-                self.state.tracker_slots.discard(self.slot_num)
                 raise
             except Exception as e:
                 log.warning("[%s] disconnected (%s); retrying in %ds", self.slot_name, e, delay)

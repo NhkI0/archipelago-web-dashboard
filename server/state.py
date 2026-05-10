@@ -69,9 +69,6 @@ class WorldState:
         self.slots: dict[int, SlotState] = {}
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
-        # Slot numbers held by our own passive tracker connections — subtracted
-        # from AP's player list when computing real-client online status.
-        self.tracker_slots: set[int] = set()
         self._subscribers: set[asyncio.Queue] = set()
         self._init_from_multidata()
 
@@ -167,16 +164,15 @@ class WorldState:
             except (TypeError, ValueError):
                 pass
 
-        # AP's RoomUpdate.players lists every authenticated client (one entry
-        # per connection — duplicate entries appear when multiple clients
-        # share a slot). A real game client is online iff the slot's count
-        # exceeds our own passive tracker's contribution.
+        # AP's RoomUpdate.players is the full list of currently authenticated
+        # clients. Some AP versions emit one entry per connection, others
+        # dedupe per (team, slot) — log a sample so we can tell which.
         if "players" in payload:
-            from collections import Counter
-            counts = Counter(int(p.get("slot", 0)) for p in (payload.get("players") or []))
+            players = payload.get("players") or []
+            log.info("players field sample (first 3): %r (len=%d)", players[:3], len(players))
+            connected_slots = {int(p.get("slot", 0)) for p in players}
             for slot_num, slot in self.slots.items():
-                ours = 1 if slot_num in self.tracker_slots else 0
-                online = counts.get(slot_num, 0) > ours
+                online = slot_num in connected_slots
                 if slot.online != online:
                     slot.online = online
                     changed = True
