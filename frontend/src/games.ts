@@ -15,6 +15,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Civilization VI": "🏛️",
   "Majora's Mask Recompiled": "🎭",
   "Archipelago": "🗺️",
+  "Black Ops 3 - Zombies": "🧟",
 
   // Zelda family
   "A Link to the Past": "🗡️",
@@ -25,6 +26,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "The Minish Cap": "🍃",
   "Twilight Princess": "🐺",
   "A Link Between Worlds": "🖼️",
+  "Skyward Sword": "🐦‍🔥",
 
   // Mario / Yoshi family
   "Super Mario World": "🍄",
@@ -109,6 +111,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Raft": "🛟",
   "Outer Wilds": "🪐",
   "Inscryption": "🃏",
+  "Balatro": "🃏",
   "Tunic": "🦊",
   "Lingo": "🔤",
   "Ittle Dew 2": "🪓",
