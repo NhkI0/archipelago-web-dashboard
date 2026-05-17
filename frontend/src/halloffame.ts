@@ -23,4 +23,5 @@ export const HALL_OF_FAME: HallEntry[] = [
     { file: "Harcelement.png", artist: "Loïk", date: "2026-04-20", title: "Harcèlement.png" },
     { file: "crapo-archi1.jpg", artist: "Crapo", date: "2026-04-20" },
     { file: "red-rupee.png", artist: "Loïk", date: "2026-04-20" },
+    { file: "baton.png", artist: "Loïk", date: "2026-05-17" },
 ];
