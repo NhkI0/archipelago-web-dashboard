@@ -49,9 +49,31 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         const a = pcts[fi];
         const b = pcts[ri];
         if (!a || !b) return null;
-        const mx = CX + (idx % 2 === 0 ? 22 : -22);
-        const my = CY + (idx % 3 === 0 ? -28 : 16);
-        return { h, a, b, mx, my, key: idx };
+        if (fi === ri) {
+          const ox = Math.cos(a.angle), oy = Math.sin(a.angle);
+          const tx = -oy, ty = ox;
+          const LOOP_OUT = 70, LOOP_SPREAD = 55;
+          const cp1x = a.x + ox * LOOP_OUT + tx * LOOP_SPREAD;
+          const cp1y = a.y + oy * LOOP_OUT + ty * LOOP_SPREAD;
+          const cp2x = a.x + ox * LOOP_OUT - tx * LOOP_SPREAD;
+          const cp2y = a.y + oy * LOOP_OUT - ty * LOOP_SPREAD;
+          return { h, self: true as const, a, b, mx: 0, my: 0, cp1x, cp1y, cp2x, cp2y, key: idx };
+        }
+        // Curve perpendicular to the chord; vary side & magnitude per index so arcs fan out.
+        const midX = (a.x + b.x) / 2;
+        const midY = (a.y + b.y) / 2;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        // Unit perpendicular (rotate chord 90°).
+        const px = -dy / len;
+        const py = dx / len;
+        // Side alternates; magnitude scales with chord length and varies by index.
+        const side = idx % 2 === 0 ? 1 : -1;
+        const bend = (0.18 + ((idx * 37) % 23) / 110) * len * side;
+        const mx = midX + px * bend;
+        const my = midY + py * bend;
+        return { h, self: false as const, a, b, mx, my, cp1x: 0, cp1y: 0, cp2x: 0, cp2y: 0, key: idx };
       })
       .filter((x): x is NonNullable<typeof x> => x != null);
   }, [hints, slotIndex, pcts]);
@@ -76,20 +98,24 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         >
           {/* Soft guide ring */}
           <circle cx={CX} cy={CY} r={R} fill="none" stroke="#ede9e4" strokeDasharray="4 6" />
-          {arcs.map(({ h, a, b, mx, my, key }) => {
+          {arcs.map(({ h, self, a, b, mx, my, cp1x, cp1y, cp2x, cp2y, key }) => {
             const involved = hover === null || isInvolved(hover, h);
             const fresh = !h.found;
+            const d = self
+              ? `M ${a.x} ${a.y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${a.x} ${a.y}`
+              : `M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`;
             return (
               <path
                 key={key}
-                d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                d={d}
                 fill="none"
-                stroke={fresh ? "#5645d4" : "#d6b6f6"}
-                strokeWidth={fresh ? 2.5 : 1.5}
+                stroke={fresh ? "#5645d4" : "#b794e8"}
+                strokeWidth={fresh ? 2.5 : 1.25}
                 strokeLinecap="round"
                 strokeDasharray={fresh ? "6 4" : undefined}
                 style={{
-                  opacity: involved ? (fresh ? 0.95 : 0.5) : 0.06,
+                  opacity: involved ? (fresh ? 0.95 : 0.35) : 0.05,
+                  mixBlendMode: fresh ? undefined : "multiply",
                   transition: "opacity 200ms ease",
                   animation: fresh ? "ap-dash 1.6s linear infinite" : undefined,
                 }}
