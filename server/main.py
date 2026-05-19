@@ -31,7 +31,6 @@ log = logging.getLogger("ap.web")
 AP_HOST = os.environ.get("AP_HOST", "localhost")
 AP_PORT = int(os.environ.get("AP_PORT", "38281"))
 AP_FILE = os.environ.get("AP_FILE", "/opt/archipelago/output/latest.archipelago")
-AP_TRACKER_SLOT = os.environ.get("AP_TRACKER_SLOT", "DeathTracker")
 AP_HOST_YAML = os.environ.get("AP_HOST_YAML", "/opt/archipelago/host.yaml")
 DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
 
@@ -88,7 +87,13 @@ except (KeyError, ValueError):
 AP_PASSWORD = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(_server_opts.get("password", ""))
 if AP_PASSWORD:
     log.info("server password loaded (%d chars)", len(AP_PASSWORD))
-tracker = Tracker(world, host=AP_HOST, port=AP_PORT, slot_name=AP_TRACKER_SLOT, password=AP_PASSWORD)
+tracker = Tracker(
+    world,
+    host=AP_HOST,
+    port=AP_PORT,
+    password=AP_PASSWORD,
+    deaths_file=pathlib.Path(DEATHS_FILE),
+)
 sessions = SessionManager(host=AP_HOST, port=AP_PORT, multidata=multidata)
 
 app = FastAPI(title="Archipelago Web", version="0.1.0")
@@ -113,31 +118,8 @@ async def api_state() -> dict[str, Any]:
 
 @app.get("/api/deaths")
 async def api_deaths() -> dict[str, Any]:
-    """Read the death leaderboard JSON the existing TUI maintains."""
-    import json as _json
-    p = pathlib.Path(DEATHS_FILE)
-    if not p.exists():
-        return {"available": False, "rows": []}
-    try:
-        raw = _json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return {"available": False, "rows": []}
-    rows: list[dict[str, Any]] = []
-    if isinstance(raw, dict):
-        for name, count in raw.items():
-            try:
-                rows.append({"name": str(name), "deaths": int(count)})
-            except (TypeError, ValueError):
-                continue
-    elif isinstance(raw, list):
-        for entry in raw:
-            if isinstance(entry, dict) and "name" in entry and "deaths" in entry:
-                try:
-                    rows.append({"name": str(entry["name"]), "deaths": int(entry["deaths"])})
-                except (TypeError, ValueError):
-                    continue
-    rows.sort(key=lambda r: -r["deaths"])
-    return {"available": True, "rows": rows}
+    rows = tracker.death_rows()
+    return {"available": bool(rows) or tracker.death_client_connected(), "rows": rows}
 
 
 @app.get("/api/slot/{name}")

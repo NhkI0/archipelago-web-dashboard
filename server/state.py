@@ -72,9 +72,9 @@ class WorldState:
         self._subscribers: set[asyncio.Queue] = set()
         self._init_from_multidata()
 
-    # Slots that exist for tooling (death link relay etc.) and should never
-    # appear on the public dashboard.
-    HIDDEN_SLOT_NAMES = {"DeathTracker"}
+    # Slots that exist for tooling and should never appear on the public
+    # dashboard. Empty today; kept for future tooling-slot needs.
+    HIDDEN_SLOT_NAMES: set[str] = set()
 
     def _init_from_multidata(self) -> None:
         for slot_num, info in self.multidata.slots.items():

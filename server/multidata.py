@@ -47,7 +47,14 @@ class MultiData:
     locations: dict[int, dict[int, tuple[int, int, int]]]  # recv_slot -> {loc_id: (item_id, sender_slot, flags)}
     games: dict[int, str]                            # slot -> game
     datapackage: dict[str, GamePackage]              # game -> package
+    slot_data: dict[int, dict[str, Any]]             # slot -> per-slot game options
     raw: dict[str, Any]
+
+    def deathlink_enabled(self, slot: int) -> bool:
+        data = self.slot_data.get(slot)
+        if not isinstance(data, dict):
+            return False
+        return bool(data.get("death_link"))
 
     # ── derived helpers ───────────────────────────────────────────────────────
 
@@ -219,11 +226,21 @@ def load_multidata(path: str) -> MultiData:
 
     datapackage = _coerce_datapackage(data.get("datapackage"))
 
+    raw_slot_data = data.get("slot_data") or {}
+    slot_data: dict[int, dict[str, Any]] = {}
+    if isinstance(raw_slot_data, dict):
+        for k, v in raw_slot_data.items():
+            try:
+                slot_data[int(k)] = v if isinstance(v, dict) else {}
+            except (TypeError, ValueError):
+                continue
+
     return MultiData(
         seed_name=str(data.get("seed_name") or ""),
         slots=slots,
         locations=locations,
         games=games,
         datapackage=datapackage,
+        slot_data=slot_data,
         raw=data,
     )
