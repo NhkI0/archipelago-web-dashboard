@@ -51,13 +51,21 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         if (!a || !b) return null;
         if (fi === ri) {
           const ox = Math.cos(a.angle), oy = Math.sin(a.angle);
-          const tx = -oy, ty = ox;
-          const LOOP_OUT = 70, LOOP_SPREAD = 55;
-          const cp1x = a.x + ox * LOOP_OUT + tx * LOOP_SPREAD;
-          const cp1y = a.y + oy * LOOP_OUT + ty * LOOP_SPREAD;
-          const cp2x = a.x + ox * LOOP_OUT - tx * LOOP_SPREAD;
-          const cp2y = a.y + oy * LOOP_OUT - ty * LOOP_SPREAD;
-          return { h, self: true as const, a, b, mx: 0, my: 0, cp1x, cp1y, cp2x, cp2y, key: idx };
+          // Full circle whose edge passes through the avatar centre (OFFSET = CIRCLE_R).
+          // Outer extent from constellation centre = R + 2*CIRCLE_R, must stay <= VB/2 - MARGIN.
+          // Tilt-scale: bigger when pointing up, smaller when pointing down (labels sit below).
+          const MARGIN = 6;
+          const BASE_R = Math.max(0, (VB / 2 - MARGIN - R) / 2.4); // ~27 with current R
+          const tilt = 1 - 0.22 * oy; // oy = -1 (top) -> 1.22, oy = +1 (bottom) -> 0.78
+          const CIRCLE_R = BASE_R * tilt;
+          const OFFSET   = CIRCLE_R;
+          const cxSelf = a.x + ox * OFFSET;
+          const cySelf = a.y + oy * OFFSET;
+          return {
+            h, self: true as const, a, b, mx: 0, my: 0,
+            sx: 0, sy: 0, ex: 0, ey: 0, cp1x: 0, cp1y: 0, cp2x: 0, cp2y: 0,
+            cxSelf, cySelf, rSelf: CIRCLE_R, key: idx,
+          };
         }
         // Curve perpendicular to the chord; vary side & magnitude per index so arcs fan out.
         const midX = (a.x + b.x) / 2;
@@ -73,7 +81,11 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         const bend = (0.18 + ((idx * 37) % 23) / 110) * len * side;
         const mx = midX + px * bend;
         const my = midY + py * bend;
-        return { h, self: false as const, a, b, mx, my, cp1x: 0, cp1y: 0, cp2x: 0, cp2y: 0, key: idx };
+        return {
+          h, self: false as const, a, b, mx, my,
+          sx: 0, sy: 0, ex: 0, ey: 0, cp1x: 0, cp1y: 0, cp2x: 0, cp2y: 0,
+          cxSelf: 0, cySelf: 0, rSelf: 0, key: idx,
+        };
       })
       .filter((x): x is NonNullable<typeof x> => x != null);
   }, [hints, slotIndex, pcts]);
@@ -95,30 +107,44 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
           className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${VB} ${VB}`}
           preserveAspectRatio="xMidYMid meet"
+          overflow="visible"
         >
           {/* Soft guide ring */}
           <circle cx={CX} cy={CY} r={R} fill="none" stroke="#ede9e4" strokeDasharray="4 6" />
-          {arcs.map(({ h, self, a, b, mx, my, cp1x, cp1y, cp2x, cp2y, key }) => {
+          {arcs.map(({ h, self, a, b, mx, my, cxSelf, cySelf, rSelf, key }) => {
             const involved = hover === null || isInvolved(hover, h);
             const fresh = !h.found;
-            const d = self
-              ? `M ${a.x} ${a.y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${a.x} ${a.y}`
-              : `M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`;
+            const commonStyle = {
+              opacity: involved ? (fresh ? 0.95 : 0.35) : 0.05,
+              mixBlendMode: fresh ? undefined : ("multiply" as const),
+              transition: "opacity 200ms ease",
+              animation: fresh ? "ap-dash 1.6s linear infinite" : undefined,
+            };
+            if (self) {
+              return (
+                <circle
+                  key={key}
+                  cx={cxSelf}
+                  cy={cySelf}
+                  r={rSelf}
+                  fill="none"
+                  stroke={fresh ? "#5645d4" : "#b794e8"}
+                  strokeWidth={fresh ? 2.5 : 1.25}
+                  strokeDasharray={fresh ? "6 4" : undefined}
+                  style={commonStyle}
+                />
+              );
+            }
             return (
               <path
                 key={key}
-                d={d}
+                d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
                 fill="none"
                 stroke={fresh ? "#5645d4" : "#b794e8"}
                 strokeWidth={fresh ? 2.5 : 1.25}
                 strokeLinecap="round"
                 strokeDasharray={fresh ? "6 4" : undefined}
-                style={{
-                  opacity: involved ? (fresh ? 0.95 : 0.35) : 0.05,
-                  mixBlendMode: fresh ? undefined : "multiply",
-                  transition: "opacity 200ms ease",
-                  animation: fresh ? "ap-dash 1.6s linear infinite" : undefined,
-                }}
+                style={commonStyle}
               />
             );
           })}
