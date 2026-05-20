@@ -18,3 +18,5 @@ Thumbs.db
 death_leaderboard.json
 .env
 .env.*
+
+package-lock.json
