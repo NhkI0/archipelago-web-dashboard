@@ -155,13 +155,17 @@ async def api_slot(name: str) -> dict[str, Any]:
         })
     locations_payload.sort(key=lambda x: x["name"])
 
-    # Items the slot will RECEIVE: scan every world for entries with recv==slot.slot.
-    received_items: set[str] = set()
+    # Items the slot will RECEIVE that haven't been sent yet: scan every world
+    # for entries with recv==slot.slot whose finder location is unchecked. Use
+    # counts so duplicate items still appear when only some copies have arrived.
+    from collections import Counter
+    pending: Counter[str] = Counter()
     for finder_slot, table in md.locations.items():
-        for (item_id, recv, _flags) in table.values():
-            if recv == slot.slot:
-                received_items.add(md.item_name(slot.slot, item_id))
-    available_items = sorted(received_items)
+        finder_checked = world.slots[finder_slot].checked if finder_slot in world.slots else set()
+        for loc_id, (item_id, recv, _flags) in table.items():
+            if recv == slot.slot and loc_id not in finder_checked:
+                pending[md.item_name(slot.slot, item_id)] += 1
+    available_items = sorted(pending.elements())
 
     return {
         "slot": slot.to_dict(),
