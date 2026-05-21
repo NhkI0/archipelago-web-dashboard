@@ -189,17 +189,14 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                   className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas ${s.online ? "bg-semantic-success" : "bg-stone"}`}
                   aria-label={s.online ? t("slot.online") : t("slot.offline")}
                 />
-                <span className="absolute -bottom-2 -right-2 inline-flex h-6 items-center rounded-pill border-[3px] border-canvas bg-ink px-2 text-caption-up tabular-nums text-canvas">
-                  {s.percent.toFixed(0)}%
+                <span
+                  className={`absolute -bottom-2 -right-2 inline-flex h-6 items-center rounded-pill border-[3px] border-canvas px-2 text-caption-up uppercase tabular-nums ${s.goal_completed ? "bg-semantic-success text-white" : "bg-ink text-canvas"}`}
+                >
+                  {s.goal_completed ? t("slot.goal") : `${s.percent.toFixed(0)}%`}
                 </span>
               </div>
               <div className="mt-3 text-body-sm font-medium text-ink truncate">{s.name}</div>
               <MarqueeText className="font-mono text-caption text-steel">{s.game}</MarqueeText>
-              {s.goal_completed && (
-                <div className="mt-1 inline-block rounded-pill bg-semantic-success px-2 py-[1px] text-caption-up uppercase text-white">
-                  {t("slot.goal")}
-                </div>
-              )}
             </Link>
           );
         })}
