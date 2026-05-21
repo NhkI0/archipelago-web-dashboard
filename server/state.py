@@ -240,6 +240,29 @@ class WorldState:
                 self.slots[slot_num].goal_completed = True
                 self._emit({"type": "goal", "slot": slot_num})
 
+    def apply_client_status(self, key: str, value: Any) -> None:
+        """Seed `goal_completed` from `_read_client_status_0_<slot>` data store entry.
+
+        AP exposes each slot's ClientStatus enum in the team-wide data store;
+        a value of 30 (`CLIENT_GOAL`) means the slot has goaled. Reading this
+        on (re)connect lets us recover goal flags across server restarts and
+        catch goals that happened while the bridge was offline.
+        """
+        if not key.startswith("_read_client_status_"):
+            return
+        try:
+            slot_num = int(key.rsplit("_", 1)[-1])
+            status = int(value)
+        except (TypeError, ValueError):
+            return
+        slot = self.slots.get(slot_num)
+        if slot is None:
+            return
+        goaled = status >= 30
+        if goaled and not slot.goal_completed:
+            slot.goal_completed = True
+            self._emit({"type": "goal", "slot": slot_num})
+
     def apply_hint_store(self, key: str, value: Any) -> None:
         """Replace hints for one slot from `_read_hints_0_<slot>` data store entry."""
         if not key.startswith("_read_hints_") or not isinstance(value, list):

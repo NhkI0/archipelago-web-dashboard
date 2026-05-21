@@ -94,7 +94,9 @@ class _SlotClient:
         }]))
 
     async def _subscribe_to_hints(self, ws: "websockets.WebSocketClientProtocol") -> None:
-        keys = [f"_read_hints_0_{slot}" for slot in self.state.slots]
+        hint_keys = [f"_read_hints_0_{slot}" for slot in self.state.slots]
+        status_keys = [f"_read_client_status_0_{slot}" for slot in self.state.slots]
+        keys = hint_keys + status_keys
         if not keys:
             return
         await ws.send(json.dumps([{"cmd": "Get", "keys": keys}]))
@@ -117,11 +119,16 @@ class _SlotClient:
             self.state.apply_room_update_meta(packet, owner_slot=self.slot_num)
         elif cmd == "Retrieved":
             for key, value in (packet.get("keys") or {}).items():
-                self.state.apply_hint_store(key, value)
+                if key.startswith("_read_hints_"):
+                    self.state.apply_hint_store(key, value)
+                elif key.startswith("_read_client_status_"):
+                    self.state.apply_client_status(key, value)
         elif cmd == "SetReply":
             key = packet.get("key")
             if key and key.startswith("_read_hints_"):
                 self.state.apply_hint_store(key, packet.get("value"))
+            elif key and key.startswith("_read_client_status_"):
+                self.state.apply_client_status(key, packet.get("value"))
         elif cmd == "PrintJSON":
             self.state.apply_print_json(packet)
         elif cmd == "ConnectionRefused":
