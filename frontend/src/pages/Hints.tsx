@@ -42,11 +42,16 @@ export default function Hints() {
   }, [snap]);
 
   const allItems = useMemo(() => {
-    if (!detail) return [];
+    if (!detail) return [] as { name: string; count: number }[];
     const hinted = new Set(
       detail.hints.filter(h => h.receiving_slot === detail.slot.slot).map(h => h.item_name)
     );
-    return detail.available_items.filter(name => !hinted.has(name));
+    const counts = new Map<string, number>();
+    for (const name of detail.available_items) {
+      if (hinted.has(name)) continue;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return Array.from(counts, ([name, count]) => ({ name, count }));
   }, [detail]);
 
   const remainingLocations = useMemo(() => {
@@ -196,11 +201,16 @@ export default function Hints() {
         {tab === "item" && (
           <ul className="divide-y hair-soft">
             {allItems
-              .filter((n) => n.toLowerCase().includes(search.toLowerCase()))
-              .map((name) => (
+              .filter(({ name }) => name.toLowerCase().includes(search.toLowerCase()))
+              .map(({ name, count }) => (
                 <li key={name} className="flex items-center gap-3 px-4 py-3">
                   <span className="h-1.5 w-1.5 rounded-pill bg-stone" />
                   <span className="text-body-sm text-ink">{name}</span>
+                  {count > 1 && (
+                    <span className="inline-flex h-5 items-center rounded-pill bg-card-gray px-2 text-caption tabular-nums text-steel">
+                      ×{count}
+                    </span>
+                  )}
                   <button
                     onClick={() => requestSubmit("item", name)}
                     disabled={busy === name}
