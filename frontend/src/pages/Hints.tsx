@@ -239,7 +239,7 @@ export default function Hints() {
                 onChange={setHideFound}
               />
             </div>
-            <div className="hidden sm:grid grid-cols-[1fr_1fr_auto_auto] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
+            <div className="hidden sm:grid grid-cols-[1fr_1fr_180px_72px] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
               <div>{t("hints.col.item")}</div>
               <div>{t("hints.col.location")}</div>
               <div>{t("hints.col.parties")}</div>
@@ -252,11 +252,11 @@ export default function Hints() {
                 return (
                   <li
                     key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
-                    className="flex flex-col gap-1 px-4 py-3 text-body-sm sm:grid sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center sm:gap-x-4 sm:gap-y-0"
+                    className="flex flex-col gap-1 px-4 py-3 text-body-sm sm:grid sm:grid-cols-[1fr_1fr_180px_72px] sm:items-center sm:gap-x-4 sm:gap-y-0"
                   >
                     <span className="text-ink font-medium">{h.item_name}</span>
                     <span className="text-slate break-words">{h.location_name}</span>
-                    <span className="text-steel tabular-nums text-caption sm:text-body-sm">{finder} → {receiver}</span>
+                    <span className="text-steel tabular-nums text-caption sm:text-body-sm sm:truncate" title={`${finder} → ${receiver}`}>{finder} → {receiver}</span>
                     <span className={`self-start sm:self-auto inline-flex h-6 items-center rounded-pill px-2.5 text-caption-up uppercase ${
                       h.found ? "bg-card-mint text-brand-green" : "bg-card-gray text-steel"
                     }`}>
