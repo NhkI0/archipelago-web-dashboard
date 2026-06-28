@@ -70,6 +70,8 @@ class WorldState:
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
         self._subscribers: set[asyncio.Queue] = set()
+        # Refcount of open dashboard WebSockets per slot; drives `online`.
+        self._presence: dict[int, int] = {}
         self._init_from_multidata()
 
     # Slots that exist for tooling and should never appear on the public
@@ -123,6 +125,32 @@ class WorldState:
         for q in dead:
             self._subscribers.discard(q)
 
+    # ── presence (called by the /ws/live relay in main.py) ────────────────────
+
+    def add_presence(self, slot_num: int) -> None:
+        """Register an open dashboard WS for `slot_num`; light the dot if first."""
+        if slot_num not in self.slots:
+            return
+        self._presence[slot_num] = self._presence.get(slot_num, 0) + 1
+        slot = self.slots[slot_num]
+        if not slot.online:
+            slot.online = True
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
+    def remove_presence(self, slot_num: int) -> None:
+        """Drop one open dashboard WS for `slot_num`; dim the dot if it was last."""
+        if slot_num not in self.slots:
+            return
+        remaining = self._presence.get(slot_num, 0) - 1
+        if remaining > 0:
+            self._presence[slot_num] = remaining
+            return
+        self._presence.pop(slot_num, None)
+        slot = self.slots[slot_num]
+        if slot.online:
+            slot.online = False
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
     # ── mutators (called by tracker.py) ───────────────────────────────────────
 
     def apply_slot_checks(self, slot_num: int, location_ids: list[int], *, replace: bool) -> None:
@@ -147,7 +175,7 @@ class WorldState:
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
 
     def apply_room_update_meta(self, payload: dict[str, Any], *, owner_slot: int | None = None) -> None:
-        """Apply non-check RoomUpdate fields (hint_cost, hint_points, players).
+        """Apply non-check RoomUpdate fields (hint_cost, hint_points).
 
         `owner_slot` identifies whose connection produced this packet, used to
         attribute single-int `hint_points` (AP sends it as the connected slot's
@@ -164,18 +192,11 @@ class WorldState:
             except (TypeError, ValueError):
                 pass
 
-        # AP's RoomUpdate.players is the full list of currently authenticated
-        # clients. Some AP versions emit one entry per connection, others
-        # dedupe per (team, slot) — log a sample so we can tell which.
-        if "players" in payload:
-            players = payload.get("players") or []
-            log.info("players field sample (first 3): %r (len=%d)", players[:3], len(players))
-            connected_slots = {int(p.get("slot", 0)) for p in players}
-            for slot_num, slot in self.slots.items():
-                online = slot_num in connected_slots
-                if slot.online != online:
-                    slot.online = online
-                    changed = True
+        # NB: we intentionally ignore AP's RoomUpdate.players for `online`.
+        # The backend opens one passive Tracker WS per slot (see tracker.py),
+        # so every slot is permanently "connected" from AP's point of view and
+        # that signal can't tell a real player apart from our own tracker.
+        # `online` is instead driven by dashboard presence (add/remove_presence).
 
         if "hint_points" in payload:
             hp = payload["hint_points"]

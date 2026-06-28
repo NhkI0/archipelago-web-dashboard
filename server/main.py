@@ -177,10 +177,25 @@ async def api_slot(name: str) -> dict[str, Any]:
 
 # ── Live updates ──────────────────────────────────────────────────────────────
 
+def _slot_num_for_session(sid: str | None) -> int | None:
+    """Resolve a session cookie to its slot number, if logged in."""
+    if not sid:
+        return None
+    sess = sessions.get(sid)
+    if not sess:
+        return None
+    slot_info = world.multidata.slot_by_name(sess.slot)
+    return slot_info.slot if slot_info else None
+
+
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket) -> None:
     await ws.accept()
     queue = world.subscribe()
+    # Light the green dot only while a logged-in player's dashboard is open.
+    slot_num = _slot_num_for_session(ws.cookies.get("ap_session"))
+    if slot_num is not None:
+        world.add_presence(slot_num)
     try:
         await ws.send_json({"type": "snapshot", "snapshot": world.snapshot()})
         while True:
@@ -190,6 +205,8 @@ async def ws_live(ws: WebSocket) -> None:
         pass
     finally:
         world.unsubscribe(queue)
+        if slot_num is not None:
+            world.remove_presence(slot_num)
 
 
 # ── Auth + hints ──────────────────────────────────────────────────────────────
