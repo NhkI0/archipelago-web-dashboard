@@ -6,7 +6,7 @@ import BadgePill from "../components/BadgePill";
 import GameIcon from "../components/GameIcon";
 import { useT } from "../i18n";
 
-type Filter = "all" | "remaining" | "checked" | "hinted";
+type Filter = "all" | "remaining" | "checked" | "hinted" | "received";
 
 export default function SlotDetail() {
   const { name = "" } = useParams();
@@ -37,6 +37,18 @@ export default function SlotDetail() {
       return true;
     });
   }, [data, filter, search, hintedLocIds]);
+
+  const visibleReceived = useMemo(() => {
+    if (!data) return [];
+    const q = search.toLowerCase();
+    return data.received_items.filter(
+      (r) =>
+        !q ||
+        r.item_name.toLowerCase().includes(q) ||
+        r.sender.toLowerCase().includes(q) ||
+        r.location_name.toLowerCase().includes(q),
+    );
+  }, [data, search]);
 
   if (!data) {
     return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 text-slate">{t("common.loading")}</div>;
@@ -78,79 +90,76 @@ export default function SlotDetail() {
             <Tab active={filter === "remaining"} onClick={() => setFilter("remaining")}>{t("slot.tab.remaining")}</Tab>
             <Tab active={filter === "checked"} onClick={() => setFilter("checked")}>{t("slot.tab.checked")}</Tab>
             <Tab active={filter === "hinted"} onClick={() => setFilter("hinted")}>{t("slot.tab.hinted")}</Tab>
+            <Tab active={filter === "received"} onClick={() => setFilter("received")}>{t("slot.tab.received")}</Tab>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("slot.search_locations")}
+              placeholder={filter === "received" ? t("slot.search_received") : t("slot.search_locations")}
               className="w-full sm:ml-auto sm:w-auto h-10 rounded-md border hair-strong bg-canvas px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2"
             />
           </div>
 
-          <ul className="divide-y hair-soft rounded-lg border hair bg-canvas">
-            {visible.map((l) => (
-              <li key={l.id} className="flex items-center gap-3 px-4 py-3">
-                <span
-                  className={`h-1.5 w-1.5 rounded-pill ${l.checked ? "bg-semantic-success" : hintedLocIds.has(l.id) ? "bg-primary" : "bg-stone"}`}
-                />
-                <span className={`text-body-sm ${l.checked ? "text-stone line-through" : "text-ink"}`}>
-                  {l.name}
-                </span>
-                {l.item_name && (
-                  <span className="ml-auto font-mono text-caption text-slate">{l.item_name}</span>
-                )}
-              </li>
-            ))}
-            {visible.length === 0 && (
-              <li className="px-4 py-8 text-center text-body-sm text-stone">{t("slot.no_locations")}</li>
-            )}
-          </ul>
+          {filter === "received" ? (
+            <ul className="divide-y hair-soft rounded-lg border hair bg-canvas">
+              {visibleReceived.map((r, i) => (
+                <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
+                  <span className="text-body-sm text-ink font-medium">{r.item_name}</span>
+                  <span className="font-mono text-caption text-slate">
+                    {t("slot.received.from", { sender: r.sender, loc: r.location_name })}
+                  </span>
+                  <span className="ml-auto text-caption text-steel tabular-nums">
+                    {r.timestamp != null ? formatWhen(r.timestamp, lang) : t("slot.received.undated")}
+                  </span>
+                </li>
+              ))}
+              {visibleReceived.length === 0 && (
+                <li className="px-4 py-8 text-center text-body-sm text-stone">{t("slot.received_panel.empty")}</li>
+              )}
+            </ul>
+          ) : (
+            <ul className="divide-y hair-soft rounded-lg border hair bg-canvas">
+              {visible.map((l) => (
+                <li key={l.id} className="flex items-center gap-3 px-4 py-3">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-pill ${l.checked ? "bg-semantic-success" : hintedLocIds.has(l.id) ? "bg-primary" : "bg-stone"}`}
+                  />
+                  <span className={`text-body-sm ${l.checked ? "text-stone line-through" : "text-ink"}`}>
+                    {l.name}
+                  </span>
+                  {l.item_name && (
+                    <span className="ml-auto font-mono text-caption text-slate">{l.item_name}</span>
+                  )}
+                </li>
+              ))}
+              {visible.length === 0 && (
+                <li className="px-4 py-8 text-center text-body-sm text-stone">{t("slot.no_locations")}</li>
+              )}
+            </ul>
+          )}
         </section>
 
-        <aside className="space-y-6">
-          <section className="rounded-lg border hair bg-canvas p-5">
-            <h3 className="text-title-md text-ink">{t("slot.received_panel.title")}</h3>
-            <p className="mt-1 text-body-sm text-steel">{t("slot.received_panel.sub")}</p>
-            <ul className="mt-4 space-y-3">
-              {data.received_items.map((r, i) => (
-                <li key={i} className="rounded-md bg-surface p-3">
-                  <div className="text-body-sm text-ink font-medium">{r.item_name}</div>
-                  <div className="font-mono text-caption text-slate">
-                    {t("slot.received.from", { sender: r.sender, loc: r.location_name })}
-                  </div>
-                  <div className="mt-1 text-caption text-steel tabular-nums">
-                    {r.timestamp != null ? formatWhen(r.timestamp, lang) : t("slot.received.undated")}
-                  </div>
-                </li>
-              ))}
-              {data.received_items.length === 0 && (
-                <li className="text-body-sm text-stone">{t("slot.received_panel.empty")}</li>
-              )}
-            </ul>
-          </section>
-
-          <section className="rounded-lg border hair bg-canvas p-5">
-            <h3 className="text-title-md text-ink">{t("slot.hints_panel.title")}</h3>
-            <p className="mt-1 text-body-sm text-steel">{t("slot.hints_panel.sub")}</p>
-            <ul className="mt-4 space-y-3">
-              {data.hints.map((h, i) => (
-                <li key={i} className="rounded-md bg-surface p-3">
-                  <div className="text-caption text-steel">
-                    {h.finding_slot === s.slot ? t("slot.hint.you_find") : t("slot.hint.you_receive")}
-                  </div>
-                  <div className="text-body-sm text-ink font-medium">{h.item_name}</div>
-                  <div className="font-mono text-caption text-slate">{h.location_name}</div>
-                  <div className="mt-2">
-                    <BadgePill tone={h.found ? "success" : "primary"}>
-                      {h.found ? t("slot.status.found") : t("slot.status.open")}
-                    </BadgePill>
-                  </div>
-                </li>
-              ))}
-              {data.hints.length === 0 && (
-                <li className="text-body-sm text-stone">{t("slot.hints_panel.empty")}</li>
-              )}
-            </ul>
-          </section>
+        <aside className="rounded-lg border hair bg-canvas p-5">
+          <h3 className="text-title-md text-ink">{t("slot.hints_panel.title")}</h3>
+          <p className="mt-1 text-body-sm text-steel">{t("slot.hints_panel.sub")}</p>
+          <ul className="mt-4 space-y-3">
+            {data.hints.map((h, i) => (
+              <li key={i} className="rounded-md bg-surface p-3">
+                <div className="text-caption text-steel">
+                  {h.finding_slot === s.slot ? t("slot.hint.you_find") : t("slot.hint.you_receive")}
+                </div>
+                <div className="text-body-sm text-ink font-medium">{h.item_name}</div>
+                <div className="font-mono text-caption text-slate">{h.location_name}</div>
+                <div className="mt-2">
+                  <BadgePill tone={h.found ? "success" : "primary"}>
+                    {h.found ? t("slot.status.found") : t("slot.status.open")}
+                  </BadgePill>
+                </div>
+              </li>
+            ))}
+            {data.hints.length === 0 && (
+              <li className="text-body-sm text-stone">{t("slot.hints_panel.empty")}</li>
+            )}
+          </ul>
         </aside>
       </div>
     </div>
