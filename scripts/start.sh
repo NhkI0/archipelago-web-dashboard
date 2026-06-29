@@ -20,17 +20,29 @@ AP_FILE=/opt/archipelago/output/latest.archipelago \
 WEB_DIST=$WEB_DIR/frontend/dist \
 $VENV/bin/uvicorn server.main:app --host 127.0.0.1 --port $PORT"
 
+# Always relaunch from scratch so the new process re-reads host.yaml (the
+# dashboard caches server options — including the password — at startup). The
+# old "Ctrl-C then retype" approach left the pane on a shell without actually
+# restarting, so host.yaml edits never took effect.
 if tmux has-session -t "$SESSION" 2>/dev/null; then
-    echo "==> Restarting $SESSION"
-    tmux send-keys -t "$SESSION" C-c ""
+    echo "==> Stopping existing $SESSION..."
+    tmux send-keys -t "$SESSION" C-c
     sleep 2
-    tmux send-keys -t "$SESSION" "$CMD" Enter
+    tmux kill-session -t "$SESSION"
+fi
+
+echo "==> Starting $SESSION on port $PORT"
+tmux new-session -d -s "$SESSION" \; \
+    set-option -t "$SESSION" window-size largest \; \
+    set-option -t "$SESSION" aggressive-resize on \; \
+    send-keys -t "$SESSION" "$CMD 2>&1 | tee /tmp/ap_web.log" Enter
+
+sleep 2
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "==> ✓ $SESSION is running."
 else
-    echo "==> Starting $SESSION on port $PORT"
-    tmux new-session -d -s "$SESSION" \; \
-        set-option -t "$SESSION" window-size largest \; \
-        set-option -t "$SESSION" aggressive-resize on \; \
-        send-keys -t "$SESSION" "$CMD 2>&1 | tee /tmp/ap_web.log" Enter
+    echo "==> !! $SESSION failed to start — check /tmp/ap_web.log"
+    exit 1
 fi
 
 echo "==> Done."
