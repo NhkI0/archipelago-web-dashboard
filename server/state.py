@@ -10,7 +10,6 @@ relay can push them to browsers.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from dataclasses import dataclass, field, asdict
 from typing import Any
@@ -342,7 +341,3 @@ class WorldState:
                 per_slot[h.finding_slot] = per_slot.get(h.finding_slot, 0) + 1
         for slot in self.slots.values():
             slot.open_hints = per_slot.get(slot.slot, 0)
-
-
-def to_json(obj: Any) -> str:
-    return json.dumps(obj, default=lambda o: list(o) if isinstance(o, set) else str(o))

@@ -108,15 +108,12 @@ class SessionManager:
             cmd = packet.get("cmd")
             if cmd == "Connected":
                 sid = secrets.token_urlsafe(24)
-                hp = 0
-                slot_info = packet.get("slot_info") or {}
                 # hint_points sometimes ships on Connected; otherwise it lands
                 # on the next RoomUpdate.
                 hp = int(packet.get("hint_points", 0) or 0)
                 sess = Session(sid=sid, slot=slot, ws=ws, hint_points=hp)
                 self._sessions[sid] = sess
                 asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
-                _ = slot_info  # currently unused
                 return sess
             if cmd == "ConnectionRefused":
                 await ws.close()
