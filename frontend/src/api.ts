@@ -44,6 +44,14 @@ export type SlotDetail = {
   }[];
   hints: Hint[];
   available_items: string[];
+  received_items: ReceivedItem[];
+};
+
+export type ReceivedItem = {
+  item_name: string;
+  location_name: string;
+  sender: string;
+  timestamp: number | null;
 };
 
 export type Me =

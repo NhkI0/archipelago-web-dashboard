@@ -33,6 +33,7 @@ AP_PORT = int(os.environ.get("AP_PORT", "38281"))
 AP_FILE = os.environ.get("AP_FILE", "/opt/archipelago/output/latest.archipelago")
 AP_HOST_YAML = os.environ.get("AP_HOST_YAML", "/opt/archipelago/host.yaml")
 DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
+ITEMS_FILE = os.environ.get("ITEMS_FILE", "/opt/archipelago/received_items.json")
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -76,7 +77,7 @@ STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).pare
 # ── State ─────────────────────────────────────────────────────────────────────
 
 multidata = load_multidata(AP_FILE)
-world = WorldState(multidata)
+world = WorldState(multidata, items_file=pathlib.Path(ITEMS_FILE))
 _server_opts = _read_server_options_from_host_yaml(AP_HOST_YAML)
 try:
     _hc = int(_server_opts["hint_cost"])
@@ -172,6 +173,7 @@ async def api_slot(name: str) -> dict[str, Any]:
         "locations": locations_payload,
         "hints": related_hints,
         "available_items": available_items,
+        "received_items": world.received_for(slot.slot),
     }
 
 

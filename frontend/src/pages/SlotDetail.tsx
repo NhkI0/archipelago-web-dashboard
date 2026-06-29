@@ -10,7 +10,7 @@ type Filter = "all" | "remaining" | "checked" | "hinted";
 
 export default function SlotDetail() {
   const { name = "" } = useParams();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [data, setData] = useState<SlotDetailT | null>(null);
   const [filter, setFilter] = useState<Filter>("remaining");
   const [search, setSearch] = useState("");
@@ -106,32 +106,64 @@ export default function SlotDetail() {
           </ul>
         </section>
 
-        <aside className="rounded-lg border hair bg-canvas p-5">
-          <h3 className="text-title-md text-ink">{t("slot.hints_panel.title")}</h3>
-          <p className="mt-1 text-body-sm text-steel">{t("slot.hints_panel.sub")}</p>
-          <ul className="mt-4 space-y-3">
-            {data.hints.map((h, i) => (
-              <li key={i} className="rounded-md bg-surface p-3">
-                <div className="text-caption text-steel">
-                  {h.finding_slot === s.slot ? t("slot.hint.you_find") : t("slot.hint.you_receive")}
-                </div>
-                <div className="text-body-sm text-ink font-medium">{h.item_name}</div>
-                <div className="font-mono text-caption text-slate">{h.location_name}</div>
-                <div className="mt-2">
-                  <BadgePill tone={h.found ? "success" : "primary"}>
-                    {h.found ? t("slot.status.found") : t("slot.status.open")}
-                  </BadgePill>
-                </div>
-              </li>
-            ))}
-            {data.hints.length === 0 && (
-              <li className="text-body-sm text-stone">{t("slot.hints_panel.empty")}</li>
-            )}
-          </ul>
+        <aside className="space-y-6">
+          <section className="rounded-lg border hair bg-canvas p-5">
+            <h3 className="text-title-md text-ink">{t("slot.received_panel.title")}</h3>
+            <p className="mt-1 text-body-sm text-steel">{t("slot.received_panel.sub")}</p>
+            <ul className="mt-4 space-y-3">
+              {data.received_items.map((r, i) => (
+                <li key={i} className="rounded-md bg-surface p-3">
+                  <div className="text-body-sm text-ink font-medium">{r.item_name}</div>
+                  <div className="font-mono text-caption text-slate">
+                    {t("slot.received.from", { sender: r.sender, loc: r.location_name })}
+                  </div>
+                  <div className="mt-1 text-caption text-steel tabular-nums">
+                    {r.timestamp != null ? formatWhen(r.timestamp, lang) : t("slot.received.undated")}
+                  </div>
+                </li>
+              ))}
+              {data.received_items.length === 0 && (
+                <li className="text-body-sm text-stone">{t("slot.received_panel.empty")}</li>
+              )}
+            </ul>
+          </section>
+
+          <section className="rounded-lg border hair bg-canvas p-5">
+            <h3 className="text-title-md text-ink">{t("slot.hints_panel.title")}</h3>
+            <p className="mt-1 text-body-sm text-steel">{t("slot.hints_panel.sub")}</p>
+            <ul className="mt-4 space-y-3">
+              {data.hints.map((h, i) => (
+                <li key={i} className="rounded-md bg-surface p-3">
+                  <div className="text-caption text-steel">
+                    {h.finding_slot === s.slot ? t("slot.hint.you_find") : t("slot.hint.you_receive")}
+                  </div>
+                  <div className="text-body-sm text-ink font-medium">{h.item_name}</div>
+                  <div className="font-mono text-caption text-slate">{h.location_name}</div>
+                  <div className="mt-2">
+                    <BadgePill tone={h.found ? "success" : "primary"}>
+                      {h.found ? t("slot.status.found") : t("slot.status.open")}
+                    </BadgePill>
+                  </div>
+                </li>
+              ))}
+              {data.hints.length === 0 && (
+                <li className="text-body-sm text-stone">{t("slot.hints_panel.empty")}</li>
+              )}
+            </ul>
+          </section>
         </aside>
       </div>
     </div>
   );
+}
+
+function formatWhen(epochSeconds: number, lang: string): string {
+  return new Date(epochSeconds * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

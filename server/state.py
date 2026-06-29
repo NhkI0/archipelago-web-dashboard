@@ -10,7 +10,11 @@ relay can push them to browsers.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
+import pathlib
+import time
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
@@ -48,6 +52,24 @@ class SlotState:
 
 
 @dataclass
+class ReceivedItem:
+    """An item that has landed in a slot's game.
+
+    Identified by the finder location that produced it `(finder_slot,
+    location_id)` — each location is checked once and yields exactly one item
+    to one recipient, so that pair is a stable dedupe key across restarts.
+    `ts` is the wall-clock time the bridge first observed the check, or None
+    for the historical backlog that existed before timestamp tracking began
+    (AP itself carries no timestamps).
+    """
+    recv_slot: int
+    finder_slot: int
+    location_id: int
+    item_id: int
+    ts: float | None = None
+
+
+@dataclass
 class HintRecord:
     finding_slot: int           # who can find it
     receiving_slot: int         # who receives it
@@ -62,7 +84,7 @@ class HintRecord:
 
 
 class WorldState:
-    def __init__(self, multidata: MultiData) -> None:
+    def __init__(self, multidata: MultiData, *, items_file: pathlib.Path | None = None) -> None:
         self.multidata = multidata
         self.seed_name = multidata.seed_name
         self.slots: dict[int, SlotState] = {}
@@ -71,7 +93,19 @@ class WorldState:
         self._subscribers: set[asyncio.Queue] = set()
         # Refcount of open dashboard WebSockets per slot; drives `online`.
         self._presence: dict[int, int] = {}
+        # Received-item log, keyed by (finder_slot, location_id). Persisted to
+        # `items_file` so observed timestamps survive restarts.
+        self._items_file = items_file
+        self._received: dict[tuple[int, int], ReceivedItem] = {}
+        # Slots whose initial (replace=True) check snapshot we've already
+        # processed; lets us distinguish the first bulk load from live checks.
+        self._initial_loaded: set[int] = set()
         self._init_from_multidata()
+        # If a log already exists, checks we discover that aren't in it happened
+        # while the bridge was down and get stamped "now". On a fresh install
+        # (no file) the entire initial snapshot is undated backlog.
+        self._had_persisted = bool(items_file and items_file.exists())
+        self._load_items()
 
     # Slots that exist for tooling and should never appear on the public
     # dashboard. Empty today; kept for future tooling-slot needs.
@@ -89,6 +123,87 @@ class WorldState:
                 game=info.game,
                 total=self.multidata.total_locations_for(slot_num),
             )
+
+    # ── received-item log ──────────────────────────────────────────────────────
+
+    def _load_items(self) -> None:
+        if not self._items_file or not self._items_file.exists():
+            return
+        try:
+            raw = json.loads(self._items_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            log.warning("could not load %s: %s", self._items_file, e)
+            return
+        if not isinstance(raw, dict):
+            return
+        for key, rec in raw.items():
+            try:
+                finder, loc = (int(x) for x in str(key).split(":", 1))
+                ts = rec.get("ts")
+                self._received[(finder, loc)] = ReceivedItem(
+                    recv_slot=int(rec["recv"]),
+                    finder_slot=finder,
+                    location_id=loc,
+                    item_id=int(rec["item"]),
+                    ts=float(ts) if ts is not None else None,
+                )
+            except (TypeError, ValueError, KeyError, AttributeError):
+                continue
+        log.info("loaded %d received-item records from %s", len(self._received), self._items_file)
+
+    def _persist_items(self) -> None:
+        if not self._items_file:
+            return
+        payload = {
+            f"{r.finder_slot}:{r.location_id}": {"recv": r.recv_slot, "item": r.item_id, "ts": r.ts}
+            for r in self._received.values()
+        }
+        tmp = self._items_file.with_suffix(self._items_file.suffix + ".tmp")
+        try:
+            self._items_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(payload), encoding="utf-8")
+            os.replace(tmp, self._items_file)
+        except OSError as e:
+            log.warning("could not persist %s: %s", self._items_file, e)
+
+    def _record_received(self, finder_slot: int, new_loc_ids: set[int], *, backfill: bool) -> None:
+        """Log items produced by newly-checked locations in `finder_slot`."""
+        table = self.multidata.locations.get(finder_slot, {})
+        now = time.time()
+        changed = False
+        for loc_id in new_loc_ids:
+            entry = table.get(loc_id)
+            if entry is None:
+                continue
+            key = (finder_slot, loc_id)
+            if key in self._received:
+                continue
+            item_id, recv_slot, _flags = entry
+            self._received[key] = ReceivedItem(
+                recv_slot=recv_slot,
+                finder_slot=finder_slot,
+                location_id=loc_id,
+                item_id=item_id,
+                ts=None if backfill else now,
+            )
+            changed = True
+        if changed:
+            self._persist_items()
+
+    def received_for(self, slot_num: int) -> list[dict[str, Any]]:
+        """Items this slot has received, most recent first (undated last)."""
+        rows = [
+            {
+                "item_name": self.multidata.item_name(r.recv_slot, r.item_id),
+                "location_name": self.multidata.location_name(r.finder_slot, r.location_id),
+                "sender": self.slots[r.finder_slot].name if r.finder_slot in self.slots else f"slot#{r.finder_slot}",
+                "timestamp": r.ts,
+            }
+            for r in self._received.values()
+            if r.recv_slot == slot_num
+        ]
+        rows.sort(key=lambda x: (x["timestamp"] is not None, x["timestamp"] or 0.0), reverse=True)
+        return rows
 
     # ── snapshot ──────────────────────────────────────────────────────────────
 
@@ -170,8 +285,16 @@ class WorldState:
             valid = set(self.multidata.locations.get(slot_num, {}).keys())
             new_set = slot.checked | (ids & valid)
         if new_set != slot.checked:
+            added = new_set - slot.checked
             slot.checked = new_set
+            if added:
+                # The first bulk snapshot of a never-seen slot is undated backlog
+                # (unless we already had a persisted log to compare against).
+                backfill = replace and slot_num not in self._initial_loaded and not self._had_persisted
+                self._record_received(slot_num, added, backfill=backfill)
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
+        if replace:
+            self._initial_loaded.add(slot_num)
 
     def apply_room_update_meta(self, payload: dict[str, Any], *, owner_slot: int | None = None) -> None:
         """Apply non-check RoomUpdate fields (hint_cost, hint_points).
