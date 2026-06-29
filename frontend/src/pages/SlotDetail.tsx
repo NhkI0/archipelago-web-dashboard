@@ -102,14 +102,16 @@ export default function SlotDetail() {
           {filter === "received" ? (
             <ul className="divide-y hair-soft rounded-lg border hair bg-canvas">
               {visibleReceived.map((r, i) => (
-                <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
-                  <span className="text-body-sm text-ink font-medium">{r.item_name}</span>
-                  <span className="font-mono text-caption text-slate">
+                <li key={i} className="px-4 py-3">
+                  <div className="flex items-baseline gap-3">
+                    <span className="min-w-0 break-words text-body-sm text-ink font-medium">{r.item_name}</span>
+                    <span className="ml-auto shrink-0 text-caption text-steel tabular-nums">
+                      {r.timestamp != null ? formatWhen(r.timestamp, lang) : t("slot.received.undated")}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 font-mono text-caption text-slate break-words">
                     {t("slot.received.from", { sender: r.sender, loc: r.location_name })}
-                  </span>
-                  <span className="ml-auto text-caption text-steel tabular-nums">
-                    {r.timestamp != null ? formatWhen(r.timestamp, lang) : t("slot.received.undated")}
-                  </span>
+                  </div>
                 </li>
               ))}
               {visibleReceived.length === 0 && (
