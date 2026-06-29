@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Hint, Slot } from "../api";
 import { useT } from "../i18n";
+import { useTheme } from "../theme";
 import GameIcon from "./GameIcon";
 import MarqueeText from "./MarqueeText";
 
@@ -34,7 +35,10 @@ function nodePos(i: number, n: number) {
 
 export default function Constellation({ slots, hints, totalChecked, totalLocations }: Props) {
   const { t } = useT();
+  const { theme } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
+  // Blend the faint "found" arcs into the canvas: darken on light, lighten on dark.
+  const foundBlend = theme === "dark" ? ("screen" as const) : ("multiply" as const);
 
   const pcts = useMemo(() => slots.map((_, i) => nodePos(i, slots.length)), [slots.length]);
   const slotIndex = useMemo(() => new Map(slots.map((s, i) => [s.slot, i])), [slots]);
@@ -110,14 +114,15 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
           overflow="visible"
         >
           {/* Soft guide ring */}
-          <circle cx={CX} cy={CY} r={R} fill="none" stroke="#ede9e4" strokeDasharray="4 6" />
+          <circle cx={CX} cy={CY} r={R} fill="none" style={{ stroke: "var(--c-arc-ring)", transition: "stroke 250ms ease" }} strokeDasharray="4 6" />
           {arcs.map(({ h, self, a, b, mx, my, cxSelf, cySelf, rSelf, key }) => {
             const involved = hover === null || isInvolved(hover, h);
             const fresh = !h.found;
             const commonStyle = {
+              stroke: fresh ? "var(--c-arc-fresh)" : "var(--c-arc-found)",
               opacity: involved ? (fresh ? 0.95 : 0.35) : 0.05,
-              mixBlendMode: fresh ? undefined : ("multiply" as const),
-              transition: "opacity 200ms ease",
+              mixBlendMode: fresh ? undefined : foundBlend,
+              transition: "opacity 200ms ease, stroke 250ms ease",
               animation: fresh ? "ap-dash 1.6s linear infinite" : undefined,
             };
             if (self) {
@@ -128,7 +133,6 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                   cy={cySelf}
                   r={rSelf}
                   fill="none"
-                  stroke={fresh ? "#5645d4" : "#b794e8"}
                   strokeWidth={fresh ? 2.5 : 1.25}
                   strokeDasharray={fresh ? "6 4" : undefined}
                   style={commonStyle}
@@ -140,7 +144,6 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                 key={key}
                 d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
                 fill="none"
-                stroke={fresh ? "#5645d4" : "#b794e8"}
                 strokeWidth={fresh ? 2.5 : 1.25}
                 strokeLinecap="round"
                 strokeDasharray={fresh ? "6 4" : undefined}

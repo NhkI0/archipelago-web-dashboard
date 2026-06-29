@@ -23,6 +23,11 @@
   --c-steel:     120 118 113;
   --c-stone:     164 160 151;
   --c-muted:     187 184 177;
+
+  /* Constellation arc + guide-ring strokes */
+  --c-arc-fresh: #5645d4;
+  --c-arc-found: #b794e8;
+  --c-arc-ring:  #ede9e4;
 }
 
 /* ── Dark theme ────────────────────────────────────────────────────────────── */
@@ -46,6 +51,11 @@ html.dark {
   --c-steel:     150 154 168;
   --c-stone:     120 124 140;
   --c-muted:     100 104 120;
+
+  /* Constellation arc + guide-ring strokes — light/grey so they read on navy */
+  --c-arc-fresh: #cfc6ff;
+  --c-arc-found: #9aa0b4;
+  --c-arc-ring:  #3a4560;
 }
 
 html, body, #root {
