@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Hint, Slot } from "../api";
 import { useT } from "../i18n";
@@ -105,13 +105,34 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
   // ~62px of width per node keeps labels legible; clamp to a sane range.
   const maxWidth = Math.min(1100, Math.max(640, Math.round(slots.length * 62)));
 
+  // Avatars, labels and radial gaps are sized in fixed pixels, while arcs and
+  // node positions are relative to the canvas. To keep those proportions intact
+  // on narrow screens (where the canvas is far smaller than its design size) we
+  // render at the full design size and uniformly scale the whole thing down to
+  // the available width. scale === 1 on wide viewports; < 1 on phones/tablets.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [wrapW, setWrapW] = useState(maxWidth);
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    setWrapW(el.clientWidth);
+    const ro = new ResizeObserver(([e]) => setWrapW(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const scale = Math.min(1, wrapW / maxWidth);
+
   const hoveredSlot = hover != null ? slots.find(s => s.slot === hover) : null;
   const hoveredIncoming = hoveredSlot ? hints.filter(h => h.receiving_slot === hoveredSlot.slot) : [];
   const hoveredOutgoing = hoveredSlot ? hints.filter(h => h.finding_slot === hoveredSlot.slot)  : [];
 
   return (
     <section className="relative">
-      <div className="constellation relative mx-auto aspect-square w-full" style={{ maxWidth }}>
+      <div ref={wrapRef} className="relative mx-auto w-full" style={{ maxWidth, height: maxWidth * scale }}>
+      <div
+        className="constellation absolute left-0 top-0"
+        style={{ width: maxWidth, height: maxWidth, transform: `scale(${scale})`, transformOrigin: "top left" }}
+      >
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${VB} ${VB}`}
@@ -227,6 +248,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
             </Link>
           );
         })}
+      </div>
       </div>
 
       {/* Hover detail bar */}
