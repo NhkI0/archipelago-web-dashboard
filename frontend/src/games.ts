@@ -90,7 +90,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Celeste (Open World)": "🏔️",
   "Stardew Valley": "🌽",
   "Terraria": "⛏️",
-  "Minecraft": "🟫",
+  "Minecraft": "⛏️",
   "Subnautica: Below Zero": "🧊",
   "Don't Starve Together": "🪵",
   "Risk of Rain 2": "☔",
@@ -135,6 +135,13 @@ export const GAME_EMOJI: Record<string, string> = {
   "The Messenger": "📜",
   "Timespinner": "⌛",
   "Rogue Legacy": "🪙",
+  "Portal 2": "🎂",
+  "Trackmania": "🏎️",
+  "Age Of Mythology Retold": "⚡",
+  "Cuphead": "🍵",
+  "Mario Sports Mix": "🏐",
+  "Mirror's Edge": "🌇",
+  "Paper Mario: The Thousand-Year Door": "🚪",
 };
 
 const FALLBACK_EMOJI = "🎮";
