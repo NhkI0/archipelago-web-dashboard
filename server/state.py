@@ -101,10 +101,12 @@ class WorldState:
         # processed; lets us distinguish the first bulk load from live checks.
         self._initial_loaded: set[int] = set()
         self._init_from_multidata()
-        # If a log already exists, checks we discover that aren't in it happened
-        # while the bridge was down and get stamped "now". On a fresh install
-        # (no file) the entire initial snapshot is undated backlog.
-        self._had_persisted = bool(items_file and items_file.exists())
+        # If a same-seed log already exists, checks we discover that aren't in
+        # it happened while the bridge was down and get stamped "now". With no
+        # usable file (fresh install, or a log left over from another seed) the
+        # entire initial snapshot is undated backlog. `_load_items` sets this
+        # True only when it actually loads records for the current seed.
+        self._had_persisted = False
         self._load_items()
 
     # Slots that exist for tooling and should never appear on the public
@@ -136,7 +138,18 @@ class WorldState:
             return
         if not isinstance(raw, dict):
             return
-        for key, rec in raw.items():
+        # The log is seed-scoped: a file left over from a previous multiworld
+        # must not bleed its received items into the new seed's slots. Discard
+        # anything whose stamped seed doesn't match the loaded multidata (this
+        # also rejects the older, unstamped flat format).
+        if raw.get("seed") != self.seed_name:
+            log.info("received-items log is for a different seed (%r != %r); starting fresh",
+                     raw.get("seed"), self.seed_name)
+            return
+        items = raw.get("items")
+        if not isinstance(items, dict):
+            return
+        for key, rec in items.items():
             try:
                 finder, loc = (int(x) for x in str(key).split(":", 1))
                 ts = rec.get("ts")
@@ -149,14 +162,18 @@ class WorldState:
                 )
             except (TypeError, ValueError, KeyError, AttributeError):
                 continue
+        self._had_persisted = True
         log.info("loaded %d received-item records from %s", len(self._received), self._items_file)
 
     def _persist_items(self) -> None:
         if not self._items_file:
             return
         payload = {
-            f"{r.finder_slot}:{r.location_id}": {"recv": r.recv_slot, "item": r.item_id, "ts": r.ts}
-            for r in self._received.values()
+            "seed": self.seed_name,
+            "items": {
+                f"{r.finder_slot}:{r.location_id}": {"recv": r.recv_slot, "item": r.item_id, "ts": r.ts}
+                for r in self._received.values()
+            },
         }
         tmp = self._items_file.with_suffix(self._items_file.suffix + ".tmp")
         try:
