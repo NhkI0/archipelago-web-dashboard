@@ -6,8 +6,10 @@ as, so to mirror the entire team's progress on the dashboard we open a separate
 WS per slot (AP allows multiple clients to share a slot). The `Tracker` tag +
 `items_handling=0` keeps each connection passive.
 
-The first connection that comes up also subscribes to the team's hint data
-store keys, since hints are team-wide.
+Each connection also subscribes to its own slot's hint + client-status data
+store keys. AP replicates every hint into both the finder's and receiver's
+store, so the union across all slot connections covers the whole team's hints
+without depending on any single connection staying up.
 """
 
 from __future__ import annotations
@@ -94,11 +96,16 @@ class _SlotClient:
         }]))
 
     async def _subscribe_to_hints(self, ws: "websockets.WebSocketClientProtocol") -> None:
-        hint_keys = [f"_read_hints_0_{slot}" for slot in self.state.slots]
-        status_keys = [f"_read_client_status_0_{slot}" for slot in self.state.slots]
-        keys = hint_keys + status_keys
-        if not keys:
-            return
+        # Each slot subscribes to its OWN hint/status keys rather than funnelling
+        # every slot's data through one connection. AP replicates each hint into
+        # both the finder's and the receiver's `_read_hints_0_<slot>` store, so
+        # the union across all slot connections (deduped in apply_hint_store)
+        # still covers every hint — but now a single offline/refused slot can no
+        # longer take down hints for the whole multiworld.
+        keys = [
+            f"_read_hints_0_{self.slot_num}",
+            f"_read_client_status_0_{self.slot_num}",
+        ]
         await ws.send(json.dumps([{"cmd": "Get", "keys": keys}]))
         await ws.send(json.dumps([{"cmd": "SetNotify", "keys": keys}]))
 
@@ -291,7 +298,6 @@ class Tracker:
     def start(self) -> None:
         if self._clients:
             return
-        first = True
         for slot in self.state.slots.values():
             client = _SlotClient(
                 state=self.state,
@@ -300,11 +306,12 @@ class Tracker:
                 slot_name=slot.name,
                 game=slot.game,
                 password=self.password,
-                subscribe_hints=first,
+                # Every slot subscribes to its own hint/status keys; hints no
+                # longer depend on one designated connection staying healthy.
+                subscribe_hints=True,
             )
             client.start()
             self._clients.append(client)
-            first = False
         log.info("started %d slot trackers", len(self._clients))
 
         if self.deaths_file is not None:
