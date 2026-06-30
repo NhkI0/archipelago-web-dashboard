@@ -190,7 +190,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
             ` translate(${(ox * GAP).toFixed(1)}px, ${(oy * GAP).toFixed(1)}px)`;
           const label = (
             <div
-              className="pointer-events-none absolute left-1/2 top-1/2 max-w-[88px] sm:max-w-[148px] rounded-lg bg-surface-soft px-2.5 py-1.5 text-center"
+              className="pointer-events-none absolute left-1/2 top-1/2 max-w-[88px] sm:max-w-[148px] rounded-lg bg-surface-soft px-2.5 py-1.5 text-center transition-colors duration-300"
               style={{ transform: labelTransform }}
             >
               <div className="text-body-sm font-medium text-ink truncate">{s.name}</div>
@@ -215,11 +215,11 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
               <div className={`relative mx-auto inline-flex h-12 w-12 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-pill ${tint} border-4 border-canvas font-semibold text-charcoal shadow-mockup transition-colors duration-300`}>
                 <GameIcon game={s.game} size={24} />
                 <span
-                  className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas ${s.online ? "bg-semantic-success" : "bg-stone"}`}
+                  className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas transition-colors duration-300 ${s.online ? "bg-semantic-success" : "bg-stone"}`}
                   aria-label={s.online ? t("slot.online") : t("slot.offline")}
                 />
                 <span
-                  className={`absolute -bottom-2 -right-2 inline-flex h-6 items-center rounded-pill border-[3px] border-canvas px-2 text-caption-up uppercase tabular-nums ${s.goal_completed ? "bg-semantic-success text-white" : "bg-ink text-canvas"}`}
+                  className={`absolute -bottom-2 -right-2 inline-flex h-6 items-center rounded-pill border-[3px] border-canvas px-2 text-caption-up uppercase tabular-nums transition-colors duration-300 ${s.goal_completed ? "bg-semantic-success text-white" : "bg-ink text-canvas"}`}
                 >
                   {s.goal_completed ? t("slot.goal") : `${s.percent.toFixed(0)}%`}
                 </span>
