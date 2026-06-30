@@ -106,7 +106,6 @@ class _SlotClient:
             f"_read_hints_0_{self.slot_num}",
             f"_read_client_status_0_{self.slot_num}",
         ]
-        log.info("[%s] HINTDIAG subscribing Get+SetNotify keys=%r", self.slot_name, keys)
         await ws.send(json.dumps([{"cmd": "Get", "keys": keys}]))
         await ws.send(json.dumps([{"cmd": "SetNotify", "keys": keys}]))
 
@@ -128,14 +127,12 @@ class _SlotClient:
         elif cmd == "Retrieved":
             for key, value in (packet.get("keys") or {}).items():
                 if key.startswith("_read_hints_"):
-                    log.info("[%s] HINTDIAG Retrieved %s -> %.500r", self.slot_name, key, value)
                     self.state.apply_hint_store(key, value)
                 elif key.startswith("_read_client_status_"):
                     self.state.apply_client_status(key, value)
         elif cmd == "SetReply":
             key = packet.get("key")
             if key and key.startswith("_read_hints_"):
-                log.info("[%s] HINTDIAG SetReply %s -> %.500r", self.slot_name, key, packet.get("value"))
                 self.state.apply_hint_store(key, packet.get("value"))
             elif key and key.startswith("_read_client_status_"):
                 self.state.apply_client_status(key, packet.get("value"))
