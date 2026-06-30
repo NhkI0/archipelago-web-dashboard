@@ -100,13 +100,18 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
     return h.finding_slot === slotId || h.receiving_slot === slotId;
   }
 
+  // Grow the canvas with the slot count so avatars (fixed pixel size) keep
+  // breathing room around the ring instead of crowding at the top.
+  // ~62px of width per node keeps labels legible; clamp to a sane range.
+  const maxWidth = Math.min(1100, Math.max(640, Math.round(slots.length * 62)));
+
   const hoveredSlot = hover != null ? slots.find(s => s.slot === hover) : null;
   const hoveredIncoming = hoveredSlot ? hints.filter(h => h.receiving_slot === hoveredSlot.slot) : [];
   const hoveredOutgoing = hoveredSlot ? hints.filter(h => h.finding_slot === hoveredSlot.slot)  : [];
 
   return (
     <section className="relative">
-      <div className="constellation relative mx-auto aspect-square max-w-[640px]">
+      <div className="constellation relative mx-auto aspect-square w-full" style={{ maxWidth }}>
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${VB} ${VB}`}
@@ -172,13 +177,33 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
           const y = (p.y / VB) * 100;
           const tint = TINTS[s.slot % TINTS.length];
           const dimmed = hover !== null && hover !== s.slot && !hints.some(h => isInvolved(s.slot, h) && (h.finding_slot === hover || h.receiving_slot === hover));
+          // Float the label radially outward from the centre along the node's
+          // angle, so it always sits on the outer edge clear of the arcs:
+          // straight up at the top, up-right in the upper-right corner, etc.
+          // The 50% terms shift the label by half its own size in the radial
+          // direction (so its inner edge meets the node); GAP clears the avatar.
+          const ox = Math.cos(p.angle);
+          const oy = Math.sin(p.angle);
+          const GAP = 46;
+          const labelTransform =
+            `translate(calc(-50% + ${(ox * 50).toFixed(2)}%), calc(-50% + ${(oy * 50).toFixed(2)}%))` +
+            ` translate(${(ox * GAP).toFixed(1)}px, ${(oy * GAP).toFixed(1)}px)`;
+          const label = (
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 max-w-[88px] sm:max-w-[148px] rounded-lg bg-surface-soft px-2.5 py-1.5 text-center"
+              style={{ transform: labelTransform }}
+            >
+              <div className="text-body-sm font-medium text-ink truncate">{s.name}</div>
+              <MarqueeText className="mt-0.5 font-mono text-caption text-slate">{s.game}</MarqueeText>
+            </div>
+          );
           return (
             <Link
               key={s.slot}
               to={`/slot/${encodeURIComponent(s.name)}`}
               onMouseEnter={() => setHover(s.slot)}
               onMouseLeave={() => setHover(null)}
-              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 text-center w-[88px] sm:w-[148px]"
+              className="absolute z-20 w-12 sm:w-[72px] -translate-x-1/2 -translate-y-1/2 text-center"
               style={{
                 left: `${x}%`,
                 top: `${y}%`,
@@ -186,6 +211,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                 transition: "opacity 200ms ease, transform 200ms ease",
               }}
             >
+              {label}
               <div className={`relative mx-auto inline-flex h-12 w-12 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-pill ${tint} border-4 border-canvas font-semibold text-charcoal shadow-mockup transition-colors duration-300`}>
                 <GameIcon game={s.game} size={24} />
                 <span
@@ -198,8 +224,6 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                   {s.goal_completed ? t("slot.goal") : `${s.percent.toFixed(0)}%`}
                 </span>
               </div>
-              <div className="mt-3 text-body-sm font-medium text-ink truncate">{s.name}</div>
-              <MarqueeText className="font-mono text-caption text-steel">{s.game}</MarqueeText>
             </Link>
           );
         })}
