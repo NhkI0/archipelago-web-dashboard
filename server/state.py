@@ -362,6 +362,24 @@ class WorldState:
         if changed:
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
 
+    def _hint_belongs_to_seed(
+        self, finding_slot: int, location_id: int, item_id: int, receiving_slot: int
+    ) -> bool:
+        """True iff this hint matches the loaded multidata's actual placement.
+
+        AP location/item IDs are game-global, not seed-specific, so a hint left
+        over from a previous multiworld can still resolve to real-looking names
+        against a new seed while pointing at the wrong placement. The multidata
+        is ground truth: `locations[finder][loc]` is exactly `(item, recv, flags)`
+        for the current seed, and every genuine hint references a real placement,
+        so a mismatch means the hint came from another seed and must be dropped.
+        """
+        entry = self.multidata.locations.get(finding_slot, {}).get(location_id)
+        if entry is None:
+            return False
+        md_item, md_recv, _flags = entry
+        return md_item == item_id and md_recv == receiving_slot
+
     def apply_print_json(self, payload: dict[str, Any]) -> None:
         """Surface hint and goal-completion events to the frontend log."""
         msg_type = payload.get("type", "")
@@ -372,6 +390,10 @@ class WorldState:
             item_id = int(item.get("item") or 0)
             location_id = int(item.get("location") or 0)
             found = bool(payload.get("found"))
+            if not self._hint_belongs_to_seed(send, location_id, item_id, recv):
+                log.info("dropping hint not in current seed: find=%d loc=%d item=%d recv=%d",
+                         send, location_id, item_id, recv)
+                return
             rec = HintRecord(
                 finding_slot=send,
                 receiving_slot=recv,
@@ -425,19 +447,24 @@ class WorldState:
 
     def apply_hint_store(self, key: str, value: Any) -> None:
         """Replace hints for one slot from `_read_hints_0_<slot>` data store entry."""
-        if not key.startswith("_read_hints_") or not isinstance(value, list):
+        if not key.startswith("_read_hints_"):
             return
         try:
             slot_num = int(key.rsplit("_", 1)[-1])
         except ValueError:
             return
 
+        # A slot with no hints in the current seed comes back as `None` (unset
+        # data-store key), not an empty list. Treat that as "no hints" and fall
+        # through to clear any stale ones rather than early-returning.
+        raw_hints = value if isinstance(value, list) else []
+
         # Drop existing hints owned by this slot, then re-add from the store.
         self.hints = [
             h for h in self.hints
             if h.finding_slot != slot_num and h.receiving_slot != slot_num
         ]
-        for raw in value:
+        for raw in raw_hints:
             # AP's data store ships hints as `Hint` NamedTuples, which JSON-
             # encode to lists like [recv, find, loc, item, found, entrance,
             # flags, status]. Older / patched servers may send dicts; accept
@@ -455,6 +482,11 @@ class WorldState:
                 item_id = int(raw[3])
                 found = bool(raw[4])
             else:
+                continue
+            if not self._hint_belongs_to_seed(send, location_id, item_id, recv):
+                # Stale hint from a previous seed still lingering in AP's data
+                # store; its IDs may resolve to real names here but point at the
+                # wrong placement, so skip it.
                 continue
             rec = HintRecord(
                 finding_slot=send,
