@@ -43,15 +43,22 @@ export default function Hints() {
 
   const allItems = useMemo(() => {
     if (!detail) return [] as { name: string; count: number }[];
-    const hinted = new Set(
-      detail.hints.filter(h => h.receiving_slot === detail.slot.slot).map(h => h.item_name)
-    );
+    const hintedCounts = new Map<string, number>();
+    for (const h of detail.hints) {
+      if (h.receiving_slot === detail.slot.slot) {
+        hintedCounts.set(h.item_name, (hintedCounts.get(h.item_name) ?? 0) + 1);
+      }
+    }
     const counts = new Map<string, number>();
     for (const name of detail.available_items) {
-      if (hinted.has(name)) continue;
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }
-    return Array.from(counts, ([name, count]) => ({ name, count }));
+    const result: { name: string; count: number }[] = [];
+    for (const [name, count] of counts) {
+      const remaining = count - (hintedCounts.get(name) ?? 0);
+      if (remaining > 0) result.push({ name, count: remaining });
+    }
+    return result;
   }, [detail]);
 
   const remainingLocations = useMemo(() => {
