@@ -63,16 +63,11 @@ const j = async <T,>(r: Response): Promise<T> => {
   return r.json() as Promise<T>;
 };
 
-// TEMP: artificial delay so the LoadingScreen is visible while testing. Remove.
-const DEV_LOAD_DELAY_MS = 2500;
-const withDelay = <T,>(p: Promise<T>): Promise<T> =>
-  new Promise((resolve, reject) => setTimeout(() => p.then(resolve, reject), DEV_LOAD_DELAY_MS));
-
 export const api = {
-  state: () => withDelay(fetch("/api/state").then(j<Snapshot>)),
+  state: () => fetch("/api/state").then(j<Snapshot>),
   deaths: () => fetch("/api/deaths").then(j<Deaths>),
-  slot: (name: string) => withDelay(fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>)),
-  me: () => withDelay(fetch("/api/me").then(j<Me>)),
+  slot: (name: string) => fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>),
+  me: () => fetch("/api/me").then(j<Me>),
   login: (slot: string, password: string) =>
     fetch("/api/login", {
       method: "POST",
