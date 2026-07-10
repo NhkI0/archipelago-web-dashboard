@@ -50,6 +50,18 @@ export default function SlotDetail() {
     );
   }, [data, search]);
 
+  const counts = useMemo(() => {
+    if (!data) return { all: 0, remaining: 0, checked: 0, hinted: 0, received: 0 };
+    const checked = data.locations.filter((l) => l.checked).length;
+    return {
+      all: data.locations.length,
+      remaining: data.locations.length - checked,
+      checked,
+      hinted: data.locations.filter((l) => hintedLocIds.has(l.id)).length,
+      received: data.received_items.length,
+    };
+  }, [data, hintedLocIds]);
+
   if (!data) {
     return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 text-slate">{t("common.loading")}</div>;
   }
@@ -72,16 +84,17 @@ export default function SlotDetail() {
             <span>{s.game}</span>
           </div>
         </div>
-        <div className="ml-auto flex flex-wrap items-end gap-x-8 gap-y-3 text-body-sm">
-          <Stat label={t("slot.progress")} value={`${s.percent.toFixed(1)}%`} />
-          <Stat label={t("slot.checks")} value={`${s.checked} / ${s.total}`} />
-          <Stat label={t("slot.remaining")} value={String(s.remaining)} />
-          <Stat label={t("slot.hint_pts")} value={String(s.hint_points)} />
-          <Stat label={t("slot.open_hints")} value={String(s.open_hints)} />
+        <div className="ml-auto flex flex-col items-stretch gap-3">
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-3 text-body-sm">
+            <Stat label={t("slot.progress")} value={`${s.percent.toFixed(1)}%`} />
+            <Stat label={t("slot.checks")} value={`${s.checked} / ${s.total}`} />
+            <Stat label={t("slot.remaining")} value={String(s.remaining)} />
+            <Stat label={t("slot.hint_pts")} value={String(s.hint_points)} />
+            <Stat label={t("slot.open_hints")} value={String(s.open_hints)} />
+          </div>
+          <ProgressBar value={s.checked} total={s.total} />
         </div>
       </header>
-
-      <div className="mt-6 max-w-md"><ProgressBar value={s.checked} total={s.total} /></div>
 
       <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[1fr,320px]">
         <section>
@@ -97,6 +110,18 @@ export default function SlotDetail() {
               placeholder={filter === "received" ? t("slot.search_received") : t("slot.search_locations")}
               className="w-full sm:ml-auto sm:w-auto h-10 rounded-md border hair-strong bg-canvas px-4 text-body-md text-ink placeholder:text-stone outline-none focus:border-primary focus:border-2"
             />
+          </div>
+
+          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-caption text-steel tabular-nums">
+            <span className={filter === "all" ? "text-ink font-medium" : ""}>{t("slot.tab.all")} {counts.all}</span>
+            <span aria-hidden>·</span>
+            <span className={filter === "remaining" ? "text-ink font-medium" : ""}>{t("slot.tab.remaining")} {counts.remaining}</span>
+            <span aria-hidden>·</span>
+            <span className={filter === "checked" ? "text-ink font-medium" : ""}>{t("slot.tab.checked")} {counts.checked}</span>
+            <span aria-hidden>·</span>
+            <span className={filter === "hinted" ? "text-ink font-medium" : ""}>{t("slot.tab.hinted")} {counts.hinted}</span>
+            <span aria-hidden>·</span>
+            <span className={filter === "received" ? "text-ink font-medium" : ""}>{t("slot.tab.received")} {counts.received}</span>
           </div>
 
           {filter === "received" ? (
