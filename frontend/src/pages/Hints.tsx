@@ -173,6 +173,27 @@ export default function Hints() {
         </div>
       </header>
 
+      {(() => {
+        const total = detail?.slot.total ?? 0;
+        const pct = snap.hint_cost ?? 10;
+        const cost = Math.ceil((pct / 100) * total);
+        const affordable = cost > 0 ? Math.floor(me.hint_points / cost) : 0;
+        return (
+          <div className="mt-6 flex flex-wrap items-center gap-4 rounded-lg bg-surface px-5 py-4 transition-colors duration-300">
+            <div className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 rounded-pill bg-primary" />
+              <span className="text-body-sm text-charcoal">
+                {t("hints.banner.cost")} <span className="font-medium text-ink">{cost} pts</span>
+                {" · "}{t("hints.banner.balance")} <span className="font-medium text-ink">{me.hint_points} pts</span>
+              </span>
+            </div>
+            <div className="ml-auto text-body-sm text-slate">
+              {t("hints.banner.afford", { n: affordable, plural: affordable === 1 ? "" : "s" })}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="mt-8 flex flex-wrap gap-3">
         <PillTab active={tab === "item"} onClick={() => setTab("item")}>{t("hints.tab.item")}</PillTab>
         <PillTab active={tab === "location"} onClick={() => setTab("location")}>{t("hints.tab.location")}</PillTab>
