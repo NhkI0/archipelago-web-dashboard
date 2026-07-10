@@ -5,20 +5,11 @@ const ROTATIONS = [0, 60, 120, 180, 240, 300];
 
 // Flips true once the app has successfully loaded data for the first time.
 // Before that, the splash takes over the whole screen (initial connection);
-// afterwards it renders inline below the nav so navigation stays visible.
 let connectedOnce = false;
 export const markConnected = () => {
   connectedOnce = true;
 };
 
-/**
- * Loading splash built from the Archipelago flower mark. Six teal petals orbit
- * and breathe around a spinning center while the brand word fades up and a
- * track sweeps below. Keyframes live in theme.css (`ls-*`).
- *
- * On the very first connection it fills the viewport; on every load after that
- * it sits in the content area with the top navigation still on top.
- */
 export default function LoadingScreen() {
   const { t } = useT();
   const fullScreen = !connectedOnce;
