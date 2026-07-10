@@ -129,6 +129,8 @@ const en: Dict = {
 
   // Loading
   "common.loading": "Loading…",
+  "loading.brand": "ArchipelaGoats",
+  "loading.tag": "Loading the multiworld…",
   "common.lang.toggle": "FR",
   "common.theme.toggle_aria": "Toggle theme",
 
@@ -265,6 +267,8 @@ const fr: Dict = {
   "login.button.signing": "Connexion…",
 
   "common.loading": "Chargement…",
+  "loading.brand": "ArchipelaGoats",
+  "loading.tag": "Chargement du multimonde…",
   "common.lang.toggle": "EN",
   "common.theme.toggle_aria": "Changer le thème",
 

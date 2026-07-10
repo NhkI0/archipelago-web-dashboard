@@ -4,6 +4,7 @@ import { SlotDetail as SlotDetailT, api, liveSocket } from "../api";
 import ProgressBar from "../components/ProgressBar";
 import BadgePill from "../components/BadgePill";
 import GameIcon from "../components/GameIcon";
+import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import { useT } from "../i18n";
 
 type Filter = "all" | "remaining" | "checked" | "hinted" | "received";
@@ -21,6 +22,10 @@ export default function SlotDetail() {
       api.slot(name).then(setData).catch(() => {});
     });
   }, [name]);
+
+  useEffect(() => {
+    if (data) markConnected();
+  }, [data]);
 
   const hintedLocIds = useMemo(
     () => new Set((data?.hints || []).filter((h) => h.finding_slot === data?.slot.slot).map((h) => h.location_id)),
@@ -63,7 +68,7 @@ export default function SlotDetail() {
   }, [data, hintedLocIds]);
 
   if (!data) {
-    return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 text-slate">{t("common.loading")}</div>;
+    return <LoadingScreen />;
   }
 
   const s = data.slot;

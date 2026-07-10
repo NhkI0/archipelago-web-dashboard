@@ -28,6 +28,9 @@
   --c-arc-fresh: #5645d4;
   --c-arc-found: #b794e8;
   --c-arc-ring:  #ede9e4;
+
+  /* Loading-splash flower mark — logo teal-blue reads best on the light canvas */
+  --ls-accent: #2f6d86;
 }
 
 /* ── Dark theme ────────────────────────────────────────────────────────────── */
@@ -56,6 +59,9 @@ html.dark {
   --c-arc-fresh: #cfc6ff;
   --c-arc-found: #9aa0b4;
   --c-arc-ring:  #3a4560;
+
+  /* Brighter teal pops against the dark navy splash */
+  --ls-accent: #2a9d99;
 }
 
 html, body, #root {
@@ -77,6 +83,50 @@ body {
 }
 
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 9999px; }
+
+/* ── Loading screen — flower-mark splash (LoadingScreen.tsx) ───────────────── */
+@keyframes ls-breathe {
+  0%, 100% { transform: translateY(-23px); }
+  50%      { transform: translateY(-44px); }
+}
+@keyframes ls-flower-spin {
+  0%   { transform: rotate(0deg); }
+  50%  { transform: rotate(30deg); }
+  100% { transform: rotate(60deg); }
+}
+.ls-flower-spin {
+  position: absolute; inset: 0;
+  animation: ls-flower-spin 1.5s ease-in-out infinite;
+}
+.ls-petal-wrap {
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+  transform: rotate(var(--rot));
+}
+.ls-petal-orbit {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  animation: ls-breathe 1.5s ease-in-out infinite;
+}
+.ls-petal {
+  position: absolute; left: -15px; top: -15px; width: 30px; height: 30px;
+  background: var(--ls-accent);
+  opacity: 0.85;
+  border-radius: 9999px;
+}
+@keyframes ls-fade-up {
+  from { opacity: 0.5; transform: translateY(6px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+.ls-brand-word { animation: ls-fade-up 700ms ease 200ms both; }
+.ls-brand-tag  { animation: ls-fade-up 700ms ease 400ms both; }
+@keyframes ls-track-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.ls-track-fill { animation: ls-track-sweep 1.6s ease-in-out infinite; background: var(--ls-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-flower-spin, .ls-petal-orbit, .ls-track-fill { animation: none; }
+}
 
 .hair        { border-color: rgb(var(--c-hairline)); }
 .hair-soft   { border-color: rgb(var(--c-hairline-soft)); }

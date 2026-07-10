@@ -3,6 +3,7 @@ import { Deaths, Snapshot, api, liveSocket } from "../api";
 import Hero from "../components/Hero";
 import SlotCard from "../components/SlotCard";
 import Constellation from "../components/Constellation";
+import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import { useT } from "../i18n";
 
 export default function Dashboard() {
@@ -25,8 +26,12 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (snap) markConnected();
+  }, [snap]);
+
   if (!snap) {
-    return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-section text-slate">{t("common.loading")}</div>;
+    return <LoadingScreen />;
   }
 
   return (
