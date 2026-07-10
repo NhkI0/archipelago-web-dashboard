@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import { Hint, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
 import { useT } from "../i18n";
 
-type Tab = "location" | "item" | "hints";
+type Tab = "location" | "item" | "hints" | "received";
 type HintFilter = "mine_for" | "mine_in" | "all";
 
 export default function Hints() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [detail, setDetail] = useState<SlotDetail | null>(null);
@@ -66,6 +66,18 @@ export default function Hints() {
     const hinted = new Set(detail.hints.filter(h => h.finding_slot === detail.slot.slot).map(h => h.location_id));
     return detail.locations.filter(l => !l.checked && !hinted.has(l.id));
   }, [detail]);
+
+  const visibleReceived = useMemo(() => {
+    if (!detail) return [];
+    const q = search.toLowerCase();
+    return detail.received_items.filter(
+      (r) =>
+        !q ||
+        r.item_name.toLowerCase().includes(q) ||
+        r.sender.toLowerCase().includes(q) ||
+        r.location_name.toLowerCase().includes(q),
+    );
+  }, [detail, search]);
 
   const visibleHints = useMemo(() => {
     if (!snap || !me || !me.logged_in) return [];
@@ -166,6 +178,9 @@ export default function Hints() {
         <PillTab active={tab === "location"} onClick={() => setTab("location")}>{t("hints.tab.location")}</PillTab>
         <PillTab active={tab === "hints"} onClick={() => setTab("hints")}>
           {t("hints.tab.hints")} {snap.hints.length > 0 && <span className="ml-2 opacity-70">{snap.hints.length}</span>}
+        </PillTab>
+        <PillTab active={tab === "received"} onClick={() => setTab("received")}>
+          {t("slot.tab.received")} {detail && detail.received_items.length > 0 && <span className="ml-2 opacity-70">{detail.received_items.length}</span>}
         </PillTab>
         <input
           value={search}
@@ -282,6 +297,27 @@ export default function Hints() {
             </ul>
           </div>
         )}
+
+        {tab === "received" && (
+          <ul className="divide-y hair-soft">
+            {visibleReceived.map((r, i) => (
+              <li key={i} className="px-4 py-3">
+                <div className="flex items-baseline gap-3">
+                  <span className="min-w-0 break-words text-body-sm text-ink font-medium">{r.item_name}</span>
+                  <span className="ml-auto shrink-0 text-caption text-steel tabular-nums">
+                    {r.timestamp != null ? formatWhen(r.timestamp, lang) : t("slot.received.undated")}
+                  </span>
+                </div>
+                <div className="mt-0.5 font-mono text-caption text-slate break-words">
+                  {t("slot.received.from", { sender: r.sender, loc: r.location_name })}
+                </div>
+              </li>
+            ))}
+            {visibleReceived.length === 0 && (
+              <li className="px-4 py-8 text-center text-body-sm text-stone">{t("slot.received_panel.empty")}</li>
+            )}
+          </ul>
+        )}
       </div>
 
       {confirm && (() => {
@@ -337,6 +373,15 @@ export default function Hints() {
       })()}
     </div>
   );
+}
+
+function formatWhen(epochSeconds: number, lang: string): string {
+  return new Date(epochSeconds * 1000).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
