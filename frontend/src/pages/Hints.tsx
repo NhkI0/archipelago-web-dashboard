@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Hint, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
+import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import { useT } from "../i18n";
 
 type Tab = "location" | "item" | "hints" | "received";
@@ -34,6 +35,10 @@ export default function Hints() {
   useEffect(() => {
     if (me?.logged_in && snap) api.slot(me.slot).then(setDetail);
   }, [snap?.hints.length, me?.logged_in ? me.slot : null]);
+
+  useEffect(() => {
+    if (me && snap) markConnected();
+  }, [me, snap]);
 
   const slotNames = useMemo(() => {
     const m = new Map<number, string>();
@@ -95,7 +100,7 @@ export default function Hints() {
   }, [snap, me, detail, hintFilter, hideFound, search]);
 
   if (me === null || snap === null) {
-    return <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 text-slate">{t("common.loading")}</div>;
+    return <LoadingScreen />;
   }
 
   if (!me.logged_in) {
