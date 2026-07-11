@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Hint, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
+import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
 
 type Tab = "location" | "item" | "hints" | "received";
@@ -388,8 +389,9 @@ export default function Hints() {
                     setConfirm(null);
                   }}
                   disabled={!!busy || !enough}
-                  className="h-10 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
                 >
+                  {busy && <FlowerSpinner size={18} color="#ffffff" />}
                   {busy ? t("hints.button.sending") : t("hints.confirm.confirm")}
                 </button>
               </div>
