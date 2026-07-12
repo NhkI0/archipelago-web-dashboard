@@ -137,7 +137,7 @@ class _SlotClient:
             elif key and key.startswith("_read_client_status_"):
                 self.state.apply_client_status(key, packet.get("value"))
         elif cmd == "PrintJSON":
-            self.state.apply_print_json(packet, owner_slot=self.slot_num)
+            self.state.apply_print_json(packet)
         elif cmd == "ConnectionRefused":
             log.error("[%s] refused: %s", self.slot_name, packet.get("errors"))
 

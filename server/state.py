@@ -91,8 +91,8 @@ class WorldState:
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
         self._subscribers: set[asyncio.Queue] = set()
-        # Count of real AP clients connected per slot (Join/Part with "AP" tag); drives `online`.
-        self._ap_clients: dict[int, int] = {}
+        # Refcount of open dashboard WebSockets per slot; drives `online`.
+        self._presence: dict[int, int] = {}
         # Received-item log, keyed by (finder_slot, location_id). Persisted to
         # `items_file` so observed timestamps survive restarts.
         self._items_file = items_file
@@ -256,6 +256,32 @@ class WorldState:
         for q in dead:
             self._subscribers.discard(q)
 
+    # ── presence (called by the /ws/live relay in main.py) ────────────────────
+
+    def add_presence(self, slot_num: int) -> None:
+        """Register an open dashboard WS for `slot_num`; light the dot if first."""
+        if slot_num not in self.slots:
+            return
+        self._presence[slot_num] = self._presence.get(slot_num, 0) + 1
+        slot = self.slots[slot_num]
+        if not slot.online:
+            slot.online = True
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
+    def remove_presence(self, slot_num: int) -> None:
+        """Drop one open dashboard WS for `slot_num`; dim the dot if it was last."""
+        if slot_num not in self.slots:
+            return
+        remaining = self._presence.get(slot_num, 0) - 1
+        if remaining > 0:
+            self._presence[slot_num] = remaining
+            return
+        self._presence.pop(slot_num, None)
+        slot = self.slots[slot_num]
+        if slot.online:
+            slot.online = False
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
     # ── mutators (called by tracker.py) ───────────────────────────────────────
 
     def apply_slot_checks(self, slot_num: int, location_ids: list[int], *, replace: bool) -> None:
@@ -305,6 +331,12 @@ class WorldState:
             except (TypeError, ValueError):
                 pass
 
+        # NB: we intentionally ignore AP's RoomUpdate.players for `online`.
+        # The backend opens one passive Tracker WS per slot (see tracker.py),
+        # so every slot is permanently "connected" from AP's point of view and
+        # that signal can't tell a real player apart from our own tracker.
+        # `online` is instead driven by dashboard presence (add/remove_presence).
+
         if "hint_points" in payload:
             hp = payload["hint_points"]
             if isinstance(hp, dict):
@@ -348,36 +380,10 @@ class WorldState:
         md_item, md_recv, _flags = entry
         return md_item == item_id and md_recv == receiving_slot
 
-    def _apply_connection_event(self, payload: dict[str, Any], *, owner_slot: int | None) -> None:
-        """Drive `online` from AP Join/Part notices for real ("AP"-tagged) clients.
-
-        Join/Part are broadcast to every tracker connection, so we only act on
-        the affected slot's own connection to count each event once. Part omits
-        tags, so we decrement toward zero.
-        """
-        slot_num = int(payload.get("slot") or 0)
-        if owner_slot is None or owner_slot != slot_num:
-            return
-        slot = self.slots.get(slot_num)
-        if slot is None:
-            return
-        if payload.get("type") == "Join":
-            if "AP" not in (payload.get("tags") or []):
-                return
-            self._ap_clients[slot_num] = self._ap_clients.get(slot_num, 0) + 1
-        elif self._ap_clients.get(slot_num, 0) > 0:
-            self._ap_clients[slot_num] -= 1
-        online = self._ap_clients.get(slot_num, 0) > 0
-        if slot.online != online:
-            slot.online = online
-            self._emit({"type": "room_update", "snapshot": self.snapshot()})
-
-    def apply_print_json(self, payload: dict[str, Any], *, owner_slot: int | None = None) -> None:
-        """Surface hint, goal-completion, and connect/disconnect events."""
+    def apply_print_json(self, payload: dict[str, Any]) -> None:
+        """Surface hint and goal-completion events to the frontend log."""
         msg_type = payload.get("type", "")
-        if msg_type in ("Join", "Part"):
-            self._apply_connection_event(payload, owner_slot=owner_slot)
-        elif msg_type == "Hint":
+        if msg_type == "Hint":
             item = payload.get("item") or {}
             recv = int(payload.get("receiving") or 0)
             send = int(item.get("player") or 0)
