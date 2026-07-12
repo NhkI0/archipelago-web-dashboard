@@ -352,10 +352,8 @@ class WorldState:
         """Drive `online` from AP Join/Part notices for real ("AP"-tagged) clients.
 
         Join/Part are broadcast to every tracker connection, so we only act on
-        the affected slot's own connection to count each event once. A real
-        player carries the "AP" or "DeathLink" tag; our own passive connections
-        always carry "Tracker", so we exclude those. Part omits tags, so we
-        decrement toward zero.
+        the affected slot's own connection to count each event once. Part omits
+        tags, so we decrement toward zero.
         """
         slot_num = int(payload.get("slot") or 0)
         if owner_slot is None or owner_slot != slot_num:
@@ -364,9 +362,7 @@ class WorldState:
         if slot is None:
             return
         if payload.get("type") == "Join":
-            tags = payload.get("tags") or []
-            is_player = ("AP" in tags or "DeathLink" in tags) and "Tracker" not in tags
-            if not is_player:
+            if "AP" not in (payload.get("tags") or []):
                 return
             self._ap_clients[slot_num] = self._ap_clients.get(slot_num, 0) + 1
         elif self._ap_clients.get(slot_num, 0) > 0:
