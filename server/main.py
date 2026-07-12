@@ -132,16 +132,15 @@ async def api_slot(name: str) -> dict[str, Any]:
     locs = md.locations.get(slot.slot, {})
     checked = slot.checked
 
-    # Hints concerning this slot — either as finder or recipient
+    # Hints concerning this slot, either as finder or recipient
     related_hints = [
         h.to_dict()
         for h in world.hints
         if h.finding_slot == slot.slot or h.receiving_slot == slot.slot
     ]
 
-    # locs is keyed by FINDER slot — slot.slot finds these in its own world,
-    # but each item there belongs to the RECIPIENT's game (recv = the second
-    # tuple field).
+    # locs is keyed by FINDER slot : slot.slot finds these in its own world,
+    # but each item there belongs to the RECIPIENT's game (recv = the second tuple field).
     locations_payload = []
     for loc_id, (item_id, recv, _flags) in locs.items():
         locations_payload.append({
@@ -157,8 +156,8 @@ async def api_slot(name: str) -> dict[str, Any]:
     locations_payload.sort(key=lambda x: x["name"])
 
     # Items the slot will RECEIVE that haven't been sent yet: scan every world
-    # for entries with recv==slot.slot whose finder location is unchecked. Use
-    # counts so duplicate items still appear when only some copies have arrived.
+    # for entries with recv==slot.slot whose finder location is unchecked.
+    # Use counts so duplicate items still appear when only some copies have arrived.
     from collections import Counter
     pending: Counter[str] = Counter()
     for finder_slot, table in md.locations.items():
@@ -223,8 +222,8 @@ async def ws_live(ws: WebSocket) -> None:
 
     async def watch_disconnect() -> None:
         # Reading the socket is the only way to notice a client close promptly
-        # when no world events are flowing; without it a dropped tab would keep
-        # its dot lit until the next unrelated emit.
+        # when no world events are flowing;
+        # without it a dropped tab would keep its dot lit until the next unrelated emit.
         try:
             while True:
                 await ws.receive()
@@ -330,14 +329,13 @@ if STATIC_DIR.is_dir():
     @app.get("/{full_path:path}")
     async def spa(full_path: str) -> FileResponse:
         # Serve any real file at the top of dist/ (favicon.ico, robots.txt,
-        # public assets like /games/<slug>.png, etc.) before falling back to
-        # the SPA shell.
+        # public assets like /games/<slug>.png, etc.) before falling back to the SPA shell.
         if full_path:
             candidate = (STATIC_DIR / full_path).resolve()
             try:
                 candidate.relative_to(STATIC_DIR.resolve())
             except ValueError:
-                candidate = None  # path traversal — refuse
+                candidate = None  # path traversal, refuse
             if candidate and candidate.is_file():
                 return FileResponse(candidate)
         index = STATIC_DIR / "index.html"
