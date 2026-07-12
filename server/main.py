@@ -178,59 +178,24 @@ async def api_slot(name: str) -> dict[str, Any]:
 
 # ── Live updates ──────────────────────────────────────────────────────────────
 
-def _slot_num_for_session(sid: str | None) -> int | None:
-    """Resolve a session cookie to its slot number, if logged in."""
-    if not sid:
-        return None
-    sess = sessions.get(sid)
-    if not sess:
-        return None
-    slot_info = world.multidata.slot_by_name(sess.slot)
-    return slot_info.slot if slot_info else None
-
-
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket) -> None:
     await ws.accept()
     queue = world.subscribe()
-    sid = ws.cookies.get("ap_session")
-    # Presence (the green dot) follows this socket's logged-in session. We hold
-    # the slot we last lit so we can both react to logout (session vanishes
-    # while the socket stays open) and always release on disconnect.
-    present_slot: int | None = None
-
-    def sync_presence() -> None:
-        nonlocal present_slot
-        slot_num = _slot_num_for_session(sid)
-        if slot_num == present_slot:
-            return
-        if present_slot is not None:
-            world.remove_presence(present_slot)
-        if slot_num is not None:
-            world.add_presence(slot_num)
-        present_slot = slot_num
 
     async def pump() -> None:
         await ws.send_json({"type": "snapshot", "snapshot": world.snapshot()})
         while True:
-            try:
-                event = await asyncio.wait_for(queue.get(), timeout=5.0)
-                await ws.send_json(event)
-            except asyncio.TimeoutError:
-                pass  # idle tick — fall through to re-check the session
-            sync_presence()
+            event = await queue.get()
+            await ws.send_json(event)
 
     async def watch_disconnect() -> None:
-        # Reading the socket is the only way to notice a client close promptly
-        # when no world events are flowing;
-        # without it a dropped tab would keep its dot lit until the next unrelated emit.
         try:
             while True:
                 await ws.receive()
         except WebSocketDisconnect:
             return
 
-    sync_presence()
     tasks = [asyncio.create_task(pump()), asyncio.create_task(watch_disconnect())]
     try:
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -243,8 +208,6 @@ async def ws_live(ws: WebSocket) -> None:
             except (asyncio.CancelledError, Exception):
                 pass
         world.unsubscribe(queue)
-        if present_slot is not None:
-            world.remove_presence(present_slot)
 
 
 # ── Auth + hints ──────────────────────────────────────────────────────────────
