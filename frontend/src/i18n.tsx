@@ -265,7 +265,7 @@ const fr: Dict = {
   "hints.subtab.mine_in": "Dans mon monde",
   "hints.subtab.all": "Tous",
   "hints.toggle.hide_found": "Masquer les trouvés",
-  "hints.toggle.sort_tag": "Trier par étiquette",
+  "hints.toggle.sort_tag": "Trier par tag",
   "hints.button.hint": "Indice",
   "hints.button.sending": "Envoi…",
   "hints.confirm.title": "Confirmer l'indice",
