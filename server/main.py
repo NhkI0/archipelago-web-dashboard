@@ -34,6 +34,7 @@ AP_FILE = os.environ.get("AP_FILE", "/opt/archipelago/output/latest.archipelago"
 AP_HOST_YAML = os.environ.get("AP_HOST_YAML", "/opt/archipelago/host.yaml")
 DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
 ITEMS_FILE = os.environ.get("ITEMS_FILE", "/opt/archipelago/received_items.json")
+TAGS_FILE = os.environ.get("TAGS_FILE", "/opt/archipelago/hint_tags.json")
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -77,7 +78,11 @@ STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).pare
 # ── State ─────────────────────────────────────────────────────────────────────
 
 multidata = load_multidata(AP_FILE)
-world = WorldState(multidata, items_file=pathlib.Path(ITEMS_FILE))
+world = WorldState(
+    multidata,
+    items_file=pathlib.Path(ITEMS_FILE),
+    tags_file=pathlib.Path(TAGS_FILE),
+)
 _server_opts = _read_server_options_from_host_yaml(AP_HOST_YAML)
 try:
     _hc = int(_server_opts["hint_cost"])
@@ -259,6 +264,14 @@ class HintBody(BaseModel):
     target: str       # item or location name as the AP server expects it
 
 
+class HintTagBody(BaseModel):
+    finding_slot: int
+    receiving_slot: int
+    item_id: int
+    location_id: int
+    tag: str = ""     # one of state.HINT_TAGS, or "" to clear
+
+
 @app.post("/api/login")
 async def api_login(body: LoginBody, response: Response) -> dict[str, Any]:
     slot_info = world.multidata.slot_by_name(body.slot)
@@ -304,6 +317,28 @@ async def api_hint(body: HintBody, ap_session: str | None = Cookie(default=None)
         raise HTTPException(400, "kind must be 'item' or 'location'")
     result = await sessions.send_hint(ap_session, body.kind, body.target)
     return {**result, "hint_points": sess.hint_points}
+
+
+@app.post("/api/hint_tag")
+async def api_hint_tag(body: HintTagBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+    if not ap_session:
+        raise HTTPException(401, "not logged in")
+    slot_num = _slot_num_for_session(ap_session)
+    if slot_num is None:
+        raise HTTPException(401, "session expired")
+    # Tags live on a receiver's "For my world" hints, so only the receiving
+    # slot may tag its own incoming items.
+    if slot_num != body.receiving_slot:
+        raise HTTPException(403, "you can only tag hints for your own world")
+    try:
+        applied = world.set_hint_tag(
+            body.finding_slot, body.receiving_slot, body.item_id, body.location_id, body.tag
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not applied:
+        raise HTTPException(404, "hint not found")
+    return {"ok": True, "tag": body.tag}
 
 
 @app.get("/api/me")

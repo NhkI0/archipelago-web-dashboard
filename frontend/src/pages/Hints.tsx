@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Hint, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
+import { Hint, HintTag, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
@@ -165,6 +165,18 @@ export default function Hints() {
     setConfirm({ kind, target });
   }
 
+  async function updateTag(h: Hint, tag: HintTag | "") {
+    setError(null);
+    try {
+      await api.hintTag(h, tag);
+      // The server also broadcasts the change over /ws/live, but refresh now
+      // so the tag flips immediately for the person who set it.
+      setSnap(await api.state());
+    } catch (e: any) {
+      setError(e.message || String(e));
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12">
       <header className="flex flex-wrap items-end gap-6 border-b hair pb-8">
@@ -288,24 +300,35 @@ export default function Hints() {
                 onChange={setHideFound}
               />
             </div>
-            <div className="hidden sm:grid grid-cols-[1fr_1fr_180px_72px] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
+            <div className="hidden sm:grid grid-cols-[1fr_1fr_160px_136px_72px] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
               <div>{t("hints.col.item")}</div>
               <div>{t("hints.col.location")}</div>
               <div>{t("hints.col.parties")}</div>
+              <div>{t("hints.col.tag")}</div>
               <div>{t("hints.col.status")}</div>
             </div>
             <ul className="divide-y hair-soft">
               {visibleHints.map((h, i) => {
                 const finder = slotNames.get(h.finding_slot) ?? `slot ${h.finding_slot}`;
                 const receiver = slotNames.get(h.receiving_slot) ?? `slot ${h.receiving_slot}`;
+                const canTag = me.logged_in && h.receiving_slot === detail?.slot.slot;
                 return (
                   <li
                     key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
-                    className="flex flex-col gap-1 px-4 py-3 text-body-sm sm:grid sm:grid-cols-[1fr_1fr_180px_72px] sm:items-center sm:gap-x-4 sm:gap-y-0"
+                    className="flex flex-col gap-1 px-4 py-3 text-body-sm sm:grid sm:grid-cols-[1fr_1fr_160px_136px_72px] sm:items-center sm:gap-x-4 sm:gap-y-0"
                   >
                     <span className="text-ink font-medium">{h.item_name}</span>
                     <span className="text-slate break-words">{h.location_name}</span>
                     <span className="text-steel tabular-nums text-caption sm:text-body-sm sm:truncate" title={`${finder} → ${receiver}`}>{finder} → {receiver}</span>
+                    <span className="self-start sm:self-auto">
+                      {canTag ? (
+                        <TagMenu tag={h.tag} onPick={(tg) => updateTag(h, tg)} t={t} />
+                      ) : h.tag ? (
+                        <TagChip tag={h.tag} t={t} />
+                      ) : (
+                        <span className="text-caption text-stone">—</span>
+                      )}
+                    </span>
                     <span className={`self-start sm:self-auto inline-flex h-6 items-center rounded-pill px-2.5 text-caption-up uppercase ${
                       h.found ? "bg-card-mint text-brand-green" : "bg-card-gray text-steel"
                     }`}>
@@ -444,6 +467,87 @@ function SubTab({ active, onClick, children }: { active: boolean; onClick: () =>
     >
       {children}
     </button>
+  );
+}
+
+const TAG_ORDER: HintTag[] = ["bked", "mandatory", "comfort"];
+
+// Each tag gets a distinct, static colour (these tints don't theme-swap, so
+// white text over them stays legible in both light and dark mode).
+const TAG_CHIP: Record<HintTag, string> = {
+  bked: "bg-brand-orange text-white",
+  mandatory: "bg-semantic-error text-white",
+  comfort: "bg-brand-teal text-white",
+};
+const TAG_DOT: Record<HintTag, string> = {
+  bked: "bg-brand-orange",
+  mandatory: "bg-semantic-error",
+  comfort: "bg-brand-teal",
+};
+
+function TagChip({ tag, t }: { tag: HintTag; t: (k: string) => string }) {
+  return (
+    <span className={`inline-flex h-6 max-w-full items-center truncate rounded-pill px-2.5 text-caption-up uppercase ${TAG_CHIP[tag]}`}>
+      {t(`hints.tag.${tag}`)}
+    </span>
+  );
+}
+
+function TagMenu({
+  tag,
+  onPick,
+  t,
+}: {
+  tag: HintTag | "";
+  onPick: (tag: HintTag | "") => void;
+  t: (k: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={t("hints.tag.set")}
+        className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill outline-none"
+      >
+        {tag ? (
+          <TagChip tag={tag} t={t} />
+        ) : (
+          <span className="inline-flex h-6 items-center rounded-pill border border-dashed hair-strong px-2.5 text-caption-up uppercase text-steel hover:text-ink hover:border-primary">
+            + {t("hints.col.tag")}
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 z-50 mt-1 w-44 rounded-md border hair bg-canvas p-1 shadow-card">
+            {TAG_ORDER.map((tg) => (
+              <button
+                key={tg}
+                type="button"
+                onClick={() => { onPick(tg); setOpen(false); }}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-surface"
+              >
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-pill ${TAG_DOT[tg]}`} />
+                <span className="text-body-sm text-ink">{t(`hints.tag.${tg}`)}</span>
+                {tag === tg && <span className="ml-auto text-primary">✓</span>}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => { onPick(""); setOpen(false); }}
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-surface"
+            >
+              <span className="h-2.5 w-2.5 shrink-0 rounded-pill border hair-strong" />
+              <span className="text-body-sm text-slate">{t("hints.tag.none")}</span>
+              {!tag && <span className="ml-auto text-primary">✓</span>}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
