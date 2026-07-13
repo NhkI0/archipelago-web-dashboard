@@ -242,7 +242,7 @@ const fr: Dict = {
   "hints.col.location": "Emplacement",
   "hints.col.parties": "Trouveur → Destinataire",
   "hints.col.status": "Statut",
-  "hints.col.tag": "Étiquette",
+  "hints.col.tag": "Tag",
   "hints.tag.bked": "BKed 🍔",
   "hints.tag.mandatory": "Obligatoire",
   "hints.tag.comfort": "Confort",
