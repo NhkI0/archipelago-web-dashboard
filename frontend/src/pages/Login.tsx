@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Snapshot, api } from "../api";
+import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
 
 export default function Login() {
@@ -65,8 +66,9 @@ export default function Login() {
           <button
             type="submit"
             disabled={busy}
-            className="h-10 w-full rounded-md bg-primary text-btn text-white hover:bg-primary-active disabled:opacity-60"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-btn text-white hover:bg-primary-active disabled:opacity-60"
           >
+            {busy && <FlowerSpinner size={18} color="#ffffff" />}
             {busy ? t("login.button.signing") : t("login.button.signin")}
           </button>
         </form>
