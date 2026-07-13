@@ -69,6 +69,11 @@ class ReceivedItem:
     ts: float | None = None
 
 
+# Tags a receiving player can pin on a hint for an item they're waiting on.
+# The empty string is the implicit "untagged" state and is never stored.
+HINT_TAGS: set[str] = {"bked", "mandatory", "comfort"}
+
+
 @dataclass
 class HintRecord:
     finding_slot: int           # who can find it
@@ -78,13 +83,20 @@ class HintRecord:
     item_name: str
     location_name: str
     found: bool = False
+    tag: str = ""               # one of HINT_TAGS, or "" for untagged
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 class WorldState:
-    def __init__(self, multidata: MultiData, *, items_file: pathlib.Path | None = None) -> None:
+    def __init__(
+        self,
+        multidata: MultiData,
+        *,
+        items_file: pathlib.Path | None = None,
+        tags_file: pathlib.Path | None = None,
+    ) -> None:
         self.multidata = multidata
         self.seed_name = multidata.seed_name
         self.slots: dict[int, SlotState] = {}
@@ -97,6 +109,12 @@ class WorldState:
         # `items_file` so observed timestamps survive restarts.
         self._items_file = items_file
         self._received: dict[tuple[int, int], ReceivedItem] = {}
+        # Player-assigned hint tags, keyed by the hint's stable identity
+        # (finding_slot, receiving_slot, item_id, location_id). Kept separate
+        # from HintRecord because hints are rebuilt wholesale from AP's data
+        # store; the tags outlive those rebuilds and restarts via `tags_file`.
+        self._tags_file = tags_file
+        self._hint_tags: dict[tuple[int, int, int, int], str] = {}
         # Slots whose initial (replace=True) check snapshot we've already
         # processed; lets us distinguish the first bulk load from live checks.
         self._initial_loaded: set[int] = set()
@@ -108,6 +126,7 @@ class WorldState:
         # True only when it actually loads records for the current seed.
         self._had_persisted = False
         self._load_items()
+        self._load_tags()
 
     # Slots that exist for tooling and should never appear on the public
     # dashboard. Empty today; kept for future tooling-slot needs.
@@ -221,6 +240,77 @@ class WorldState:
         ]
         rows.sort(key=lambda x: (x["timestamp"] is not None, x["timestamp"] or 0.0), reverse=True)
         return rows
+
+    # ── hint tags ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _tag_key(rec: HintRecord) -> tuple[int, int, int, int]:
+        return (rec.finding_slot, rec.receiving_slot, rec.item_id, rec.location_id)
+
+    def _apply_tag(self, rec: HintRecord) -> None:
+        """Stamp a freshly-built hint with its persisted tag, if any."""
+        rec.tag = self._hint_tags.get(self._tag_key(rec), "")
+
+    def _load_tags(self) -> None:
+        if not self._tags_file or not self._tags_file.exists():
+            return
+        try:
+            raw = json.loads(self._tags_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            log.warning("could not load %s: %s", self._tags_file, e)
+            return
+        if not isinstance(raw, dict) or raw.get("seed") != self.seed_name:
+            # Seed-scoped like the received-item log: tags from another
+            # multiworld must not bleed onto this seed's hints.
+            return
+        tags = raw.get("tags")
+        if not isinstance(tags, dict):
+            return
+        for key, tag in tags.items():
+            if tag not in HINT_TAGS:
+                continue
+            try:
+                find, recv, item, loc = (int(x) for x in str(key).split(":", 3))
+            except (TypeError, ValueError):
+                continue
+            self._hint_tags[(find, recv, item, loc)] = tag
+        log.info("loaded %d hint tags from %s", len(self._hint_tags), self._tags_file)
+
+    def _persist_tags(self) -> None:
+        if not self._tags_file:
+            return
+        payload = {
+            "seed": self.seed_name,
+            "tags": {f"{f}:{r}:{i}:{l}": tag for (f, r, i, l), tag in self._hint_tags.items()},
+        }
+        tmp = self._tags_file.with_suffix(self._tags_file.suffix + ".tmp")
+        try:
+            self._tags_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(payload), encoding="utf-8")
+            os.replace(tmp, self._tags_file)
+        except OSError as e:
+            log.warning("could not persist %s: %s", self._tags_file, e)
+
+    def set_hint_tag(
+        self, finding_slot: int, receiving_slot: int, item_id: int, location_id: int, tag: str
+    ) -> bool:
+        """Set (or clear, with tag="") the tag on one hint. Returns True if the
+        hint exists in the current seed and the change was applied."""
+        tag = tag or ""
+        if tag and tag not in HINT_TAGS:
+            raise ValueError(f"unknown hint tag {tag!r}")
+        key = (finding_slot, receiving_slot, item_id, location_id)
+        rec = next((h for h in self.hints if self._tag_key(h) == key), None)
+        if rec is None:
+            return False
+        if tag:
+            self._hint_tags[key] = tag
+        else:
+            self._hint_tags.pop(key, None)
+        rec.tag = tag
+        self._persist_tags()
+        self._emit({"type": "hints_replaced", "snapshot": self.snapshot()})
+        return True
 
     # ── snapshot ──────────────────────────────────────────────────────────────
 
@@ -403,6 +493,7 @@ class WorldState:
                 location_name=self.multidata.location_name(send, location_id),
                 found=found,
             )
+            self._apply_tag(rec)
             # de-dupe by (send, recv, item_id, location_id)
             key = (rec.finding_slot, rec.receiving_slot, rec.item_id, rec.location_id)
             existing = next(
@@ -497,6 +588,7 @@ class WorldState:
                 location_name=self.multidata.location_name(send, location_id),
                 found=found,
             )
+            self._apply_tag(rec)
             key_t = (rec.finding_slot, rec.receiving_slot, rec.item_id, rec.location_id)
             if not any((h.finding_slot, h.receiving_slot, h.item_id, h.location_id) == key_t for h in self.hints):
                 self.hints.append(rec)

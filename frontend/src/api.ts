@@ -12,6 +12,8 @@ export type Slot = {
   open_hints: number;
 };
 
+export type HintTag = "bked" | "mandatory" | "comfort";
+
 export type Hint = {
   finding_slot: number;
   receiving_slot: number;
@@ -20,6 +22,7 @@ export type Hint = {
   item_name: string;
   location_name: string;
   found: boolean;
+  tag: HintTag | "";
 };
 
 export type Snapshot = {
@@ -81,6 +84,18 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind, target }),
     }).then(j<{ ok: boolean; reply?: string; queued?: boolean; hint_points: number; error?: string }>),
+  hintTag: (h: Pick<Hint, "finding_slot" | "receiving_slot" | "item_id" | "location_id">, tag: HintTag | "") =>
+    fetch("/api/hint_tag", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        finding_slot: h.finding_slot,
+        receiving_slot: h.receiving_slot,
+        item_id: h.item_id,
+        location_id: h.location_id,
+        tag,
+      }),
+    }).then(j<{ ok: boolean; tag: string }>),
 };
 
 export function liveSocket(onEvent: (e: any) => void): () => void {
