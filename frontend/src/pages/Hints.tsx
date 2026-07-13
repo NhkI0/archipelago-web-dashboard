@@ -16,6 +16,7 @@ export default function Hints() {
   const [tab, setTab] = useState<Tab>("item");
   const [hintFilter, setHintFilter] = useState<HintFilter>("mine_for");
   const [hideFound, setHideFound] = useState(false);
+  const [sortByTag, setSortByTag] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -97,8 +98,13 @@ export default function Hints() {
       h.item_name.toLowerCase().includes(q) ||
       h.location_name.toLowerCase().includes(q)
     );
+    if (sortByTag) {
+      // BKed → Mandatory → Comfort → untagged. Stable within each group, so
+      // the server's existing order is preserved among same-tag hints.
+      list = [...list].sort((a, b) => tagRank(a.tag) - tagRank(b.tag));
+    }
     return list;
-  }, [snap, me, detail, hintFilter, hideFound, search]);
+  }, [snap, me, detail, hintFilter, hideFound, search, sortByTag]);
 
   if (me === null || snap === null) {
     return <LoadingScreen />;
@@ -295,6 +301,11 @@ export default function Hints() {
               <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>{t("hints.subtab.all")}</SubTab>
               <Toggle
                 className="ml-auto"
+                label={t("hints.toggle.sort_tag")}
+                checked={sortByTag}
+                onChange={setSortByTag}
+              />
+              <Toggle
                 label={t("hints.toggle.hide_found")}
                 checked={hideFound}
                 onChange={setHideFound}
@@ -471,6 +482,12 @@ function SubTab({ active, onClick, children }: { active: boolean; onClick: () =>
 }
 
 const TAG_ORDER: HintTag[] = ["bked", "mandatory", "comfort"];
+
+// Sort priority: tagged hints first in TAG_ORDER, untagged ("Others") last.
+function tagRank(tag: HintTag | ""): number {
+  const i = TAG_ORDER.indexOf(tag as HintTag);
+  return i === -1 ? TAG_ORDER.length : i;
+}
 
 // Each tag gets a distinct, static colour (these tints don't theme-swap, so
 // white text over them stays legible in both light and dark mode).
