@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Deaths, Snapshot, api, liveSocket } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import { Deaths, Me, Snapshot, api, liveSocket } from "../api";
 import Hero from "../components/Hero";
 import SlotCard from "../components/SlotCard";
 import Constellation from "../components/Constellation";
@@ -9,15 +9,39 @@ import { useT } from "../i18n";
 export default function Dashboard() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [deaths, setDeaths] = useState<Deaths | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const { t } = useT();
 
   useEffect(() => {
     api.state().then(setSnap).catch(console.error);
     api.deaths().then(setDeaths).catch(() => {});
+    api.me().then(setMe).catch(() => {});
     return liveSocket((e) => {
       if (e?.snapshot) setSnap(e.snapshot);
     });
   }, []);
+
+  // Open BKed hints that involve the logged-in slot — both the checks they're
+  // waiting on (as receiver) and the BKed checks sitting in their own world
+  // that they can go find to unblock someone else (as finder).
+  const bked = useMemo(() => {
+    if (!snap || !me?.logged_in) return [];
+    const mySlot = snap.slots.find((s) => s.name === me.slot)?.slot;
+    if (mySlot == null) return [];
+    const names = new Map(snap.slots.map((s) => [s.slot, s.name]));
+    return snap.hints
+      .filter((h) => h.tag === "bked" && !h.found && (h.receiving_slot === mySlot || h.finding_slot === mySlot))
+      .map((h) => {
+        const mine = h.receiving_slot === mySlot; // true: I'm waiting; false: it's in my world for someone
+        return {
+          ...h,
+          mine,
+          who: mine
+            ? names.get(h.finding_slot) ?? `slot ${h.finding_slot}`
+            : names.get(h.receiving_slot) ?? `slot ${h.receiving_slot}`,
+        };
+      });
+  }, [snap, me]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -45,6 +69,35 @@ export default function Dashboard() {
         hintsFound={snap.hints.filter((h) => h.found).length}
         latestHint={snap.hints.length > 0 ? snap.hints[snap.hints.length - 1].item_name : null}
       />
+
+      {bked.length > 0 && (
+        <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pt-12 sm:pt-section">
+          <div className="mb-6">
+            <div className="text-caption-up uppercase text-brand-orange">{t("dash.bked.kicker")}</div>
+            <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("dash.bked.title")}</h2>
+            <p className="mt-2 max-w-xl text-body-sm text-slate">{t("dash.bked.intro")}</p>
+          </div>
+          <ul className="rounded-lg border border-brand-orange/30 bg-card-peach/40 divide-y hair-soft transition-colors duration-300">
+            {bked.map((h, i) => (
+              <li
+                key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
+                className="flex flex-col gap-1.5 px-5 py-3 sm:flex-row sm:items-center sm:gap-4"
+              >
+                <span className="inline-flex h-6 w-fit items-center rounded-pill bg-brand-orange px-2.5 text-caption-up uppercase text-white">
+                  {t("hints.tag.bked")}
+                </span>
+                <span className="text-body-sm font-medium text-tintInk">{h.item_name}</span>
+                <span className="text-body-sm text-tintInkSoft break-words">
+                  {h.location_name} · {h.mine
+                    ? t("dash.bked.finder", { finder: h.who })
+                    : t("dash.bked.for_receiver", { receiver: h.who })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pt-12 sm:pt-section">
         <div className="mb-8 sm:mb-10 text-center">
           <div className="text-caption-up uppercase text-primary">{t("constellation.kicker")}</div>
