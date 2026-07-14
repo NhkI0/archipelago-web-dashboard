@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Snapshot, api } from "../api";
+import { LoginError, Snapshot, api } from "../api";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
 
@@ -23,7 +23,11 @@ export default function Login() {
       await api.login(slot, password);
       nav("/hints");
     } catch (err: any) {
-      setError(err.message || t("login.error.default"));
+      if (err instanceof LoginError) {
+        setError(t(`login.error.${err.reason}`));
+      } else {
+        setError(t("login.error.default"));
+      }
     } finally {
       setBusy(false);
     }

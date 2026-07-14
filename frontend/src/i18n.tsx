@@ -136,6 +136,10 @@ const en: Dict = {
   "login.placeholder.slot": "e.g. dopamine",
   "login.placeholder.password": "optional",
   "login.error.default": "Login failed",
+  "login.error.unknown": "Login failed. Please try again.",
+  "login.error.invalid_slot": "No slot found with that name.",
+  "login.error.invalid_password": "Incorrect password for this slot.",
+  "login.error.unreachable": "Can't reach the Archipelago server right now.",
   "login.button.signin": "Sign in",
   "login.button.signing": "Signing in…",
 
@@ -287,6 +291,10 @@ const fr: Dict = {
   "login.placeholder.slot": "ex. dopamine",
   "login.placeholder.password": "facultatif",
   "login.error.default": "Échec de connexion",
+  "login.error.unknown": "Échec de connexion. Veuillez réessayer.",
+  "login.error.invalid_slot": "Aucun slot trouvé avec ce nom.",
+  "login.error.invalid_password": "Mot de passe incorrect pour ce slot.",
+  "login.error.unreachable": "Serveur Archipelago injoignable pour le moment.",
   "login.button.signin": "Connexion",
   "login.button.signing": "Connexion…",
 
