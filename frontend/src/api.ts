@@ -66,17 +66,54 @@ const j = async <T,>(r: Response): Promise<T> => {
   return r.json() as Promise<T>;
 };
 
+export type LoginReason = "invalid_slot" | "invalid_password" | "unreachable" | "unknown";
+
+export class LoginError extends Error {
+  status: number;
+  reason: LoginReason;
+  constructor(status: number, reason: LoginReason, detail: string) {
+    super(detail);
+    this.status = status;
+    this.reason = reason;
+  }
+}
+
+function loginReason(status: number, detail: string): LoginReason {
+  const d = detail.toLowerCase();
+  if (status === 503 || d.includes("unreachable")) return "unreachable";
+  if (d.includes("password")) return "invalid_password";
+  if (status === 404 || d.includes("invalidslot") || d.includes("invalidgame") || d.includes("unknown slot"))
+    return "invalid_slot";
+  return "unknown";
+}
+
+async function loginErrorDetail(r: Response): Promise<string> {
+  try {
+    const body = await r.clone().json();
+    if (body && typeof body.detail === "string") return body.detail;
+  } catch {
+    // fall through to text
+  }
+  return (await r.text()) || r.statusText;
+}
+
 export const api = {
   state: () => fetch("/api/state").then(j<Snapshot>),
   deaths: () => fetch("/api/deaths").then(j<Deaths>),
   slot: (name: string) => fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>),
   me: () => fetch("/api/me").then(j<Me>),
-  login: (slot: string, password: string) =>
-    fetch("/api/login", {
+  login: async (slot: string, password: string) => {
+    const r = await fetch("/api/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ slot, password }),
-    }).then(j<{ ok: true; slot: string; game: string; hint_points: number }>),
+    });
+    if (!r.ok) {
+      const detail = await loginErrorDetail(r);
+      throw new LoginError(r.status, loginReason(r.status, detail), detail);
+    }
+    return r.json() as Promise<{ ok: true; slot: string; game: string; hint_points: number }>;
+  },
   logout: () => fetch("/api/logout", { method: "POST" }).then(j),
   hint: (kind: "item" | "location", target: string) =>
     fetch("/api/hint", {
