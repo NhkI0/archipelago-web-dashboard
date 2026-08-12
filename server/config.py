@@ -4,8 +4,8 @@ Host configuration — the single ``config.toml`` a host edits to control the si
 Parsed with the stdlib :mod:`tomllib` (Python 3.11+), so there is no extra
 dependency. A missing or partial file still boots: whatever the host provides is
 deep-merged over :data:`DEFAULTS`. Environment variables continue to override
-the resolved values in ``main.py`` for backward compatibility with the existing
-VPS/tmux deploy (``scripts/start.sh`` and ``.github/workflows/deploy.yml``).
+the resolved values in ``main.py``, for hosts that prefer env-based config
+(e.g. Docker) over editing ``config.toml``.
 
 Only the subset returned by :func:`public_config` is ever sent to browsers —
 the AP password and filesystem paths never leave the backend.

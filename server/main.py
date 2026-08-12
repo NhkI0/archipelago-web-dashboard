@@ -31,7 +31,7 @@ log = logging.getLogger("ap.web")
 # ── Config ────────────────────────────────────────────────────────────────────
 #
 # Values come from config.toml (see server/config.py); environment variables
-# still override them so the existing VPS/tmux deploy keeps working unchanged.
+# still override them for hosts that prefer env-based config over editing the file.
 
 CONFIG = load_config()
 
@@ -132,8 +132,8 @@ try:
 except (KeyError, ValueError):
     log.warning("could not read hint_cost from %s; using default %d%%", AP_HOST_YAML, world.hint_cost)
 
-# AP_HOST/AP_PORT/AP_PASSWORD: an explicit env override always wins (existing
-# VPS deploy). Otherwise, a host.yaml found next to the multiworld file means
+# AP_HOST/AP_PORT/AP_PASSWORD: an explicit env override always wins. Otherwise,
+# a host.yaml found next to the multiworld file means
 # the multiworld is running locally — connect to localhost using its own port
 # (and password, read above). No host.yaml means the multiworld runs elsewhere;
 # fall back to [server.remote] in config.toml, since there's no local host.yaml
