@@ -48,7 +48,7 @@ sleep 2
 if tmux has-session -t "$SESSION" 2>/dev/null; then
     echo "==> ✓ $SESSION is running."
 else
-    echo "==> !! $SESSION failed to start — check /tmp/ap_web.log"
+    echo "==> !! $SESSION failed to start: check /tmp/ap_web.log"
     exit 1
 fi
 

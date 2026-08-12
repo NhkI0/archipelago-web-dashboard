@@ -34,7 +34,7 @@ jobs:
           cp -r server "$ROOT/"
           find "$ROOT/server" -name '__pycache__' -type d -prune -exec rm -rf {} +
           cp -r frontend/dist "$ROOT/frontend/dist"
-          cp config.toml run.sh run.bat README.md SETUP.md "$ROOT/"
+          cp config.toml run.sh run.bat README.md "$ROOT/"
           chmod +x "$ROOT/run.sh"
           cp frontend/public/leEm.png "$ROOT/assets/" 2>/dev/null || true
           cp hall-of-fame/entries.toml "$ROOT/hall-of-fame/" 2>/dev/null || true

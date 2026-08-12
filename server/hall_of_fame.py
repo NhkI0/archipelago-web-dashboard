@@ -36,7 +36,7 @@ def load_entries(directory: pathlib.Path) -> list[dict[str, Any]]:
             data = tomllib.load(fp)
     except (OSError, tomllib.TOMLDecodeError) as e:
         log.error("=" * 78)
-        log.error("COULD NOT PARSE %s — HALL OF FAME WILL BE EMPTY", manifest)
+        log.error("COULD NOT PARSE %s, HALL OF FAME WILL BE EMPTY", manifest)
         log.error("Reason: %s", e)
         log.error("=" * 78)
         return []
