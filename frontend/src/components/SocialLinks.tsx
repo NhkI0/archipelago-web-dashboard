@@ -1,5 +1,5 @@
 export const MAINTAINER_LINKS: Record<string, string> = {
-  github: "https://github.com/NhkI0/archipelago-website",
+  github: "https://github.com/NhkI0/archipelago-web-dashboard",
   discord: "@nhankio",
 };
 

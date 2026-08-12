@@ -55,7 +55,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "branding": {
         "hero_title": "ArchipelaGoats",     # big hero headline
-        "hero_image": "leEm.png",           # decorative image; "" hides it
+        "hero_image": "banner.png",         # decorative image; "" hides it
         # How far the shadow-like fade into the navy band reaches into the image (its left edge).
         # 0 = barely faded, nearly the whole image
         # shows; 1 = a long, soft transition.
