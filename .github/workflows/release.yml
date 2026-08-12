@@ -36,7 +36,7 @@ jobs:
           cp -r frontend/dist "$ROOT/frontend/dist"
           cp config.toml run.sh run.bat README.md "$ROOT/"
           chmod +x "$ROOT/run.sh"
-          cp frontend/public/leEm.png "$ROOT/assets/" 2>/dev/null || true
+          cp assets/banner.png "$ROOT/assets/" 2>/dev/null || true
           cp hall-of-fame/entries.toml "$ROOT/hall-of-fame/" 2>/dev/null || true
           : > "$ROOT/multiworld/.gitkeep"
           : > "$ROOT/data/.gitkeep"

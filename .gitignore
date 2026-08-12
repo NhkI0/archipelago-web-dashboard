@@ -30,5 +30,8 @@ death_leaderboard.json
 /hall-of-fame/*
 !/hall-of-fame/.gitkeep
 !/hall-of-fame/entries.toml
+/assets/*
+!/assets/.gitkeep
+!/assets/banner.png
 
 package-lock.json

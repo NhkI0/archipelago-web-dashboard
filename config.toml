@@ -21,8 +21,8 @@ multiworld_dir = "./multiworld"
 # you're not hosting the multiworld yourself, just watching one that's running
 # on someone else's server. Ignored entirely if a local host.yaml is present.
 [server.remote]
-host = "archipelago.gg"              # e.g. "archipelago.gg", leave blank if you host locally
-port = 33209
+host = ""              # e.g. "archipelago.gg", leave blank if you host locally
+port = 38281
 password = ""          # room password, if the remote server has one
 tls = true              # public rooms (archipelago.gg included) need this on; turn off only for a plain ws:// remote server
 
@@ -34,7 +34,7 @@ hall_of_fame_dir = "./hall-of-fame"  # drop images here + list them in entries.t
 
 [branding]
 hero_title   = "ArchipelaGoats"     # big headline on the dashboard hero
-hero_image   = "leEm.png"           # decorative image (drop it in assets_dir); "" to hide
+hero_image   = "banner.png"         # decorative image (drop it in assets_dir); "" to hide
 # How far the shadow-like fade into the navy band reaches into the image
 # (its left edge). 0 = barely faded, nearly the whole image shows
 #1 = a long, soft transition.
