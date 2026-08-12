@@ -22,9 +22,6 @@ from typing import Any
 
 log = logging.getLogger("ap.config")
 
-# Shipped defaults. These are the maintainer's own values (brand, portrait,
-# footer) so the out-of-box experience matches the reference deployment; every
-# one of them is overridable in config.toml.
 DEFAULTS: dict[str, Any] = {
     "server": {
         "ap_host": "localhost",
@@ -34,9 +31,9 @@ DEFAULTS: dict[str, Any] = {
         "web_port": 8080,
         "bind": "127.0.0.1",   # use "0.0.0.0" to expose on the local network
         "password": "",
-        # Used only when no host.yaml is found next to multiworld_dir — i.e. the
-        # multiworld runs on someone else's machine and this dashboard just
-        # watches it. Ignored entirely when a local host.yaml is present.
+        # Used only when no host.yaml is found next to multiworld_dir
+        # Meaning: the multiworld runs on someone else's machine and this dashboard just watches it.
+        # Ignored entirely when a local host.yaml is present.
         "remote": {
             "host": "",
             "port": 38281,
@@ -50,14 +47,15 @@ DEFAULTS: dict[str, Any] = {
         "data_dir": "./data",
         # Optional explicit host.yaml; empty => <multiworld_dir>/host.yaml.
         "host_yaml": "",
+        # Hall of Fame images + entries.toml (see server/hall_of_fame.py).
+        "hall_of_fame_dir": "./hall-of-fame",
     },
     "branding": {
         "hero_title": "ArchipelaGoats",     # big hero headline
         "hero_image": "leEm.png",           # decorative image; "" hides it
-        # How far the shadow-like fade into the navy band reaches into the
-        # image (its left edge). 0 = barely faded, nearly the whole image
-        # shows; 1 = a long, soft transition. Never hides a flat chunk of the
-        # image outright — just how gradual the blend is.
+        # How far the shadow-like fade into the navy band reaches into the image (its left edge).
+        # 0 = barely faded, nearly the whole image
+        # shows; 1 = a long, soft transition.
         "hero_image_fade": 0.35,
         "loading_name": "ArchipelaGoats",   # splash-screen wordmark
     },

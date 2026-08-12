@@ -27,5 +27,8 @@ death_leaderboard.json
 !/data/.gitkeep
 /multiworld/*
 !/multiworld/.gitkeep
+/hall-of-fame/*
+!/hall-of-fame/.gitkeep
+!/hall-of-fame/entries.toml
 
 package-lock.json

@@ -1,23 +1,9 @@
-// Hall of Fame manifest.
-//
-// To add a new piece:
-//   1. Drop the image file into  web/frontend/public/hall-of-fame/<filename>
-//   2. Append a row below.
-//
-// Newest entries can go anywhere — the page sorts by date descending.
+// Sample Hall of Fame data for the static demo build only (no backend to serve
+// host-dropped entries from there). A real deploy manages this via
+// hall-of-fame/entries.toml + dropped images instead — see server/hall_of_fame.py.
+import { HallOfFameEntry } from "./api";
 
-export type HallEntry = {
-  /** Filename inside /hall-of-fame/. */
-  file: string;
-  /** Credit shown under the piece. */
-  artist: string;
-  /** ISO date — YYYY-MM-DD. Used for sorting and display. */
-  date: string;
-  /** Optional title / caption. */
-  title?: string;
-};
-
-export const HALL_OF_FAME: HallEntry[] = [
+export const HALL_OF_FAME: HallOfFameEntry[] = [
     { file: "Harcelement.png", artist: "Loïk", date: "2026-04-20", title: "Harcèlement.png" },
     { file: "crapo-archi1.jpg", artist: "Crapo", date: "2026-04-20" },
     { file: "red-rupee.png", artist: "Loïk", date: "2026-04-20" },

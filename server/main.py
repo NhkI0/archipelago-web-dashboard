@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import find_multiworld_file, load_config, public_config, tag_ids
+from .hall_of_fame import load_entries as load_hall_of_fame
 from .multidata import load_multidata
 from .session import SessionManager
 from .state import WorldState
@@ -52,6 +53,7 @@ DEATHS_FILE = os.environ.get("DEATHS_FILE") or str(_data_dir / "death_leaderboar
 ITEMS_FILE = os.environ.get("ITEMS_FILE") or str(_data_dir / "received_items.json")
 TAGS_FILE = os.environ.get("TAGS_FILE") or str(_data_dir / "hint_tags.json")
 ASSETS_DIR = pathlib.Path(CONFIG["paths"]["assets_dir"])
+HALL_OF_FAME_DIR = pathlib.Path(CONFIG["paths"]["hall_of_fame_dir"])
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -185,6 +187,11 @@ async def api_config() -> dict[str, Any]:
     payload = public_config(CONFIG)
     payload["branding"]["hero_image"] = _asset_url(payload["branding"].get("hero_image", ""))
     return payload
+
+
+@app.get("/api/hall_of_fame")
+async def api_hall_of_fame() -> list[dict[str, Any]]:
+    return load_hall_of_fame(HALL_OF_FAME_DIR)
 
 
 @app.get("/api/state")
@@ -432,6 +439,11 @@ async def api_me(ap_session: str | None = Cookie(default=None)) -> dict[str, Any
 # host can swap branding assets without rebuilding the frontend.
 if ASSETS_DIR.is_dir():
     app.mount("/host", StaticFiles(directory=ASSETS_DIR), name="host")
+
+# Hall of Fame images — dropped by the host, described in entries.toml (see
+# server/hall_of_fame.py), no rebuild needed.
+if HALL_OF_FAME_DIR.is_dir():
+    app.mount("/hall-of-fame", StaticFiles(directory=HALL_OF_FAME_DIR), name="hall_of_fame")
 
 if STATIC_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")

@@ -103,6 +103,8 @@ async function loginErrorDetail(r: Response): Promise<string> {
 
 export type TagDef = { id: string; label: string; label_fr?: string; emoji?: string };
 
+export type HallOfFameEntry = { file: string; artist: string; date: string; title?: string | null };
+
 export type SiteConfig = {
   branding: {
     hero_title: string;
@@ -117,6 +119,7 @@ export type SiteConfig = {
 
 const realApi = {
   config: () => fetch("/api/config").then(j<SiteConfig>),
+  hallOfFame: () => fetch("/api/hall_of_fame").then(j<HallOfFameEntry[]>),
   state: () => fetch("/api/state").then(j<Snapshot>),
   deaths: () => fetch("/api/deaths").then(j<Deaths>),
   slot: (name: string) => fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>),

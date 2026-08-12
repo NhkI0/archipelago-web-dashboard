@@ -66,6 +66,21 @@ Drop custom images (e.g. a replacement `hero_image`) into `assets/` — they're
 served under `/host/` with no rebuild. The frontend reads all of this at runtime
 from `/api/config`, so one prebuilt bundle serves every host.
 
+**Hall of Fame** works the same way: drop images into `hall-of-fame/` and list
+them in `hall-of-fame/entries.toml` —
+
+```toml
+[[entries]]
+file = "some-drawing.png"
+artist = "Name"
+date = "2026-04-20"
+title = "Optional caption"
+```
+
+— no rebuild needed. An entry with no matching file is skipped (with a
+warning in the server log); a missing/empty `entries.toml` just means no
+entries yet.
+
 The footer shows a fixed **"Report issues or ask for features"** link to the
 project maintainer (GitHub + Discord, in
 `frontend/src/components/SocialLinks.tsx`). It is baked in, not host-configurable.
@@ -78,9 +93,11 @@ project maintainer (GitHub + Discord, in
 ├── run.sh / run.bat  one-command launchers (create venv, install, serve)
 ├── multiworld/     drop your *.archipelago (and host.yaml) here
 ├── assets/         host-droppable images, served under /host/
+├── hall-of-fame/   drop images + entries.toml, served under /hall-of-fame/
 ├── data/           runtime logs (deaths / received items / hint tags)
 ├── server/         FastAPI backend (Python 3.11+)
 │   ├── config.py         config.toml loader + /api/config subset
+│   ├── hall_of_fame.py   entries.toml loader + /api/hall_of_fame
 │   ├── __main__.py       `python -m server` entrypoint (used by run scripts)
 │   ├── main.py           routes + lifecycle
 │   ├── multidata.py      .archipelago zlib+pickle reader
