@@ -2,6 +2,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, Me } from "../api";
 import { useT } from "../i18n";
+import { useConfig } from "../config";
 import ThemeToggle from "./ThemeToggle";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -11,6 +12,7 @@ export default function TopNav() {
   const [me, setMe] = useState<Me | null>(null);
   const [open, setOpen] = useState(false);
   const { t, lang, setLang } = useT();
+  const config = useConfig();
   const location = useLocation();
 
   useEffect(() => {
@@ -21,13 +23,15 @@ export default function TopNav() {
     <header className="sticky top-0 z-30 border-b hair bg-canvas/95 backdrop-blur transition-colors duration-300">
       <div className="mx-auto flex h-16 max-w-[1200px] items-center px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <img src="/favicon.ico" alt="" aria-hidden className="h-7 w-7 rounded-md" />
-          <span className="font-semibold tracking-tight text-ink">{t("nav.brand")}</span>
+          <img src="/logo.svg" alt="" aria-hidden className="h-7 w-7" />
+          <span className="font-semibold tracking-tight text-ink">Archipelago</span>
         </Link>
         <nav className="ml-10 hidden items-center gap-7 md:flex">
           <NavLink to="/" end className={linkClass}>{t("nav.dashboard")}</NavLink>
           <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
-          <NavLink to="/hall-of-fame" className={linkClass}>{t("nav.hof")}</NavLink>
+          {config.features.hall_of_fame && (
+            <NavLink to="/hall-of-fame" className={linkClass}>{t("nav.hof")}</NavLink>
+          )}
         </nav>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
@@ -89,7 +93,9 @@ export default function TopNav() {
           <nav className="flex flex-col gap-3">
             <NavLink to="/" end className={linkClass} onClick={() => setOpen(false)}>{t("nav.dashboard")}</NavLink>
             <NavLink to="/hints" className={linkClass} onClick={() => setOpen(false)}>{t("nav.hints")}</NavLink>
-            <NavLink to="/hall-of-fame" className={linkClass} onClick={() => setOpen(false)}>{t("nav.hof")}</NavLink>
+            {config.features.hall_of_fame && (
+              <NavLink to="/hall-of-fame" className={linkClass} onClick={() => setOpen(false)}>{t("nav.hof")}</NavLink>
+            )}
             {me?.logged_in ? (
               <>
                 <span className="text-body-sm text-steel">

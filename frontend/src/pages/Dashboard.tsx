@@ -5,12 +5,16 @@ import SlotCard from "../components/SlotCard";
 import Constellation from "../components/Constellation";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import { useT } from "../i18n";
+import { useConfig, tagLabel } from "../config";
 
 export default function Dashboard() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [deaths, setDeaths] = useState<Deaths | null>(null);
   const [me, setMe] = useState<Me | null>(null);
-  const { t } = useT();
+  const { t, lang } = useT();
+  const config = useConfig();
+  const blockedTag = config.hints.blocked_tag;
+  const blockedTagDef = config.hints.tags.find((tg) => tg.id === blockedTag);
 
   useEffect(() => {
     api.state().then(setSnap).catch(console.error);
@@ -25,12 +29,12 @@ export default function Dashboard() {
   // waiting on (as receiver) and the BKed checks sitting in their own world
   // that they can go find to unblock someone else (as finder).
   const bked = useMemo(() => {
-    if (!snap || !me?.logged_in) return [];
+    if (!snap || !me?.logged_in || !blockedTag) return [];
     const mySlot = snap.slots.find((s) => s.name === me.slot)?.slot;
     if (mySlot == null) return [];
     const names = new Map(snap.slots.map((s) => [s.slot, s.name]));
     return snap.hints
-      .filter((h) => h.tag === "bked" && !h.found && (h.receiving_slot === mySlot || h.finding_slot === mySlot))
+      .filter((h) => h.tag === blockedTag && !h.found && (h.receiving_slot === mySlot || h.finding_slot === mySlot))
       .map((h) => {
         const mine = h.receiving_slot === mySlot; // true: I'm waiting; false: it's in my world for someone
         return {
@@ -77,17 +81,17 @@ export default function Dashboard() {
             <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("dash.bked.title")}</h2>
             <p className="mt-2 max-w-xl text-body-sm text-slate">{t("dash.bked.intro")}</p>
           </div>
-          <ul className="rounded-lg border border-brand-orange/30 bg-card-peach/40 divide-y hair-soft transition-colors duration-300">
+          <ul className="rounded-lg border border-brand-orange/30 bg-card-peach/40 dark:bg-brand-orange/10 divide-y hair-soft transition-colors duration-300">
             {bked.map((h, i) => (
               <li
                 key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
                 className="flex flex-col gap-1.5 px-5 py-3 sm:flex-row sm:items-center sm:gap-4"
               >
                 <span className="inline-flex h-6 w-fit items-center rounded-pill bg-brand-orange px-2.5 text-caption-up uppercase text-white">
-                  {t("hints.tag.bked")}
+                  {blockedTagDef ? `${blockedTagDef.emoji ? blockedTagDef.emoji + " " : ""}${tagLabel(blockedTagDef, lang)}` : blockedTag}
                 </span>
-                <span className="text-body-sm font-medium text-tintInk">{h.item_name}</span>
-                <span className="text-body-sm text-tintInkSoft break-words">
+                <span className="text-body-sm font-medium text-tintInk dark:text-ink">{h.item_name}</span>
+                <span className="text-body-sm text-tintInkSoft dark:text-slate break-words">
                   {h.location_name} · {h.mine
                     ? t("dash.bked.finder", { finder: h.who })
                     : t("dash.bked.for_receiver", { receiver: h.who })}
@@ -98,21 +102,23 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pt-12 sm:pt-section">
-        <div className="mb-8 sm:mb-10 text-center">
-          <div className="text-caption-up uppercase text-primary">{t("constellation.kicker")}</div>
-          <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("constellation.title", { n: snap.slots.length })}</h2>
-          <p className="mx-auto mt-3 max-w-xl text-body-md text-slate">
-            {t("constellation.intro")}
-          </p>
-        </div>
-        <Constellation
-          slots={snap.slots}
-          hints={snap.hints}
-          totalChecked={snap.totals.total_checked}
-          totalLocations={snap.totals.total_locations}
-        />
-      </section>
+      {config.features.constellation && (
+        <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pt-12 sm:pt-section">
+          <div className="mb-8 sm:mb-10 text-center">
+            <div className="text-caption-up uppercase text-primary">{t("constellation.kicker")}</div>
+            <h2 className="mt-2 text-display-sm sm:text-display-md text-ink">{t("constellation.title", { n: snap.slots.length })}</h2>
+            <p className="mx-auto mt-3 max-w-xl text-body-md text-slate">
+              {t("constellation.intro")}
+            </p>
+          </div>
+          <Constellation
+            slots={snap.slots}
+            hints={snap.hints}
+            totalChecked={snap.totals.total_checked}
+            totalLocations={snap.totals.total_locations}
+          />
+        </section>
+      )}
 
       <section className="mx-auto max-w-[1200px] px-4 sm:px-6 py-12 sm:py-section">
         <div className="mb-6 sm:mb-8 flex flex-wrap items-end justify-between gap-3">
@@ -127,7 +133,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {deaths?.available && deaths.rows.length > 0 && (
+      {config.features.death_leaderboard && deaths?.available && deaths.rows.length > 0 && (
         <section className="mx-auto max-w-[1200px] px-4 sm:px-6 pb-12 sm:pb-section">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>

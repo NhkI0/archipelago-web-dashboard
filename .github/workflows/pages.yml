@@ -1,0 +1,55 @@
+name: Deploy demo to GitHub Pages
+
+# Builds the static, in-memory "try it" demo (VITE_DEMO) and publishes it to
+# GitHub Pages. The demo talks to no backend — every change resets on reload.
+
+on:
+  push:
+    branches: [main, community-version]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        working-directory: frontend
+        run: npm install
+      - name: Build demo
+        working-directory: frontend
+        env:
+          VITE_DEMO: "1"
+        # Base path = the repo name so assets/routes resolve under
+        # https://<user>.github.io/<repo>/.
+        run: npm run build:demo -- --base=/${{ github.event.repository.name }}/
+      - name: SPA fallback for client-side routes
+        run: cp frontend/dist/index.html frontend/dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
