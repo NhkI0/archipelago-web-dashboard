@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archipelago Web Dashboard — one-command launcher (macOS / Linux).
+# Archipelago Web Dashboard, one-command launcher (macOS / Linux).
 #
 #   1. Edit config.toml
 #   2. Drop your generated *.archipelago into ./multiworld/

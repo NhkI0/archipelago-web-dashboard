@@ -70,8 +70,14 @@ class Session:
 
 
 class SessionManager:
-    def __init__(self, host: str = "localhost", port: int = 38281, multidata: "MultiData | None" = None) -> None:
-        self.uri = f"ws://{host}:{port}"
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 38281,
+        multidata: "MultiData | None" = None,
+        secure: bool = False,
+    ) -> None:
+        self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self._sessions: dict[str, Session] = {}
         self._lock = asyncio.Lock()
         self.multidata = multidata

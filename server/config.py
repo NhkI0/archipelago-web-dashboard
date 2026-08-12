@@ -38,6 +38,9 @@ DEFAULTS: dict[str, Any] = {
             "host": "",
             "port": 38281,
             "password": "",
+            # Public rooms (e.g. archipelago.gg) are served over TLS — leave
+            # this on unless your remote server specifically isn't.
+            "tls": True,
         },
     },
     "paths": {
@@ -106,7 +109,7 @@ def load_config(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
             log.info("loaded config from %s", resolved)
         except (OSError, tomllib.TOMLDecodeError) as e:
             log.error("=" * 78)
-            log.error("COULD NOT PARSE %s — IGNORING IT AND USING BUILT-IN DEFAULTS", resolved)
+            log.error("COULD NOT PARSE %s, IGNORING IT AND USING BUILT-IN DEFAULTS", resolved)
             log.error("Reason: %s", e)
             log.error("Your config.toml changes are NOT applied until this is fixed.")
             log.error("=" * 78)
@@ -136,11 +139,11 @@ def find_multiworld_file(multiworld: str) -> str:
         if files:
             return str(files[0])
         raise FileNotFoundError(
-            f"no *.archipelago file found in {p.resolve()} — drop your "
+            f"no *.archipelago file found in {p.resolve()}, drop your "
             f"multiworld-generated file there and restart"
         )
     raise FileNotFoundError(
-        f"multiworld path {p.resolve()} does not exist — set [server].multiworld_dir "
+        f"multiworld path {p.resolve()} does not exist, set [server].multiworld_dir "
         f"in config.toml (or AP_FILE) to your .archipelago file or its folder"
     )
 
