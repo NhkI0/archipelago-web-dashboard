@@ -13,7 +13,6 @@ const en: Dict = {
   "nav.signout": "Sign out",
   "nav.slot": "slot",
   "nav.hint_pts": "hint points",
-  "nav.brand": "Archipelago",
 
   // Hero
   "hero.kicker": "Multiworld",
@@ -159,10 +158,15 @@ const en: Dict = {
 
   // Notifier
   "notify.hint_for_you": "Hint for you: {item} — in {finder}'s world ({loc})",
+  "notify.dismiss": "Dismiss",
 
   // Footer
   "footer.left": "archipelago · nguengant.fr",
   "footer.right": "Have fun guys :)",
+  "footer.report": "Report issues or ask for features",
+
+  // Demo banner
+  "demo.banner": "Demo: changes reset on reload",
 };
 
 const fr: Dict = {
@@ -173,7 +177,6 @@ const fr: Dict = {
   "nav.signout": "Déconnexion",
   "nav.slot": "joueur",
   "nav.hint_pts": "points d'indice",
-  "nav.brand": "Archipelago",
 
   "hero.kicker": "Multimonde",
   "hero.intro": "Progression en direct de chaque joueur. Connectez-vous avec votre slot pour dépenser vos points d'indice sans quitter le navigateur.",
@@ -312,9 +315,13 @@ const fr: Dict = {
   "hof.by": "par",
 
   "notify.hint_for_you": "Indice pour vous : {item} — dans le monde de {finder} ({loc})",
+  "notify.dismiss": "Fermer",
 
   "footer.left": "archipelago · nguengant.fr",
   "footer.right": "Have fun la team :)",
+  "footer.report": "Signaler un bug ou demander une fonctionnalité",
+
+  "demo.banner": "Démo: les changements sont perdus en quittant la page",
 };
 
 const dictionaries: Record<Lang, Dict> = { en, fr };

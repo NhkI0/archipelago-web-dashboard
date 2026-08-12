@@ -6,6 +6,7 @@ __pycache__/
 # Node / Vite
 frontend/node_modules/
 frontend/dist/
+frontend/*.tsbuildinfo
 
 # Editors / OS
 .vscode/
@@ -18,5 +19,13 @@ Thumbs.db
 death_leaderboard.json
 .env
 .env.*
+# ...but the demo flag file carries no secret and must ship for `build:demo`.
+!frontend/.env.demo
+
+# Runtime data + host-dropped assets (keep the folders, ignore their contents)
+/data/*
+!/data/.gitkeep
+/multiworld/*
+!/multiworld/.gitkeep
 
 package-lock.json

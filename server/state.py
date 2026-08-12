@@ -69,8 +69,9 @@ class ReceivedItem:
     ts: float | None = None
 
 
-# Tags a receiving player can pin on a hint for an item they're waiting on.
-# The empty string is the implicit "untagged" state and is never stored.
+# Default tags a receiving player can pin on a hint for an item they're waiting
+# on. The empty string is the implicit "untagged" state and is never stored.
+# Hosts override the active set via config.toml (see WorldState.allowed_tags).
 HINT_TAGS: set[str] = {"bked", "mandatory", "comfort"}
 
 
@@ -96,9 +97,12 @@ class WorldState:
         *,
         items_file: pathlib.Path | None = None,
         tags_file: pathlib.Path | None = None,
+        allowed_tags: list[str] | None = None,
     ) -> None:
         self.multidata = multidata
         self.seed_name = multidata.seed_name
+        # Active hint-tag ids (from config.toml); falls back to the built-ins.
+        self.allowed_tags: set[str] = set(allowed_tags) if allowed_tags is not None else set(HINT_TAGS)
         self.slots: dict[int, SlotState] = {}
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
@@ -267,7 +271,7 @@ class WorldState:
         if not isinstance(tags, dict):
             return
         for key, tag in tags.items():
-            if tag not in HINT_TAGS:
+            if tag not in self.allowed_tags:
                 continue
             try:
                 find, recv, item, loc = (int(x) for x in str(key).split(":", 3))
@@ -297,7 +301,7 @@ class WorldState:
         """Set (or clear, with tag="") the tag on one hint. Returns True if the
         hint exists in the current seed and the change was applied."""
         tag = tag or ""
-        if tag and tag not in HINT_TAGS:
+        if tag and tag not in self.allowed_tags:
             raise ValueError(f"unknown hint tag {tag!r}")
         key = (finding_slot, receiving_slot, item_id, location_id)
         rec = next((h for h in self.hints if self._tag_key(h) == key), None)

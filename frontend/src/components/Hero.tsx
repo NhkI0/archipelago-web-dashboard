@@ -1,4 +1,5 @@
 import { useT } from "../i18n";
+import { useConfig, resolveAssetUrl } from "../config";
 
 type Props = {
   seed: string;
@@ -12,31 +13,41 @@ type Props = {
 
 export default function Hero({ seed, totalChecked, totalLocations, slots, hints, hintsFound, latestHint }: Props) {
   const { t } = useT();
+  const config = useConfig();
+  const heroImage = config.branding.hero_image ? resolveAssetUrl(config.branding.hero_image) : "";
   const pct = totalLocations > 0 ? (100 * totalChecked) / totalLocations : 0;
   return (
     <section className="relative overflow-hidden bg-brand-navy text-onDark transition-colors duration-300">
-      {/* leEm portrait — pinned to the right edge, mirrored, with a left-side fade into the navy */}
-      <img
-        src="/leEm.png"
-        alt=""
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 z-0 h-full select-none opacity-20 sm:opacity-40"
-        style={{
-          objectFit: "contain",
-          objectPosition: "right center",
-          transform: "scaleX(-1)",
-          WebkitMaskImage: "linear-gradient(to left, transparent 0%, rgba(0,0,0,0.35) 30%, #000 70%)",
-          maskImage:       "linear-gradient(to left, transparent 0%, rgba(0,0,0,0.35) 30%, #000 70%)",
-        }}
-      />
-      {/* Sticky-note dot decorations */}
+      {/* Decorative hero image, pinned to the right edge, mirrored, with a left-side fade into the navy.
+      hero_image_fade (0-1) controls how far that fade reaches into the image:
+      0 = minimal, near the full image shows
+      1 = a long, soft transition
+      This is why this is a reach/width, not an opacity of the fade itself. */}
+      {heroImage && (() => {
+        const fade = Math.min(1, Math.max(0, config.branding.hero_image_fade));
+        const reach = 15 + fade * 55;
+        return (
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 z-0 h-full select-none opacity-20 sm:opacity-40"
+            style={{
+              objectFit: "contain",
+              objectPosition: "right center",
+              transform: "scaleX(-1)",
+              WebkitMaskImage: `linear-gradient(to left, transparent 0%, #000 ${reach}%)`,
+              maskImage:       `linear-gradient(to left, transparent 0%, #000 ${reach}%)`,
+            }}
+          />
+        );
+      })()}
       <Decoration />
       <div className="relative z-10 mx-auto max-w-[1200px] px-4 sm:px-6 py-12 sm:py-20 lg:py-28">
         <div className="text-caption-up uppercase text-brand-purple-300">{t("hero.kicker")}</div>
-        <h1 className="mt-4 text-display-md sm:text-display-xl lg:text-display-mega text-onDark">ArchipelaGoats</h1>
+        <h1 className="mt-4 text-display-md sm:text-display-xl lg:text-display-mega text-onDark">{config.branding.hero_title || "Archipelago"}</h1>
         <p className="mt-5 max-w-xl text-body-md sm:text-subtitle text-onDarkMuted">{t("hero.intro")}</p>
 
-        {/* Workspace-mockup-card breaking out of the navy band */}
         <div className="mt-8 sm:mt-12 rounded-lg border hair bg-canvas p-4 sm:p-6 shadow-mockup">
           <div className="mb-4 flex items-center gap-1.5">
             <span className="dot bg-semantic-error/70" />

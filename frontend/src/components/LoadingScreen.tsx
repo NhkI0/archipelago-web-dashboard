@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { useT } from "../i18n";
+import { useConfig } from "../config";
 
 const ROTATIONS = [0, 60, 120, 180, 240, 300];
 
@@ -12,6 +13,7 @@ export const markConnected = () => {
 
 export default function LoadingScreen() {
   const { t } = useT();
+  const config = useConfig();
   const fullScreen = !connectedOnce;
 
   const rootClass = fullScreen
@@ -34,7 +36,7 @@ export default function LoadingScreen() {
 
       <div className="text-center">
         <div className="ls-brand-word text-[22px] font-semibold text-ink" style={{ letterSpacing: "-0.2px" }}>
-          {t("loading.brand")}
+          {config.branding.loading_name || t("loading.brand")}
         </div>
         <div className="ls-brand-tag mt-1.5 text-[13px] text-stone">
           {t("loading.tag")}

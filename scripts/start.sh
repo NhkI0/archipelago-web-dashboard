@@ -14,9 +14,16 @@ if [ ! -x "$VENV/bin/uvicorn" ]; then
     exit 1
 fi
 
+# The dashboard now reads config.toml by default, but the VPS keeps its
+# established paths by exporting the same env overrides it always used, so this
+# deploy is unaffected by the community-release defaults.
 CMD="cd $WEB_DIR && \
 AP_HOST=localhost AP_PORT=38281 \
 AP_FILE=/opt/archipelago/output/latest.archipelago \
+AP_HOST_YAML=/opt/archipelago/host.yaml \
+DEATHS_FILE=/opt/archipelago/death_leaderboard.json \
+ITEMS_FILE=/opt/archipelago/received_items.json \
+TAGS_FILE=/opt/archipelago/hint_tags.json \
 WEB_DIST=$WEB_DIR/frontend/dist \
 $VENV/bin/uvicorn server.main:app --host 127.0.0.1 --port $PORT"
 
