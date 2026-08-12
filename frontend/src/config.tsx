@@ -7,7 +7,7 @@ import { Lang } from "./i18n";
 export const DEFAULT_CONFIG: SiteConfig = {
   branding: {
     hero_title: "ArchipelaGoats",
-    hero_image: "leEm.png",
+    hero_image: "banner.png",
     hero_image_fade: 0.35,
     loading_name: "ArchipelaGoats",
   },
