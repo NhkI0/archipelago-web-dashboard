@@ -6,21 +6,11 @@ import SlotDetail from "./pages/SlotDetail";
 import Hints from "./pages/Hints";
 import HallOfFame from "./pages/HallOfFame";
 import Login from "./pages/Login";
-import { IS_DEMO } from "./api";
 import { LanguageProvider, useT } from "./i18n";
 import { ThemeProvider } from "./theme";
 import { ConfigProvider, useConfig } from "./config";
 import { MAINTAINER_LINKS, SocialLinks } from "./components/SocialLinks";
-
-function DemoBanner() {
-  const { t } = useT();
-  if (!IS_DEMO) return null;
-  return (
-    <div className="bg-brand-orange px-4 py-1.5 text-center text-caption-up uppercase tracking-wider text-white">
-      {t("demo.banner")}
-    </div>
-  );
-}
+import DemoBanner from "./demo/DemoBanner";
 
 function Footer() {
   const { t } = useT();

@@ -57,24 +57,26 @@ export default function HintNotifier() {
   useEffect(() => {
     let cancelled = false;
 
-    api.me().then((m) => {
+    function resolveMySlot(slots: { slot: number; name: string }[]) {
+      // Re-checked on every event while unresolved, since login typically
+      // happens well after this component mounts (it lives at the App shell
+      // level) — a one-time check at mount would miss it.
+      if (mySlot.current !== null) return Promise.resolve();
+      return api.me().then((m) => {
+        if (cancelled || !m.logged_in) return;
+        const found = slots.find((sl) => sl.name === m.slot);
+        mySlot.current = found?.slot ?? null;
+      });
+    }
+
+    api.state().then((s) => {
       if (cancelled) return;
-      if (m.logged_in) {
-        // Resolve slot id for this player's slot name.
-        api.state().then((s) => {
-          if (cancelled) return;
-          const found = s.slots.find((sl) => sl.name === m.slot);
-          mySlot.current = found?.slot ?? null;
-          ingestSnapshot(s);
-        });
-      } else {
-        // Still warm the seen-set so we don't toast on first login.
-        api.state().then((s) => !cancelled && ingestSnapshot(s));
-      }
+      resolveMySlot(s.slots).then(() => !cancelled && ingestSnapshot(s));
     });
 
     const stop = liveSocket((e) => {
-      if (e?.snapshot) ingestSnapshot(e.snapshot);
+      if (!e?.snapshot) return;
+      resolveMySlot(e.snapshot.slots).then(() => !cancelled && ingestSnapshot(e.snapshot));
     });
 
     return () => {

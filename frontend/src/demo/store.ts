@@ -4,7 +4,7 @@
 // changes (hints, tags, login) reset on reload — exactly the view-only demo the
 // site advertises. See ../api.ts for where this is swapped in.
 import { DEFAULT_CONFIG } from "../config";
-import { HALL_OF_FAME } from "../halloffame";
+import { HALL_OF_FAME } from "./hallOfFame";
 import {
   Deaths,
   HallOfFameEntry,
@@ -27,7 +27,7 @@ type Base = { slot: number; name: string; game: string; total: number; checked: 
 const BASE: Base[] = [
   { slot: 1, name: "BOUZINFURTIF", game: "Portal 2", total: 63, checked: 41, hint_points: 35 },
   { slot: 2, name: "nagumo", game: "Minecraft", total: 92, checked: 58, hint_points: 22 },
-  { slot: 3, name: "JDLo Cuphead", game: "Cuphead", total: 80, checked: 80, hint_points: 12 },
+  { slot: 3, name: "JDLoGin", game: "Cuphead", total: 80, checked: 80, hint_points: 12 },
   { slot: 4, name: "TéLEAchat", game: "Don't Starve Together", total: 110, checked: 33, hint_points: 27 },
   { slot: 5, name: "Dopamine", game: "Satisfactory", total: 120, checked: 72, hint_points: 30 },
 ];
@@ -169,8 +169,8 @@ export const demoApi = {
   deaths: async (): Promise<Deaths> => ({
     available: true,
     rows: [
-      { name: "TéLEAchat", deaths: 27 },
-      { name: "nagumo", deaths: 14 },
+      { name: "nagumo", deaths: 27 },
+      { name: "TéLEAchat", deaths: 14 },
       { name: "BOUZINFURTIF", deaths: 9 },
     ],
   }),
