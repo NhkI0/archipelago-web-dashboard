@@ -4,8 +4,10 @@
 // changes (hints, tags, login) reset on reload — exactly the view-only demo the
 // site advertises. See ../api.ts for where this is swapped in.
 import { DEFAULT_CONFIG } from "../config";
+import { HALL_OF_FAME } from "../halloffame";
 import {
   Deaths,
+  HallOfFameEntry,
   Hint,
   HintTag,
   LoginError,
@@ -160,6 +162,9 @@ function detail(name: string): SlotDetail {
 
 export const demoApi = {
   config: async (): Promise<SiteConfig> => config,
+  // The demo has no backend to serve host-dropped images from, so it keeps
+  // using the bundled sample entries/images instead of hitting /api.
+  hallOfFame: async (): Promise<HallOfFameEntry[]> => HALL_OF_FAME,
   state: async (): Promise<Snapshot> => snapshot(),
   deaths: async (): Promise<Deaths> => ({
     available: true,

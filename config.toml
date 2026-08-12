@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Archipelago Web Dashboard — host configuration
+# Archipelago Web Dashboard - host configuration
 #
 # Edit this file to control your deployment, then run ./run.sh (macOS/Linux) or
 # run.bat (Windows). Every value is optional: anything you delete falls back to
@@ -25,34 +25,34 @@ host = ""              # e.g. "archipelago.gg", leave blank if you host locally
 port = 38281
 password = ""          # room password, if the remote server has one
 
-[paths] # Ideally shouldn't be touched, but you  still can, it's supposed to work
+[paths] # Ideally shouldn't be touched, but you still can, it's supposed to work
 assets_dir = "./assets"        # drop custom images here (served under /host/)
 data_dir = "./data"            # where death / item / hint-tag logs are written
 # host_yaml = ""               # optional explicit path; default: <multiworld_dir>/host.yaml
+hall_of_fame_dir = "./hall-of-fame"  # drop images here + list them in entries.toml
 
 [branding]
-hero_title   = "Zebi"     # big headline on the dashboard hero
-hero_image   = "mapache.jpg"           # decorative image (drop it in assets_dir); "" to hide
+hero_title   = "ArchipelaGoats"     # big headline on the dashboard hero
+hero_image   = "leEm.png"           # decorative image (drop it in assets_dir); "" to hide
 # How far the shadow-like fade into the navy band reaches into the image
-# (its left edge). 0 = barely faded, nearly the whole image shows; 1 = a
-# long, soft transition. Never hides a flat chunk of the image outright —
-# just how gradual the blend is.
-hero_image_fade = 0.1
-loading_name = "ZAAAHHAGHA"     # wordmark on the loading splash
+# (its left edge). 0 = barely faded, nearly the whole image shows
+#1 = a long, soft transition.
+hero_image_fade = 0.35
+loading_name = "ArchipelaGoats"     # wordmark on the loading splash
 
 [footer]
-left  = "testsysysyysysysysysysysysysysyyyyyyyyyyyyyyyyyyyyyyyyy"
-right = "Maybe"
+left  = "archipelago · nguengant.fr"
+right = "Have fun guys :)"
 
 [features]
 hall_of_fame      = true       # show the Hall of Fame page + nav link
-death_leaderboard = false       # show the death leaderboard on the dashboard
-constellation     = false       # show the multiworld constellation map
+death_leaderboard = true       # show the death leaderboard on the dashboard
+constellation     = true       # show the multiworld constellation map
 
 # Hint tags players can pin on hints. Toggle built-ins by removing them, or add your own.
 # `blocked_tag` designates which tag drives the dashboard "BKed checks" panel, set it to "" to hide that panel entirely.
 [hints]
-blocked_tag = "blip"
+blocked_tag = "bked"
 
 [[hints.tags]]
 id = "bked"
@@ -61,12 +61,11 @@ label_fr = "BKed"
 emoji = "🍔"
 
 [[hints.tags]]
+id = "mandatory"
+label = "Mandatory"
+label_fr = "Obligatoire"
+
+[[hints.tags]]
 id = "comfort"
 label = "Comfort"
 label_fr = "Confort"
-emoji = "🛋️"
-
-[[hints.tags]]
-id = "blip"
-label = "blop"
-label_fr = "blup"

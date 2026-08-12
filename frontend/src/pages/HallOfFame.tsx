@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { HALL_OF_FAME, HallEntry } from "../halloffame";
+import { HallOfFameEntry, api } from "../api";
 import { useT } from "../i18n";
 
 export default function HallOfFame() {
   const { t, lang } = useT();
-  const [open, setOpen] = useState<HallEntry | null>(null);
+  const [open, setOpen] = useState<HallOfFameEntry | null>(null);
+  const [raw, setRaw] = useState<HallOfFameEntry[]>([]);
+
+  useEffect(() => {
+    api.hallOfFame().then(setRaw).catch(() => setRaw([]));
+  }, []);
 
   const entries = useMemo(
-    () => [...HALL_OF_FAME].sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [],
+    () => [...raw].sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [raw],
   );
 
   const fmt = useMemo(
