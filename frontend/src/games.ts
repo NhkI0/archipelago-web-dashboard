@@ -5,17 +5,6 @@
 // into `frontend/public/games/` and `<GameIcon>` will pick it up.
 
 export const GAME_EMOJI: Record<string, string> = {
-  // Currently-running seed
-  "Subnautica": "🤿",
-  "Ori and the Blind Forest": "🌿",
-  "Oxygen Not Included": "❄️",
-  "Satisfactory": "🏗️",
-  "The Wind Waker": "⛵",
-  "Super Mario 64": "⭐",
-  "Civilization VI": "🏛️",
-  "Majora's Mask Recompiled": "🎭",
-  "Archipelago": "🗺️",
-  "Black Ops 3 - Zombies": "🧟",
 
   // Zelda family
   "A Link to the Past": "🗡️",
@@ -27,8 +16,11 @@ export const GAME_EMOJI: Record<string, string> = {
   "Twilight Princess": "🐺",
   "A Link Between Worlds": "🖼️",
   "Skyward Sword": "🐦‍🔥",
+  "Majora's Mask Recompiled": "🎭",
+  "The Wind Waker": "⛵",
 
   // Mario / Yoshi family
+  "Super Mario 64": "⭐",
   "Super Mario World": "🍄",
   "Super Mario Bros": "🍄",
   "Super Mario Bros 3": "🍄",
@@ -58,6 +50,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Castlevania: Circle of the Moon": "🌙",
   "Aria of Sorrow": "🦇",
   "Symphony of the Night": "🦇",
+  "Blasphemous": "✝️",
 
   // Sonic
   "Sonic the Hedgehog": "💨",
@@ -128,7 +121,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "DOOM II": "👹",
   "Heretic": "🪄",
 
-  // Other longstanding AP games
+  // Others
   "Dark Souls III": "⚔️",
   "Old School Runescape": "🪓",
   "Hylics 2": "🟣",
@@ -142,6 +135,12 @@ export const GAME_EMOJI: Record<string, string> = {
   "Mario Sports Mix": "🏐",
   "Mirror's Edge": "🌇",
   "Paper Mario: The Thousand-Year Door": "🚪",
+  "Satisfactory": "🏗️",
+  "Subnautica": "🤿",
+  "Ori and the Blind Forest": "🌿",
+  "Oxygen Not Included": "❄️",
+  "Civilization VI": "🏛️",
+  "Black Ops 3 - Zombies": "🧟",
 };
 
 const FALLBACK_EMOJI = "🎮";

@@ -18,6 +18,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .config import find_multiworld_file, load_config, public_config, tag_ids
+from .hall_of_fame import load_entries as load_hall_of_fame
 from .multidata import load_multidata
 from .session import SessionManager
 from .state import WorldState
@@ -27,14 +29,42 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 log = logging.getLogger("ap.web")
 
 # ── Config ────────────────────────────────────────────────────────────────────
+#
+# Values come from config.toml (see server/config.py); environment variables
+# still override them for hosts that prefer env-based config over editing the file.
 
-AP_HOST = os.environ.get("AP_HOST", "localhost")
-AP_PORT = int(os.environ.get("AP_PORT", "38281"))
-AP_FILE = os.environ.get("AP_FILE", "/opt/archipelago/output/latest.archipelago")
-AP_HOST_YAML = os.environ.get("AP_HOST_YAML", "/opt/archipelago/host.yaml")
-DEATHS_FILE = os.environ.get("DEATHS_FILE", "/opt/archipelago/death_leaderboard.json")
-ITEMS_FILE = os.environ.get("ITEMS_FILE", "/opt/archipelago/received_items.json")
-TAGS_FILE = os.environ.get("TAGS_FILE", "/opt/archipelago/hint_tags.json")
+CONFIG = load_config()
+
+
+def _env_or(cfg_val: Any, env_key: str, cast=str) -> Any:
+    raw = os.environ.get(env_key)
+    return cast(raw) if raw is not None else cfg_val
+
+
+_data_dir = pathlib.Path(CONFIG["paths"]["data_dir"])
+_multiworld = CONFIG["server"]["multiworld_dir"]
+try:
+    AP_FILE = os.environ.get("AP_FILE") or find_multiworld_file(_multiworld)
+except FileNotFoundError as e:
+    log.error("=" * 78)
+    log.error("NO MULTIWORLD FOUND")
+    log.error(str(e))
+    log.error(
+        "Did you forget to drop your generated .archipelago file into %s ?",
+        pathlib.Path(_multiworld).resolve(),
+    )
+    log.error("=" * 78)
+    raise SystemExit(1) from None
+AP_HOST_YAML = os.environ.get("AP_HOST_YAML") or (
+    CONFIG["paths"]["host_yaml"] or str(pathlib.Path(_multiworld).parent / "host.yaml")
+    if pathlib.Path(_multiworld).is_file()
+    else CONFIG["paths"]["host_yaml"] or str(pathlib.Path(_multiworld) / "host.yaml")
+)
+DEATHS_FILE = os.environ.get("DEATHS_FILE") or str(_data_dir / "death_leaderboard.json")
+ITEMS_FILE = os.environ.get("ITEMS_FILE") or str(_data_dir / "received_items.json")
+TAGS_FILE = os.environ.get("TAGS_FILE") or str(_data_dir / "hint_tags.json")
+ASSETS_DIR = pathlib.Path(CONFIG["paths"]["assets_dir"])
+HALL_OF_FAME_DIR = pathlib.Path(CONFIG["paths"]["hall_of_fame_dir"])
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -77,30 +107,79 @@ STATIC_DIR = pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).pare
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
-multidata = load_multidata(AP_FILE)
+try:
+    multidata = load_multidata(AP_FILE)
+except Exception as e:
+    log.error("=" * 78)
+    log.error("COULD NOT READ %s AS A MULTIDATA FILE", AP_FILE)
+    log.error("Reason: %s", e)
+    log.error("It may be corrupt, truncated, or not actually a *.archipelago file,")
+    log.error("try re-downloading it from the room/generation you're hosting.")
+    log.error("=" * 78)
+    raise SystemExit(1) from None
 world = WorldState(
     multidata,
     items_file=pathlib.Path(ITEMS_FILE),
     tags_file=pathlib.Path(TAGS_FILE),
+    allowed_tags=tag_ids(CONFIG),
 )
-_server_opts = _read_server_options_from_host_yaml(AP_HOST_YAML)
+_host_yaml_found = pathlib.Path(AP_HOST_YAML).is_file()
+_server_opts = _read_server_options_from_host_yaml(AP_HOST_YAML) if _host_yaml_found else {}
 try:
     _hc = int(_server_opts["hint_cost"])
     world.hint_cost = _hc
     log.info("hint_cost = %d%% (from %s)", _hc, AP_HOST_YAML)
 except (KeyError, ValueError):
     log.warning("could not read hint_cost from %s; using default %d%%", AP_HOST_YAML, world.hint_cost)
-AP_PASSWORD = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(_server_opts.get("password", ""))
+
+# AP_HOST/AP_PORT/AP_PASSWORD: an explicit env override always wins. Otherwise,
+# a host.yaml found next to the multiworld file means
+# the multiworld is running locally — connect to localhost using its own port
+# (and password, read above). No host.yaml means the multiworld runs elsewhere;
+# fall back to [server.remote] in config.toml, since there's no local host.yaml
+# to read a port/password from.
+_remote = CONFIG["server"]["remote"]
+if os.environ.get("AP_HOST") or os.environ.get("AP_PORT"):
+    AP_HOST = _env_or(CONFIG["server"]["ap_host"], "AP_HOST")
+    AP_PORT = int(_env_or(CONFIG["server"]["ap_port"], "AP_PORT", int))
+    AP_PASSWORD = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(_server_opts.get("password", ""))
+    AP_SECURE = os.environ.get("AP_SECURE", "").lower() in ("1", "true", "yes")
+elif _host_yaml_found:
+    log.info("host.yaml found at %s; connecting to the local multiworld", AP_HOST_YAML)
+    AP_HOST = CONFIG["server"]["ap_host"]
+    try:
+        AP_PORT = int(_server_opts["port"])
+    except (KeyError, ValueError):
+        AP_PORT = int(CONFIG["server"]["ap_port"])
+    AP_PASSWORD = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(_server_opts.get("password", ""))
+    AP_SECURE = False
+else:
+    if not _remote.get("host"):
+        raise RuntimeError(
+            f"no host.yaml found at {AP_HOST_YAML} and no [server.remote].host set in "
+            f"config.toml, either drop host.yaml next to your .archipelago file, or set "
+            f"[server.remote] to the address of the remotely hosted multiworld"
+        )
+    log.info("no host.yaml at %s; connecting to remote multiworld at %s:%s", AP_HOST_YAML, _remote["host"], _remote["port"])
+    AP_HOST = _remote["host"]
+    AP_PORT = int(_remote["port"])
+    AP_PASSWORD = os.environ.get("AP_PASSWORD") or _remote.get("password", "")
+    # Public rooms (archipelago.gg and most hosted ones) are wss:// — a plain
+    # ws:// client against a TLS port fails with a garbled handshake, which
+    # shows up as "did not receive a valid HTTP response" on every slot.
+    AP_SECURE = bool(_remote.get("tls", True))
 if AP_PASSWORD:
     log.info("server password loaded (%d chars)", len(AP_PASSWORD))
+log.info("connecting to %s:%s (%s)", AP_HOST, AP_PORT, "wss" if AP_SECURE else "ws")
 tracker = Tracker(
     world,
     host=AP_HOST,
     port=AP_PORT,
     password=AP_PASSWORD,
+    secure=AP_SECURE,
     deaths_file=pathlib.Path(DEATHS_FILE),
 )
-sessions = SessionManager(host=AP_HOST, port=AP_PORT, multidata=multidata)
+sessions = SessionManager(host=AP_HOST, port=AP_PORT, multidata=multidata, secure=AP_SECURE)
 
 app = FastAPI(title="Archipelago Web", version="0.1.0")
 
@@ -116,6 +195,32 @@ async def _on_stop() -> None:
 
 
 # ── REST ──────────────────────────────────────────────────────────────────────
+
+def _asset_url(name: str) -> str:
+    """Resolve a branding image name to a servable URL.
+
+    A host file dropped into ``assets_dir`` wins (served under /host/); otherwise
+    the name is served from the bundled frontend at the site root. Absolute URLs
+    and paths are passed through untouched.
+    """
+    if not name or name.startswith(("http://", "https://", "/")):
+        return name
+    if (ASSETS_DIR / name).is_file():
+        return f"/host/{name}"
+    return f"/{name}"
+
+
+@app.get("/api/config")
+async def api_config() -> dict[str, Any]:
+    payload = public_config(CONFIG)
+    payload["branding"]["hero_image"] = _asset_url(payload["branding"].get("hero_image", ""))
+    return payload
+
+
+@app.get("/api/hall_of_fame")
+async def api_hall_of_fame() -> list[dict[str, Any]]:
+    return load_hall_of_fame(HALL_OF_FAME_DIR)
+
 
 @app.get("/api/state")
 async def api_state() -> dict[str, Any]:
@@ -357,6 +462,16 @@ async def api_me(ap_session: str | None = Cookie(default=None)) -> dict[str, Any
 
 
 # ── Static frontend ───────────────────────────────────────────────────────────
+
+# Host-droppable images (hero/border image, etc.) — served under /host/ so a
+# host can swap branding assets without rebuilding the frontend.
+if ASSETS_DIR.is_dir():
+    app.mount("/host", StaticFiles(directory=ASSETS_DIR), name="host")
+
+# Hall of Fame images — dropped by the host, described in entries.toml (see
+# server/hall_of_fame.py), no rebuild needed.
+if HALL_OF_FAME_DIR.is_dir():
+    app.mount("/hall-of-fame", StaticFiles(directory=HALL_OF_FAME_DIR), name="hall_of_fame")
 
 if STATIC_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")

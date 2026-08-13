@@ -1,3 +1,5 @@
+import * as demo from "./demo/store";
+
 export type Slot = {
   slot: number;
   name: string;
@@ -12,7 +14,9 @@ export type Slot = {
   open_hints: number;
 };
 
-export type HintTag = "bked" | "mandatory" | "comfort";
+// Tag ids are host-configurable (see config.toml / /api/config), so this is an
+// open string rather than a fixed union.
+export type HintTag = string;
 
 export type Hint = {
   finding_slot: number;
@@ -97,7 +101,25 @@ async function loginErrorDetail(r: Response): Promise<string> {
   return (await r.text()) || r.statusText;
 }
 
-export const api = {
+export type TagDef = { id: string; label: string; label_fr?: string; emoji?: string };
+
+export type HallOfFameEntry = { file: string; artist: string; date: string; title?: string | null };
+
+export type SiteConfig = {
+  branding: {
+    hero_title: string;
+    hero_image: string;
+    hero_image_fade: number;
+    loading_name: string;
+  };
+  footer: { left: string; right: string };
+  features: { hall_of_fame: boolean; death_leaderboard: boolean; constellation: boolean };
+  hints: { blocked_tag: string; tags: TagDef[] };
+};
+
+const realApi = {
+  config: () => fetch("/api/config").then(j<SiteConfig>),
+  hallOfFame: () => fetch("/api/hall_of_fame").then(j<HallOfFameEntry[]>),
   state: () => fetch("/api/state").then(j<Snapshot>),
   deaths: () => fetch("/api/deaths").then(j<Deaths>),
   slot: (name: string) => fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>),
@@ -135,7 +157,7 @@ export const api = {
     }).then(j<{ ok: boolean; tag: string }>),
 };
 
-export function liveSocket(onEvent: (e: any) => void): () => void {
+function realLiveSocket(onEvent: (e: any) => void): () => void {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const ws = new WebSocket(`${proto}//${location.host}/ws/live`);
   ws.onmessage = (e) => {
@@ -145,3 +167,12 @@ export function liveSocket(onEvent: (e: any) => void): () => void {
   };
   return () => ws.close();
 }
+
+// The static "try it" build (VITE_DEMO=1) swaps the whole backend for an
+// in-memory mock; the production build keeps the real fetch/WebSocket client.
+// VITE_DEMO is a compile-time literal, so the unused branch (and the demo store
+// + its sample data) is dead-code-eliminated from production bundles.
+export const IS_DEMO = !!import.meta.env.VITE_DEMO;
+
+export const api = IS_DEMO ? demo.demoApi : realApi;
+export const liveSocket = IS_DEMO ? demo.demoLiveSocket : realLiveSocket;
