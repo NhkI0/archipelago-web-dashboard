@@ -1,19 +1,45 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Hint, HintTag, Me, SlotDetail, Snapshot, api, liveSocket } from "../api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Hint, HintTag, Me, SlotDetail, Snapshot, TagDef, api, liveSocket } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
-import { useT } from "../i18n";
+import { useT, Lang } from "../i18n";
+import { useConfig, tagLabel } from "../config";
+import { onNewHintForMe } from "../hintEvents";
+
+// Static tints for hint tags. White text stays legible over each in both light
+// and dark mode; custom tags cycle through the palette by their config order.
+const TAG_PALETTE = [
+  "bg-brand-orange",
+  "bg-semantic-error",
+  "bg-brand-teal",
+  "bg-primary",
+  "bg-brand-pink",
+  "bg-brand-green",
+];
 
 type Tab = "location" | "item" | "hints" | "received";
 type HintFilter = "mine_for" | "mine_in" | "all";
 
 export default function Hints() {
   const { t, lang } = useT();
+  const config = useConfig();
+  const tags = config.hints.tags;
+  const colorOf = useMemo(() => {
+    const m = new Map<string, string>();
+    tags.forEach((tg, i) => m.set(tg.id, TAG_PALETTE[i % TAG_PALETTE.length]));
+    return (id: string) => m.get(id) ?? "bg-stone";
+  }, [tags]);
+  // Sort priority: tagged hints first in config order, untagged last.
+  const tagRank = useMemo(() => {
+    const order = new Map(tags.map((tg, i) => [tg.id, i]));
+    return (tag: string) => order.get(tag) ?? tags.length;
+  }, [tags]);
+  const location = useLocation();
   const [me, setMe] = useState<Me | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [detail, setDetail] = useState<SlotDetail | null>(null);
-  const [tab, setTab] = useState<Tab>("item");
+  const [tab, setTab] = useState<Tab>((location.state as { tab?: Tab } | null)?.tab ?? "item");
   const [hintFilter, setHintFilter] = useState<HintFilter>("mine_for");
   const [hideFound, setHideFound] = useState(false);
   const [sortByTag, setSortByTag] = useState(false);
@@ -21,6 +47,42 @@ export default function Hints() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: "item" | "location"; target: string } | null>(null);
+  const [waitingForBroadcast, setWaitingForBroadcast] = useState(false);
+  // The AP broadcast that fires HintNotifier's toast can land while the
+  // /api/hint POST itself is still in flight, so the "are we waiting" check
+  // needs to be readable synchronously (a ref) rather than only after the
+  // POST resolves — otherwise the always-on listener below can miss it.
+  const waitingRef = useRef(false);
+
+  function closeConfirmPopup() {
+    waitingRef.current = false;
+    setWaitingForBroadcast(false);
+    setBusy(null);
+    setConfirm(null);
+  }
+
+  // Subscribed once, for the component's whole lifetime, so it can catch the
+  // broadcast no matter when it arrives relative to the POST response.
+  useEffect(() => {
+    return onNewHintForMe(() => {
+      if (waitingRef.current) closeConfirmPopup();
+    });
+  }, []);
+
+  // Fallback in case the broadcast never arrives (e.g. dropped socket, or this
+  // hint doesn't land on your own slot) — don't leave the user staring at a
+  // spinner forever. Starts counting from the moment we start waiting, not
+  // from whenever the POST happens to resolve.
+  useEffect(() => {
+    if (!waitingForBroadcast) return;
+    const id = setTimeout(closeConfirmPopup, 8000);
+    return () => clearTimeout(id);
+  }, [waitingForBroadcast]);
+
+  useEffect(() => {
+    const wantedTab = (location.state as { tab?: Tab } | null)?.tab;
+    if (wantedTab) setTab(wantedTab);
+  }, [location.state]);
 
   useEffect(() => {
     api.me().then(setMe);
@@ -99,12 +161,12 @@ export default function Hints() {
       h.location_name.toLowerCase().includes(q)
     );
     if (sortByTag) {
-      // BKed → Mandatory → Comfort → untagged. Stable within each group, so
+      // Configured tag order first, untagged last. Stable within each group, so
       // the server's existing order is preserved among same-tag hints.
       list = [...list].sort((a, b) => tagRank(a.tag) - tagRank(b.tag));
     }
     return list;
-  }, [snap, me, detail, hintFilter, hideFound, search, sortByTag]);
+  }, [snap, me, detail, hintFilter, hideFound, search, sortByTag, tagRank]);
 
   if (me === null || snap === null) {
     return <LoadingScreen />;
@@ -142,7 +204,7 @@ export default function Hints() {
     return null;
   }
 
-  async function performSubmit(kind: "item" | "location", target: string) {
+  async function performSubmit(kind: "item" | "location", target: string): Promise<boolean> {
     setBusy(target);
     setError(null);
     try {
@@ -150,19 +212,19 @@ export default function Hints() {
       const failure = r.error || looksLikeFailure(r.reply);
       if (failure) {
         setError(failure);
-        return;
+        setBusy(null);
+        return false;
       }
-      await Promise.all([
-        api.me().then(setMe),
-        api.state().then(setSnap),
-      ]);
+      // me/slot refresh in the background; `snap` itself is left to the live
+      // socket so the popup closes exactly when the same broadcast fires the
+      // toast, not whenever this direct request happens to resolve.
+      api.me().then(setMe);
       if (me && me.logged_in) api.slot(me.slot).then(setDetail);
-      setTab("hints");
-      setSearch("");
+      return true;
     } catch (e: any) {
       setError(e.message || String(e));
-    } finally {
       setBusy(null);
+      return false;
     }
   }
 
@@ -333,9 +395,9 @@ export default function Hints() {
                     <span className="text-steel tabular-nums text-caption sm:text-body-sm sm:truncate" title={`${finder} → ${receiver}`}>{finder} → {receiver}</span>
                     <span className="self-start sm:self-auto">
                       {canTag ? (
-                        <TagMenu tag={h.tag} onPick={(tg) => updateTag(h, tg)} t={t} />
+                        <TagMenu tag={h.tag} onPick={(tg) => updateTag(h, tg)} tags={tags} colorOf={colorOf} lang={lang} t={t} />
                       ) : h.tag ? (
-                        <TagChip tag={h.tag} t={t} />
+                        <TagChip tag={h.tag} tags={tags} colorOf={colorOf} lang={lang} />
                       ) : (
                         <span className="text-caption text-stone">—</span>
                       )}
@@ -419,8 +481,13 @@ export default function Hints() {
                 <button
                   onClick={async () => {
                     const c = confirm;
-                    await performSubmit(c.kind, c.target);
-                    setConfirm(null);
+                    waitingRef.current = true;
+                    setWaitingForBroadcast(true);
+                    const ok = await performSubmit(c.kind, c.target);
+                    if (!ok) {
+                      waitingRef.current = false;
+                      setWaitingForBroadcast(false);
+                    }
                   }}
                   disabled={!!busy || !enough}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active disabled:opacity-60"
@@ -481,31 +548,17 @@ function SubTab({ active, onClick, children }: { active: boolean; onClick: () =>
   );
 }
 
-const TAG_ORDER: HintTag[] = ["bked", "mandatory", "comfort"];
-
-// Sort priority: tagged hints first in TAG_ORDER, untagged ("Others") last.
-function tagRank(tag: HintTag | ""): number {
-  const i = TAG_ORDER.indexOf(tag as HintTag);
-  return i === -1 ? TAG_ORDER.length : i;
+function labelFor(id: string, tags: TagDef[], lang: Lang): string {
+  const def = tags.find((t) => t.id === id);
+  if (!def) return id;
+  const l = tagLabel(def, lang);
+  return def.emoji ? `${def.emoji} ${l}` : l;
 }
 
-// Each tag gets a distinct, static colour (these tints don't theme-swap, so
-// white text over them stays legible in both light and dark mode).
-const TAG_CHIP: Record<HintTag, string> = {
-  bked: "bg-brand-orange text-white",
-  mandatory: "bg-semantic-error text-white",
-  comfort: "bg-brand-teal text-white",
-};
-const TAG_DOT: Record<HintTag, string> = {
-  bked: "bg-brand-orange",
-  mandatory: "bg-semantic-error",
-  comfort: "bg-brand-teal",
-};
-
-function TagChip({ tag, t }: { tag: HintTag; t: (k: string) => string }) {
+function TagChip({ tag, tags, colorOf, lang }: { tag: HintTag; tags: TagDef[]; colorOf: (id: string) => string; lang: Lang }) {
   return (
-    <span className={`inline-flex h-6 max-w-full items-center truncate rounded-pill px-2.5 text-caption-up uppercase ${TAG_CHIP[tag]}`}>
-      {t(`hints.tag.${tag}`)}
+    <span className={`inline-flex h-6 max-w-full items-center truncate rounded-pill px-2.5 text-caption-up uppercase text-white ${colorOf(tag)}`}>
+      {labelFor(tag, tags, lang)}
     </span>
   );
 }
@@ -513,10 +566,16 @@ function TagChip({ tag, t }: { tag: HintTag; t: (k: string) => string }) {
 function TagMenu({
   tag,
   onPick,
+  tags,
+  colorOf,
+  lang,
   t,
 }: {
   tag: HintTag | "";
   onPick: (tag: HintTag | "") => void;
+  tags: TagDef[];
+  colorOf: (id: string) => string;
+  lang: Lang;
   t: (k: string) => string;
 }) {
   const [open, setOpen] = useState(false);
@@ -529,7 +588,7 @@ function TagMenu({
         className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill outline-none"
       >
         {tag ? (
-          <TagChip tag={tag} t={t} />
+          <TagChip tag={tag} tags={tags} colorOf={colorOf} lang={lang} />
         ) : (
           <span className="inline-flex h-6 items-center rounded-pill border border-dashed hair-strong px-2.5 text-caption-up uppercase text-steel hover:text-ink hover:border-primary">
             + {t("hints.col.tag")}
@@ -540,16 +599,16 @@ function TagMenu({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute left-0 z-50 mt-1 w-44 rounded-md border hair bg-canvas p-1 shadow-card">
-            {TAG_ORDER.map((tg) => (
+            {tags.map((tg) => (
               <button
-                key={tg}
+                key={tg.id}
                 type="button"
-                onClick={() => { onPick(tg); setOpen(false); }}
+                onClick={() => { onPick(tg.id); setOpen(false); }}
                 className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-surface"
               >
-                <span className={`h-2.5 w-2.5 shrink-0 rounded-pill ${TAG_DOT[tg]}`} />
-                <span className="text-body-sm text-ink">{t(`hints.tag.${tg}`)}</span>
-                {tag === tg && <span className="ml-auto text-primary">✓</span>}
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-pill ${colorOf(tg.id)}`} />
+                <span className="text-body-sm text-ink">{labelFor(tg.id, tags, lang)}</span>
+                {tag === tg.id && <span className="ml-auto text-primary">✓</span>}
               </button>
             ))}
             <button

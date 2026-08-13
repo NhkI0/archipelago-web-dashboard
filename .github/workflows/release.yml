@@ -1,0 +1,55 @@
+name: Package release
+
+# Builds the frontend and assembles a ready-to-run zip (prebuilt dashboard +
+# run scripts + config) so hosts can unzip, drop in their .archipelago, and run
+# without needing Node. Triggered by pushing a v* tag, or manually.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Assemble bundle
+        run: |
+          ROOT=dist-bundle/archipelago-web
+          mkdir -p "$ROOT/frontend" "$ROOT/multiworld" "$ROOT/assets" "$ROOT/data" "$ROOT/hall-of-fame"
+          cp -r server "$ROOT/"
+          find "$ROOT/server" -name '__pycache__' -type d -prune -exec rm -rf {} +
+          cp -r frontend/dist "$ROOT/frontend/dist"
+          cp config.toml run.sh run.bat README.md "$ROOT/"
+          chmod +x "$ROOT/run.sh"
+          cp assets/banner.png "$ROOT/assets/" 2>/dev/null || true
+          cp hall-of-fame/entries.toml "$ROOT/hall-of-fame/" 2>/dev/null || true
+          : > "$ROOT/multiworld/.gitkeep"
+          : > "$ROOT/data/.gitkeep"
+          ( cd dist-bundle && zip -r ../archipelago-web.zip archipelago-web )
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: archipelago-web
+          path: archipelago-web.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: archipelago-web.zip

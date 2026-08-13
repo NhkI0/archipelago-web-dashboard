@@ -1,0 +1,8 @@
+# Hall of Fame: drop an image file in this folder, then add a matching [[entries]] block below.
+# No rebuild needed; the dashboard picks it up on next load.
+# Entries with no matching file are skipped (with a warning in the server log).
+
+[[entries]]
+file = "raccoon.jpg"
+artist = "Mother nature"
+date = "1056-04-20"

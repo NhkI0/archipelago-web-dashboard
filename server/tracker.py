@@ -257,7 +257,7 @@ class DeathLinkClient:
         if cmd == "Connected":
             log.info("[%s] Connected", self.slot_name)
         elif cmd == "ConnectionRefused":
-            log.error("[%s] refused: %s — DeathLink tracking disabled", self.slot_name, packet.get("errors"))
+            log.error("[%s] refused: %s, DeathLink tracking disabled", self.slot_name, packet.get("errors"))
             self._stopped_permanently = True
         elif cmd == "Bounced" and "DeathLink" in (packet.get("tags") or []):
             data = packet.get("data") or {}
@@ -278,10 +278,11 @@ class Tracker:
         host: str = "localhost",
         port: int = 38281,
         password: str = "",
+        secure: bool = False,
         deaths_file: pathlib.Path | None = None,
     ) -> None:
         self.state = state
-        self.uri = f"ws://{host}:{port}"
+        self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self.password = password
         self.deaths_file = deaths_file
         self._clients: list[_SlotClient] = []
