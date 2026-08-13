@@ -4,6 +4,7 @@ I love Archipelago, my friends too but they sometimes get scared of *"techy"* st
 So I made this web tracker, to keep hints ordered and easy to make. If just someone in your group hosts it either on their computer or a server all of you can access it.
 <br>
 I tried to make a version of it that's easy to use, complete and highly customizable and I think it turned out pretty well. 
+You can check out the actual render on the [live demo](https://nhki0.github.io/archipelago-web-dashboard/).
 
 > If at any moment you happen to have questions, hit me up on discord (**@nhankio**), I'd be more than pleased to help you.
 
