@@ -53,7 +53,7 @@ export default function HallOfFame() {
             >
               <div className="flex items-center justify-center bg-surface" style={{ aspectRatio: "3 / 4" }}>
                 <img
-                  src={`/hall-of-fame/${e.file}`}
+                  src={`${import.meta.env.BASE_URL}hall-of-fame/${e.file}`}
                   alt={e.title || `${t("hof.by")} ${e.artist}`}
                   className="max-h-full max-w-full object-contain transition-opacity group-hover:opacity-95"
                   loading="lazy"
@@ -84,7 +84,7 @@ export default function HallOfFame() {
             className="max-h-full max-w-[1200px] overflow-hidden rounded-lg border hair bg-canvas shadow-mockup"
           >
             <img
-              src={`/hall-of-fame/${open.file}`}
+              src={`${import.meta.env.BASE_URL}hall-of-fame/${open.file}`}
               alt={open.title || `${t("hof.by")} ${open.artist}`}
               className="block max-h-[78vh] w-auto object-contain"
             />
