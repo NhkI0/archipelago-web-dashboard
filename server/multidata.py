@@ -48,7 +48,6 @@ class MultiData:
     games: dict[int, str]                            # slot -> game
     datapackage: dict[str, GamePackage]              # game -> package
     slot_data: dict[int, dict[str, Any]]             # slot -> per-slot game options
-    raw: dict[str, Any]
 
     def deathlink_enabled(self, slot: int) -> bool:
         data = self.slot_data.get(slot)
@@ -56,7 +55,7 @@ class MultiData:
             return False
         return bool(data.get("death_link"))
 
-    # ── derived helpers ───────────────────────────────────────────────────────
+    # derived helpers
 
     def total_locations_for(self, slot: int) -> int:
         """Total checks the player at this slot has to find."""
@@ -242,5 +241,4 @@ def load_multidata(path: str) -> MultiData:
         games=games,
         datapackage=datapackage,
         slot_data=slot_data,
-        raw=data,
     )
