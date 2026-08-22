@@ -106,6 +106,10 @@ class WorldState:
         self.slots: dict[int, SlotState] = {}
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
+        # Reachability of the multiworld server itself, as opposed to any single
+        # slot's login state — set by main.py from AP_HOST/AP_PORT and kept live
+        # by Tracker's connection callback.
+        self.server_status: dict[str, Any] = {"host": "", "port": 0, "connected": False}
         self._subscribers: set[asyncio.Queue] = set()
         # Refcount of open dashboard WebSockets per slot; drives `online`.
         self._presence: dict[int, int] = {}
@@ -316,6 +320,14 @@ class WorldState:
         self._emit({"type": "hints_replaced", "snapshot": self.snapshot()})
         return True
 
+    def set_server_status(self, host: str, port: int, connected: bool) -> None:
+        """Update the multiworld's reachability; emits only when it actually changes."""
+        prev = self.server_status
+        if prev.get("host") == host and prev.get("port") == port and prev.get("connected") == connected:
+            return
+        self.server_status = {"host": host, "port": port, "connected": connected}
+        self._emit({"type": "server_status", "snapshot": self.snapshot()})
+
     # ── snapshot ──────────────────────────────────────────────────────────────
 
     def snapshot(self) -> dict[str, Any]:
@@ -324,6 +336,7 @@ class WorldState:
             "slots": [s.to_dict() for s in self.slots.values()],
             "hints": [h.to_dict() for h in self.hints],
             "hint_cost": self.hint_cost,
+            "server": dict(self.server_status),
             "totals": {
                 "total_locations": sum(s.total for s in self.slots.values()),
                 "total_checked": sum(len(s.checked) for s in self.slots.values()),

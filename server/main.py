@@ -78,6 +78,7 @@ def build_app(room: RoomConfig) -> FastAPI:
     if room.hint_cost is not None:
         world.hint_cost = room.hint_cost
 
+    world.set_server_status(room.ap_host, room.ap_port, False)
     tracker = Tracker(
         world,
         host=room.ap_host,
@@ -85,6 +86,7 @@ def build_app(room: RoomConfig) -> FastAPI:
         password=room.ap_password,
         secure=room.ap_secure,
         deaths_file=room.deaths_file,
+        on_connection_change=lambda connected: world.set_server_status(room.ap_host, room.ap_port, connected),
     )
     sessions = SessionManager(host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure)
 
