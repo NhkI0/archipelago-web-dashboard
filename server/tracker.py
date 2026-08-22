@@ -20,6 +20,7 @@ import logging
 import os
 import pathlib
 import uuid
+from typing import Callable
 
 import websockets
 
@@ -40,6 +41,7 @@ class _SlotClient:
         game: str,
         password: str,
         subscribe_hints: bool,
+        on_status_change: Callable[[], None] | None = None,
     ) -> None:
         self.state = state
         self.uri = uri
@@ -48,8 +50,17 @@ class _SlotClient:
         self.game = game
         self.password = password
         self.subscribe_hints = subscribe_hints
+        self.on_status_change = on_status_change
+        self.connected = False
         self._task: asyncio.Task | None = None
         self._ws: "websockets.WebSocketClientProtocol | None" = None
+
+    def _set_connected(self, value: bool) -> None:
+        if self.connected == value:
+            return
+        self.connected = value
+        if self.on_status_change is not None:
+            self.on_status_change()
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -69,6 +80,9 @@ class _SlotClient:
             try:
                 async with websockets.connect(self.uri, max_size=2**24) as ws:
                     self._ws = ws
+                    # A successful handshake means the multiworld itself is
+                    # reachable, regardless of whether login below is accepted.
+                    self._set_connected(True)
                     await self._connect(ws)
                     delay = 5
                     async for raw in ws:
@@ -80,6 +94,8 @@ class _SlotClient:
                 log.warning("[%s] disconnected (%s); retrying in %ds", self.slot_name, e, delay)
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 60)
+            finally:
+                self._set_connected(False)
 
     async def _connect(self, ws: "websockets.WebSocketClientProtocol") -> None:
         await ws.recv()  # RoomInfo
@@ -280,13 +296,29 @@ class Tracker:
         password: str = "",
         secure: bool = False,
         deaths_file: pathlib.Path | None = None,
+        on_connection_change: Callable[[bool], None] | None = None,
     ) -> None:
         self.state = state
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self.password = password
         self.deaths_file = deaths_file
+        self._on_connection_change = on_connection_change
+        self._connected = False
         self._clients: list[_SlotClient] = []
         self._death_client: DeathLinkClient | None = None
+
+    def _notify_connection_change(self) -> None:
+        now = any(c.connected for c in self._clients)
+        if now == self._connected:
+            return
+        self._connected = now
+        if self._on_connection_change is not None:
+            self._on_connection_change(now)
+
+    @property
+    def connected(self) -> bool:
+        """True once at least one slot connection has reached the multiworld."""
+        return self._connected
 
     def _pick_deathlink_host(self):
         md = self.state.multidata
@@ -310,6 +342,7 @@ class Tracker:
                 # Every slot subscribes to its own hint/status keys; hints no
                 # longer depend on one designated connection staying healthy.
                 subscribe_hints=True,
+                on_status_change=self._notify_connection_change,
             )
             client.start()
             self._clients.append(client)
