@@ -35,11 +35,34 @@ function merge(base: SiteConfig, over: Partial<SiteConfig>): SiteConfig {
   };
 }
 
+type InjectedConfig = Partial<SiteConfig> & { basename?: string };
+
+// Server-injected <script id="ap-config"> (see server/main.py); absent for self-hosted/demo.
+let _injected: InjectedConfig | null | undefined;
+
+function readInjectedConfig(): InjectedConfig | null {
+  if (_injected !== undefined) return _injected;
+  const el = document.getElementById("ap-config");
+  try {
+    _injected = el?.textContent ? (JSON.parse(el.textContent) as InjectedConfig) : null;
+  } catch {
+    _injected = null;
+  }
+  return _injected;
+}
+
+/** Site-relative base path for this room ("" at the root, "/<uuid>" when hosted), no trailing slash. */
+export function getBasePath(): string {
+  const basename = readInjectedConfig()?.basename;
+  if (basename && basename !== "/") return basename.replace(/\/$/, "");
+  return import.meta.env.BASE_URL.replace(/\/$/, "");
+}
+
 /** Resolve a branding image path to a URL usable from the current base. */
 
 export function resolveAssetUrl(path: string): string {
   if (!path || /^(https?:)?\/\//.test(path) || path.startsWith("/")) return path;
-  return import.meta.env.BASE_URL.replace(/\/$/, "") + "/" + path;
+  return getBasePath() + "/" + path;
 }
 
 /** Localized label for a tag definition. */
@@ -50,9 +73,13 @@ export function tagLabel(tag: TagDef, lang: Lang): string {
 const Context = createContext<SiteConfig | null>(null);
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
+  const injected = readInjectedConfig();
+  const [config, setConfig] = useState<SiteConfig>(
+    injected ? merge(DEFAULT_CONFIG, injected) : DEFAULT_CONFIG,
+  );
 
   useEffect(() => {
+    if (injected) return; // hosted rooms already have everything from the tag
     let alive = true;
     api
       .config()
@@ -61,7 +88,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [injected]);
 
   return <Context.Provider value={config}>{children}</Context.Provider>;
 }

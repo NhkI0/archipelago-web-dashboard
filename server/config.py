@@ -174,6 +174,8 @@ class RoomConfig:
     assets_dir: pathlib.Path
     hall_of_fame_dir: pathlib.Path
     static_dir: pathlib.Path
+    sanitized_file: pathlib.Path | None = None  # hosted mode: load via load_sanitized() instead of ap_file
+    base_path: str = "/"                        # e.g. "/<uuid>/" for a hosted room, injected into index.html
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:

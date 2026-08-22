@@ -8,19 +8,20 @@ resolves a `RoomConfig` from `config.toml` + env vars and calls `build_app()`.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections import Counter
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
 from fastapi import Cookie, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import RoomConfig, public_config, tag_ids
 from .hall_of_fame import load_entries as load_hall_of_fame
-from .multidata import load_multidata
+from .multidata import load_multidata, load_sanitized
 from .session import SessionManager
 from .state import WorldState
 from .tracker import Tracker
@@ -55,10 +56,13 @@ def build_app(room: RoomConfig) -> FastAPI:
     the hosted supervisor marks the room creation as failed).
     """
     try:
-        multidata = load_multidata(room.ap_file)
+        if room.sanitized_file is not None:
+            multidata = load_sanitized(room.sanitized_file)
+        else:
+            multidata = load_multidata(room.ap_file)
     except Exception as e:
         log.error("=" * 78)
-        log.error("COULD NOT READ %s AS A MULTIDATA FILE", room.ap_file)
+        log.error("COULD NOT READ %s AS A MULTIDATA FILE", room.sanitized_file or room.ap_file)
         log.error("Reason: %s", e)
         log.error("It may be corrupt, truncated, or not actually a *.archipelago file,")
         log.error("try re-downloading it from the room/generation you're hosting.")
@@ -342,8 +346,21 @@ def build_app(room: RoomConfig) -> FastAPI:
     if room.static_dir.is_dir():
         app.mount("/assets", StaticFiles(directory=room.static_dir / "assets"), name="assets")
 
+        # Built once, not per-request: identical for every visitor of this room.
+        index_path = room.static_dir / "index.html"
+        injected_index: bytes | None = None
+        if index_path.is_file():
+            injected_config = {**public_config(room.config), "basename": room.base_path}
+            tag = f'<script type="application/json" id="ap-config">{json.dumps(injected_config)}</script>'
+            html = index_path.read_text(encoding="utf-8")
+            if "</head>" in html:
+                html = html.replace("</head>", f"{tag}</head>", 1)
+            else:
+                html = tag + html
+            injected_index = html.encode("utf-8")
+
         @app.get("/{full_path:path}")
-        async def spa(full_path: str) -> FileResponse:
+        async def spa(full_path: str) -> Response:
             # Serve any real file at the top of dist/ (favicon.ico, robots.txt,
             # public assets like /games/<slug>.png, etc.) before falling back to the SPA shell.
             if full_path:
@@ -354,9 +371,8 @@ def build_app(room: RoomConfig) -> FastAPI:
                     candidate = None  # path traversal, refuse
                 if candidate and candidate.is_file():
                     return FileResponse(candidate)
-            index = room.static_dir / "index.html"
-            if not index.exists():
+            if injected_index is None:
                 return JSONResponse({"error": "frontend not built"}, status_code=503)
-            return FileResponse(index)
+            return HTMLResponse(injected_index)
 
     return app
