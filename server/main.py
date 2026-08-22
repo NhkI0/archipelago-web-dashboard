@@ -10,7 +10,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import Counter
-from typing import Any
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator
 
 from fastapi import Cookie, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
@@ -83,17 +84,15 @@ def build_app(room: RoomConfig) -> FastAPI:
     )
     sessions = SessionManager(host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure)
 
-    app = FastAPI(title="Archipelago Web", version="0.1.0")
-
     # lifecycle
 
-    @app.on_event("startup")
-    async def _on_start() -> None:
+    @asynccontextmanager
+    async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
         tracker.start()
-
-    @app.on_event("shutdown")
-    async def _on_stop() -> None:
+        yield
         await tracker.stop()
+
+    app = FastAPI(title="Archipelago Web", version="0.1.0", lifespan=_lifespan)
 
     # REST
 
