@@ -97,6 +97,7 @@ function snapshot(): Snapshot {
     slots,
     hints,
     hint_cost: HINT_COST,
+    server: { host: "demo.archipelago.local", port: 38281, connected: true },
     totals: {
       total_locations: slots.reduce((a, s) => a + s.total, 0),
       total_checked: slots.reduce((a, s) => a + s.checked, 0),
