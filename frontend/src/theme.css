@@ -153,6 +153,11 @@ body {
   border: 0;
   padding: 0;
   display: inline-block;
+  /* Tailwind Preflight sets -webkit-appearance: button, which keeps Safari on
+     native pushbutton chrome — that ignores our em-based height/width and
+     renders at native (huge) size, blowing out of the nav. */
+  -webkit-appearance: none;
+  appearance: none;
 }
 .ms-toggle.day { background: #FFBF71; }
 
