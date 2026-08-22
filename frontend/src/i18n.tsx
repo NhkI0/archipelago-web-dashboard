@@ -29,7 +29,8 @@ const en: Dict = {
   "hero.field.found": "found",
   "hero.field.latest": "latest",
   "hero.field.running": "● running",
-  "hero.field.port": "port 38281",
+  "hero.field.unreachable": "● unreachable",
+  "hero.field.address": "{host}:{port}",
   "hero.field.tracker": "tracker · live ws",
 
   // Dashboard
@@ -192,7 +193,8 @@ const fr: Dict = {
   "hero.field.found": "trouvés",
   "hero.field.latest": "dernier",
   "hero.field.running": "● actif",
-  "hero.field.port": "port 38281",
+  "hero.field.unreachable": "● injoignable",
+  "hero.field.address": "{host}:{port}",
   "hero.field.tracker": "tracker · ws live",
 
   "dash.kicker": "Joueurs",

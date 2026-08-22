@@ -171,6 +171,7 @@ else:
 if AP_PASSWORD:
     log.info("server password loaded (%d chars)", len(AP_PASSWORD))
 log.info("connecting to %s:%s (%s)", AP_HOST, AP_PORT, "wss" if AP_SECURE else "ws")
+world.set_server_status(AP_HOST, AP_PORT, False)
 tracker = Tracker(
     world,
     host=AP_HOST,
@@ -178,6 +179,7 @@ tracker = Tracker(
     password=AP_PASSWORD,
     secure=AP_SECURE,
     deaths_file=pathlib.Path(DEATHS_FILE),
+    on_connection_change=lambda connected: world.set_server_status(AP_HOST, AP_PORT, connected),
 )
 sessions = SessionManager(host=AP_HOST, port=AP_PORT, multidata=multidata, secure=AP_SECURE)
 

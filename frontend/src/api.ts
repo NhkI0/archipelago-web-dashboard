@@ -29,11 +29,14 @@ export type Hint = {
   tag: HintTag | "";
 };
 
+export type ServerStatus = { host: string; port: number; connected: boolean };
+
 export type Snapshot = {
   seed_name: string;
   slots: Slot[];
   hints: Hint[];
   hint_cost: number;
+  server: ServerStatus;
   totals: { total_locations: number; total_checked: number };
 };
 

@@ -72,6 +72,7 @@ export default function Dashboard() {
         hints={snap.hints.filter((h) => !h.found).length}
         hintsFound={snap.hints.filter((h) => h.found).length}
         latestHint={snap.hints.length > 0 ? snap.hints[snap.hints.length - 1].item_name : null}
+        server={snap.server}
       />
 
       {bked.length > 0 && (

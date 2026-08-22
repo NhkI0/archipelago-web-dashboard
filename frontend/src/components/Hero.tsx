@@ -1,5 +1,6 @@
 import { useT } from "../i18n";
 import { useConfig, resolveAssetUrl } from "../config";
+import { ServerStatus } from "../api";
 
 type Props = {
   seed: string;
@@ -9,9 +10,10 @@ type Props = {
   hints: number;
   hintsFound: number;
   latestHint: string | null;
+  server: ServerStatus;
 };
 
-export default function Hero({ seed, totalChecked, totalLocations, slots, hints, hintsFound, latestHint }: Props) {
+export default function Hero({ seed, totalChecked, totalLocations, slots, hints, hintsFound, latestHint, server }: Props) {
   const { t } = useT();
   const config = useConfig();
   const heroImage = config.branding.hero_image ? resolveAssetUrl(config.branding.hero_image) : "";
@@ -70,8 +72,10 @@ export default function Hero({ seed, totalChecked, totalLocations, slots, hints,
               <Line label={t("hero.field.latest")} value={latestHint ?? "—"} />
             </Pane>
             <Pane label={t("hero.pane.server")} tint="sky">
-              <div className="text-body-sm text-semantic-success font-medium">{t("hero.field.running")}</div>
-              <div className="text-body-sm text-tintInk">{t("hero.field.port")}</div>
+              <div className={`text-body-sm font-medium ${server.connected ? "text-semantic-success" : "text-semantic-error"}`}>
+                {t(server.connected ? "hero.field.running" : "hero.field.unreachable")}
+              </div>
+              <div className="text-body-sm text-tintInk">{t("hero.field.address", { host: server.host, port: server.port })}</div>
               <div className="text-body-sm text-tintInkSoft">{t("hero.field.tracker")}</div>
             </Pane>
           </div>
