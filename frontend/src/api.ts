@@ -160,15 +160,48 @@ const realApi = {
     }).then(j<{ ok: boolean; tag: string }>),
 };
 
-function realLiveSocket(onEvent: (e: any) => void): () => void {
+export type LiveSocketState = "open" | "reconnecting";
+
+const RECONNECT_BASE_MS = 500;
+const RECONNECT_MAX_MS = 10000;
+
+function realLiveSocket(onEvent: (e: any) => void, onStateChange?: (s: LiveSocketState) => void): () => void {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(`${proto}//${location.host}/ws/live`);
-  ws.onmessage = (e) => {
-    try {
-      onEvent(JSON.parse(e.data));
-    } catch {}
+  let ws: WebSocket | null = null;
+  let stopped = false;
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function connect() {
+    ws = new WebSocket(`${proto}//${location.host}/ws/live`);
+    ws.onopen = () => {
+      attempt = 0;
+      onStateChange?.("open");
+    };
+    ws.onmessage = (e) => {
+      try {
+        const parsed = JSON.parse(e.data);
+        if (parsed?.type === "ping") return; // keepalive only, not a UI event
+        onEvent(parsed);
+      } catch {}
+    };
+    const scheduleReconnect = () => {
+      if (stopped) return;
+      onStateChange?.("reconnecting");
+      const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS) * (0.75 + Math.random() * 0.5);
+      attempt += 1;
+      retryTimer = setTimeout(connect, delay);
+    };
+    ws.onclose = scheduleReconnect;
+    ws.onerror = () => ws?.close();
+  }
+  connect();
+
+  return () => {
+    stopped = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    ws?.close();
   };
-  return () => ws.close();
 }
 
 // The static "try it" build (VITE_DEMO=1) swaps the whole backend for an

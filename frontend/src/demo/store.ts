@@ -226,9 +226,10 @@ export const demoApi = {
   },
 };
 
-export function demoLiveSocket(onEvent: (e: unknown) => void): () => void {
+export function demoLiveSocket(onEvent: (e: unknown) => void, onStateChange?: (s: "open" | "reconnecting") => void): () => void {
   listeners.add(onEvent);
   onEvent({ type: "snapshot", snapshot: snapshot() });
+  onStateChange?.("open"); // demo store has no real socket, so it's always "open"
   return () => {
     listeners.delete(onEvent);
   };
