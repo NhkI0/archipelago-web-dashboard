@@ -83,3 +83,33 @@ def test_build_app_raises_on_bad_multidata(room: RoomConfig, tmp_path: pathlib.P
     room.ap_file = str(bad_file)
     with pytest.raises(Exception):
         build_app(room)
+
+
+def test_api_presence_counts_open_ws_live_sockets(room: RoomConfig) -> None:
+    app = build_app(room)
+    with TestClient(app) as client:
+        assert client.get("/api/presence").json() == {"viewers": 0}
+        with client.websocket_connect("/ws/live"):
+            assert client.get("/api/presence").json() == {"viewers": 1}
+        assert client.get("/api/presence").json() == {"viewers": 0}
+
+
+def test_ws_live_sends_ping_on_idle_tick(room: RoomConfig, monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    # The 5s idle tick in main.py's pump() is what carries the keepalive ping;
+    # shrink it so the test doesn't have to wait 5 real seconds. Capture the
+    # real wait_for first, since the replacement must not call the patched
+    # name (that would recurse into itself forever).
+    real_wait_for = asyncio.wait_for
+
+    async def fast_wait_for(aw, timeout):
+        return await real_wait_for(aw, timeout=0.05)
+
+    monkeypatch.setattr("server.main.asyncio.wait_for", fast_wait_for)
+    app = build_app(room)
+    with TestClient(app) as client, client.websocket_connect("/ws/live") as ws:
+        first = ws.receive_json()
+        assert first["type"] == "snapshot"
+        ping = ws.receive_json()
+        assert ping == {"type": "ping"}

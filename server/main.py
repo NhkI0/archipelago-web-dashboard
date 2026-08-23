@@ -36,8 +36,8 @@ class LoginBody(BaseModel):
 
 
 class HintBody(BaseModel):
-    kind: str         # "item" | "location"
-    target: str       # item or location name as the AP server expects it
+    kind: str  # "item" | "location"
+    target: str  # item or location name as the AP server expects it
 
 
 class HintTagBody(BaseModel):
@@ -45,7 +45,7 @@ class HintTagBody(BaseModel):
     receiving_slot: int
     item_id: int
     location_id: int
-    tag: str = ""     # one of state.HINT_TAGS, or "" to clear
+    tag: str = ""  # one of state.HINT_TAGS, or "" to clear
 
 
 def build_app(room: RoomConfig) -> FastAPI:
@@ -128,6 +128,12 @@ def build_app(room: RoomConfig) -> FastAPI:
     @app.get("/api/state")
     async def api_state() -> dict[str, Any]:
         return world.snapshot()
+
+    @app.get("/api/presence")
+    async def api_presence() -> dict[str, Any]:
+        # Every open /ws/live socket, not just logged-in slots (that's WorldState._presence) 
+        # this is "is anyone watching this room at all" the signal the hosted supervisor's sleep reaper polls.
+        return {"viewers": len(world._subscribers)}
 
     @app.get("/api/deaths")
     async def api_deaths() -> dict[str, Any]:
@@ -225,7 +231,11 @@ def build_app(room: RoomConfig) -> FastAPI:
                     event = await asyncio.wait_for(queue.get(), timeout=5.0)
                     await ws.send_json(event)
                 except asyncio.TimeoutError:
-                    pass  # idle tick; fall through to re-check the session
+                    # Idle tick. Also doubles as a keepalive: a proxy sitting between
+                    # the browser and this server (Cloudflare's ~100s idle timeout,
+                    # Caddy's own) will otherwise silently drop a quiet connection,
+                    # and the client would have no way to notice without this.
+                    await ws.send_json({"type": "ping"})
                 sync_presence()
 
         async def watch_disconnect() -> None:
