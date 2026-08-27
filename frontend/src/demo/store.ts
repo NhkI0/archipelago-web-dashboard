@@ -135,7 +135,7 @@ function detail(name: string): SlotDetail {
     const recipient = BASE[i % BASE.length];
     return {
       id: 1 + i,
-      name: `${s.game} — Check ${i + 1}`,
+      name: `${s.game}: Check ${i + 1}`,
       checked: i < s.checked,
       item_for_slot: recipient.slot,
       // A checked location has yielded an item for its recipient's own game.
@@ -148,7 +148,7 @@ function detail(name: string): SlotDetail {
   const now = Date.now() / 1000;
   const received_items = others.slice(0, 2).map((o, i) => ({
     item_name: pool[i % pool.length],
-    location_name: `${o.game} — Check ${i + 3}`,
+    location_name: `${o.game}: Check ${i + 3}`,
     sender: o.name,
     timestamp: now - (i + 1) * 1800,
   }));
