@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, Me } from "../api";
 import { useT } from "../i18n";
-import { useConfig } from "../config";
+import { useConfig, getBasePath } from "../config";
 import ThemeToggle from "./ThemeToggle";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -23,7 +23,7 @@ export default function TopNav() {
     <header className="sticky top-0 z-30 border-b hair bg-canvas/95 backdrop-blur transition-colors duration-300">
       <div className="mx-auto flex h-16 max-w-[1200px] items-center px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" aria-hidden className="h-7 w-7" />
+          <img src={`${getBasePath()}/logo.svg`} alt="" aria-hidden className="h-7 w-7" />
           <span className="font-semibold tracking-tight text-ink">Archipelago</span>
         </Link>
         <nav className="ml-10 hidden items-center gap-7 md:flex">

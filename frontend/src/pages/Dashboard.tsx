@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [deaths, setDeaths] = useState<Deaths | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const [live, setLive] = useState<"open" | "reconnecting">("open");
   const { t, lang } = useT();
   const config = useConfig();
   const blockedTag = config.hints.blocked_tag;
@@ -20,12 +21,15 @@ export default function Dashboard() {
     api.state().then(setSnap).catch(console.error);
     api.deaths().then(setDeaths).catch(() => {});
     api.me().then(setMe).catch(() => {});
-    return liveSocket((e) => {
-      if (e?.snapshot) setSnap(e.snapshot);
-    });
+    return liveSocket(
+      (e) => {
+        if (e?.snapshot) setSnap(e.snapshot);
+      },
+      setLive,
+    );
   }, []);
 
-  // Open BKed hints that involve the logged-in slot — both the checks they're
+  // Open BKed hints that involve the logged-in slot: both the checks they're
   // waiting on (as receiver) and the BKed checks sitting in their own world
   // that they can go find to unblock someone else (as finder).
   const bked = useMemo(() => {
@@ -64,6 +68,11 @@ export default function Dashboard() {
 
   return (
     <>
+      {live === "reconnecting" && (
+        <div className="fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-pill bg-brand-orange px-3 py-1 text-caption-up uppercase text-white shadow-md">
+          {t("dash.reconnecting")}
+        </div>
+      )}
       <Hero
         seed={snap.seed_name}
         totalChecked={snap.totals.total_checked}

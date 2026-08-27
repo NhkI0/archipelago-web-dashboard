@@ -1,5 +1,5 @@
 """
-Reader for Archipelago `.archipelago` multidata files.
+Reader for Archipelago .archipelago multidata files.
 
 Format (as of AP 0.6.x):
     The file on disk is a zlib-compressed pickle of a dict. The schema has
@@ -12,17 +12,29 @@ Fields consumed:
     slot_info           : dict[int, NetworkSlot|tuple] (slot -> (name, game, type, group_members))
     locations           : dict[int, dict[int, tuple]]  (finder_slot -> {loc_id: (item_id, recv_slot, flags)})
     connect_names       : dict[str, tuple]             (player name -> (team, slot))
-    datapackage         : dict[str, GamePackage]       game -> {item_name_to_id, location_name_to_id, ...}
-    games               : dict[int, str]               (slot -> game)
+    datapackage         : dict[str, GamePackage]        game -> {item_name_to_id, location_name_to_id, ...}
+    games               : dict[int, str]                (slot -> game)
 """
 
 from __future__ import annotations
 
 import io
+import json
+import pathlib
 import pickle
 import zlib
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
+
+# Crash prevention limits, should reasticaly never be reached
+
+MAX_ARCHIPELAGO_FILE_BYTES = 32 * 1024 * 1024   # on-disk / uploaded file size
+MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024      # unpacked pickle byte ceiling
+MAX_DECOMPRESSION_RATIO = 300                    # output/input; catches zip bombs early
+MAX_SANITIZE_DEPTH = 64                          # nested container depth ceiling
+
+SANITIZED_FORMAT_VERSION = 1
 
 
 @dataclass
@@ -48,7 +60,6 @@ class MultiData:
     games: dict[int, str]                            # slot -> game
     datapackage: dict[str, GamePackage]              # game -> package
     slot_data: dict[int, dict[str, Any]]             # slot -> per-slot game options
-    raw: dict[str, Any]
 
     def deathlink_enabled(self, slot: int) -> bool:
         data = self.slot_data.get(slot)
@@ -56,7 +67,7 @@ class MultiData:
             return False
         return bool(data.get("death_link"))
 
-    # ── derived helpers ───────────────────────────────────────────────────────
+    # derived helpers
 
     def total_locations_for(self, slot: int) -> int:
         """Total checks the player at this slot has to find."""
@@ -83,24 +94,28 @@ class MultiData:
         return f"item#{item_id}"
 
 
+def _coerce_slot_type(raw: Any) -> int:
+    """SlotType is a pickled IntEnum; after sanitizing it may already be a
+    plain int, or (via the stub-class path) a single-element list wrapping
+    its underlying value. Unwrap either shape, defaulting to "player"."""
+    if isinstance(raw, (list, tuple)):
+        raw = raw[0] if raw else 1
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 1
+
+
 def _coerce_slot_info(raw_slots: Any, games: dict[int, str]) -> dict[int, SlotInfo]:
     out: dict[int, SlotInfo] = {}
     if not raw_slots:
         return out
     for slot_num, info in raw_slots.items():
         slot_num = int(slot_num)
-        if hasattr(info, "name"):
-            out[slot_num] = SlotInfo(
-                slot=slot_num,
-                name=getattr(info, "name", "") or "",
-                game=getattr(info, "game", games.get(slot_num, "")) or "",
-                type=int(getattr(info, "type", 1)),
-                group_members=tuple(getattr(info, "group_members", ()) or ()),
-            )
-        elif isinstance(info, (tuple, list)):
+        if isinstance(info, (tuple, list)):
             name = info[0] if len(info) > 0 else ""
             game = info[1] if len(info) > 1 else games.get(slot_num, "")
-            stype = int(info[2]) if len(info) > 2 else 1
+            stype = _coerce_slot_type(info[2]) if len(info) > 2 else 1
             members = tuple(info[3]) if len(info) > 3 else ()
             out[slot_num] = SlotInfo(slot_num, name or "", game or "", stype, members)
         elif isinstance(info, dict):
@@ -108,7 +123,7 @@ def _coerce_slot_info(raw_slots: Any, games: dict[int, str]) -> dict[int, SlotIn
                 slot=slot_num,
                 name=info.get("name", ""),
                 game=info.get("game", games.get(slot_num, "")),
-                type=int(info.get("type", 1)),
+                type=_coerce_slot_type(info.get("type", 1)),
                 group_members=tuple(info.get("group_members", ())),
             )
     return out
@@ -134,12 +149,12 @@ def _coerce_datapackage(raw_dp: Any) -> dict[str, GamePackage]:
 
 
 class _StubClass(tuple):
-    """Generic stand-in for AP-specific classes (NetworkSlot, SlotType, etc.).
+    """Inert stand-in for any pickled class we don't explicitly trust.
 
-    Inherits tuple so NamedTuple-based AP classes reconstruct correctly via
-    `tuple.__new__(cls, args)` during unpickling. Exposes the NetworkSlot
-    field names as properties so `_coerce_slot_info` can read them.
+    Inherits tuple so NamedTuple-based AP classes reconstruct correctly during unpickling,
+    with no __init__, __call__, or side-effecting method for a hostile pickle to reach.
     """
+
     _ap_class_name = ""
 
     def __new__(cls, *args):
@@ -181,29 +196,129 @@ class _StubClass(tuple):
         return tuple(self[3]) if len(self) > 3 else ()
 
 
-class _PermissiveUnpickler(pickle.Unpickler):
-    """Resolve unknown classes (NetUtils.NetworkSlot, BaseClasses.MultiWorld, …) to stubs."""
+_SAFE_REAL_CLASSES: dict[tuple[str, str], type] = {
+    ("collections", "OrderedDict"): OrderedDict,
+    ("builtins", "set"): set,
+    ("builtins", "frozenset"): frozenset,
+    ("builtins", "dict"): dict,
+    ("builtins", "list"): list,
+    ("builtins", "tuple"): tuple,
+}
+
+_stub_class_cache: dict[tuple[str, str], type] = {}
+
+
+def _stub_class_for(module: str, name: str) -> type:
+    key = (module, name)
+    cls = _stub_class_cache.get(key)
+    if cls is None:
+        cls = type(name, (_StubClass,), {"_ap_class_name": f"{module}.{name}"})
+        _stub_class_cache[key] = cls
+    return cls
+
+
+class _AllowlistUnpickler(pickle.Unpickler):
+    """Resolve pickled classes through a strict allowlist.
+
+    Only _SAFE_REAL_CLASSES entries resolve to a real, callable class; everything else,
+    known AP classes included, resolves to the inert _StubClass.
+    """
 
     def find_class(self, module: str, name: str):
+        real = _SAFE_REAL_CLASSES.get((module, name))
+        if real is not None:
+            return real
+        return _stub_class_for(module, name)
+
+
+def _bounded_decompress(
+    payload: bytes,
+    *,
+    max_bytes: int = MAX_DECOMPRESSED_BYTES,
+    max_ratio: int = MAX_DECOMPRESSION_RATIO,
+) -> bytes:
+    """Zlib-decompress payload with an absolute output cap and a ratio cap.
+
+    Checked incrementally (1 MiB at a time) so a zip bomb would be caught after a bounded
+    amount of wasted work, not after fully expanding into memory.
+    """
+    decompressor = zlib.decompressobj()
+    out = bytearray()
+    pending = payload
+    chunk_limit = 1 << 20
+
+    def _check() -> None:
+        if len(out) > max_bytes:
+            raise ValueError(f"decompressed multidata exceeds {max_bytes} bytes")
+        if payload and len(out) > max_ratio * len(payload):
+            raise ValueError(f"decompression ratio exceeds {max_ratio}x safety ceiling")
+
+    while True:
+        chunk = decompressor.decompress(pending, chunk_limit)
+        pending = decompressor.unconsumed_tail
+        out.extend(chunk)
+        _check()
+        if not chunk and not pending:
+            break
+
+    out.extend(decompressor.flush())
+    _check()
+    return bytes(out)
+
+
+def _to_jsonable(obj: Any, *, depth: int = 0) -> Any:
+    """Recursively flatten an unpickled object graph to JSON-safe primitives.
+
+    Reduces everything to dict/list/str/int/float/bool/None so no object identity,
+    custom class, or executable code can survive into the sanitized output.
+    """
+    if depth > MAX_SANITIZE_DEPTH:
+        raise ValueError(f"multidata nesting exceeds depth {MAX_SANITIZE_DEPTH}")
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, bytes):
         try:
-            return super().find_class(module, name)
-        except (ImportError, AttributeError):
-            stub = type(name, (_StubClass,), {"_ap_class_name": f"{module}.{name}"})
-            return stub
+            return obj.decode("utf-8")
+        except UnicodeDecodeError:
+            return obj.hex()
+    if isinstance(obj, dict):
+        return {str(k): _to_jsonable(v, depth=depth + 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set, frozenset)):
+        return [_to_jsonable(v, depth=depth + 1) for v in obj]
+    # Anything else (an object type outside what the allowlist can produce, which should not
+    # happen but must never crash or smuggle an object through); fall back to its repr rather
+    # than raising.
+    return repr(obj)
 
 
-def load_multidata(path: str) -> MultiData:
-    with open(path, "rb") as fp:
-        raw = fp.read()
-    # `.archipelago` files start with a 1-byte multidata format version;
+def parse_untrusted(payload: bytes) -> dict[str, Any]:
+    """Parse raw .archipelago bytes into a sanitized, safe, JSON dict.
+
+    This is the only function in the module that unpickles. payload must
+    be treated as attacker-controlled: enforce the byte cap on it before calling this (e.g. at
+    the HTTP upload boundary), and run it inside the process sandbox (server.sandbox) for
+    anything not already trusted.
+    """
+    if len(payload) > MAX_ARCHIPELAGO_FILE_BYTES:
+        raise ValueError(f"multidata file exceeds {MAX_ARCHIPELAGO_FILE_BYTES} bytes")
+
+    # .archipelago files start with a 1-byte multidata format version;
     # AP's own loader skips it. Try both forms for older files.
     try:
-        payload = zlib.decompress(raw[1:])
+        decompressed = _bounded_decompress(payload[1:])
     except zlib.error:
-        payload = zlib.decompress(raw)
-    # Multidata is a regular pickle. Trusted source (the server we control).
-    data: dict[str, Any] = _PermissiveUnpickler(io.BytesIO(payload)).load()
+        decompressed = _bounded_decompress(payload)
 
+    raw: dict[str, Any] = _AllowlistUnpickler(io.BytesIO(decompressed)).load()
+    sanitized = _to_jsonable(raw)
+    if not isinstance(sanitized, dict):
+        raise ValueError("multidata root is not a mapping")
+    sanitized["format_version"] = SANITIZED_FORMAT_VERSION
+    return sanitized
+
+
+def multidata_from_sanitized(data: dict[str, Any]) -> MultiData:
+    """Build a MultiData from an already-sanitized dict (never unpickles)."""
     games = {int(k): v for k, v in (data.get("games") or {}).items()}
     slots = _coerce_slot_info(data.get("slot_info") or data.get("slots"), games)
     # If the multidata doesn't ship a top-level games map, derive it from slot_info.
@@ -242,5 +357,33 @@ def load_multidata(path: str) -> MultiData:
         games=games,
         datapackage=datapackage,
         slot_data=slot_data,
-        raw=data,
     )
+
+
+def save_sanitized(data: dict[str, Any], path: str | pathlib.Path) -> None:
+    """Persist a sanitized dict to disk, compactly."""
+    with open(path, "w", encoding="utf-8") as fp:
+        json.dump(data, fp, separators=(",", ":"))
+
+
+def load_sanitized(path: str | pathlib.Path) -> MultiData:
+    """Load a previously sanitized JSON file."""
+    with open(path, "r", encoding="utf-8") as fp:
+        data = json.load(fp)
+    return multidata_from_sanitized(data)
+
+
+def load_multidata(path: str) -> MultiData:
+    """Self-hosted convenience: parse a .archipelago file straight to MultiData.
+
+    Still goes through the hardened parse_untrusted() pipeline, the file
+    comes from the host's own machine, but hardening it costs nothing and keeps a single code
+    path with the hosted upload flow.
+    """
+    size = pathlib.Path(path).stat().st_size
+    if size > MAX_ARCHIPELAGO_FILE_BYTES:
+        raise ValueError(f"multidata file exceeds {MAX_ARCHIPELAGO_FILE_BYTES} bytes")
+    with open(path, "rb") as fp:
+        raw = fp.read()
+    sanitized = parse_untrusted(raw)
+    return multidata_from_sanitized(sanitized)

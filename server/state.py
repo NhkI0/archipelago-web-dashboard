@@ -1,5 +1,5 @@
 """
-WorldState — the single in-memory snapshot the dashboard exposes.
+WorldState: the single in-memory snapshot the dashboard exposes.
 
 It is built from a MultiData (totals, names) plus live updates from a Tracker
 WebSocket connection (checked locations, hints, online status, goal flips).
@@ -56,7 +56,7 @@ class ReceivedItem:
     """An item that has landed in a slot's game.
 
     Identified by the finder location that produced it `(finder_slot,
-    location_id)` — each location is checked once and yields exactly one item
+    location_id)`: each location is checked once and yields exactly one item
     to one recipient, so that pair is a stable dedupe key across restarts.
     `ts` is the wall-clock time the bridge first observed the check, or None
     for the historical backlog that existed before timestamp tracking began
@@ -107,7 +107,7 @@ class WorldState:
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
         # Reachability of the multiworld server itself, as opposed to any single
-        # slot's login state — set by main.py from AP_HOST/AP_PORT and kept live
+        # slot's login state, set by main.py from AP_HOST/AP_PORT and kept live
         # by Tracker's connection callback.
         self.server_status: dict[str, Any] = {"host": "", "port": 0, "connected": False}
         self._subscribers: set[asyncio.Queue] = set()
@@ -395,7 +395,7 @@ class WorldState:
         """Update one slot's checked set.
 
         Connected packets carry the *full* current set (replace=True).
-        RoomUpdate packets carry *new* checks only — and AP broadcasts those
+        RoomUpdate packets carry *new* checks only, and AP broadcasts those
         team-wide, so we filter to IDs that actually belong to this slot's
         location pool before unioning (replace=False).
         """

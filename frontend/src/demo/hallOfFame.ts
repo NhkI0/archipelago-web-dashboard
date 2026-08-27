@@ -1,6 +1,6 @@
 // Sample Hall of Fame data for the static demo build only (no backend to serve
 // host-dropped entries from there). A real deploy manages this via
-// hall-of-fame/entries.toml + dropped images instead — see server/hall_of_fame.py.
+// hall-of-fame/entries.toml + dropped images instead, see server/hall_of_fame.py.
 import { HallOfFameEntry } from "../api";
 
 export const HALL_OF_FAME: HallOfFameEntry[] = [

@@ -11,6 +11,14 @@ export default defineConfig(({ mode }) => {
   const remote = httpTarget.startsWith("https://");
 
   return {
+    // Relative, not absolute: this same build is served both at "/"
+    // (self-hosted) and at "/<uuid>/" (hosted rooms, prefix stripped by
+    // Caddy before proxying) -- absolute asset paths break the latter
+    // (verified on the real VPS 2026-08-26: index.html loaded fine at
+    // /<uuid>/ but its <script>/<link> tags requested /assets/... at the
+    // domain root instead of /<uuid>/assets/..., 404ing against the
+    // supervisor instead of the room).
+    base: "./",
     plugins: [react()],
     server: {
       port: 5173,
