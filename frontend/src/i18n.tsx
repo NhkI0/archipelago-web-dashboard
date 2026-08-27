@@ -159,7 +159,7 @@ const en: Dict = {
   "hof.by": "by",
 
   // Notifier
-  "notify.hint_for_you": "Hint for you: {item} — in {finder}'s world ({loc})",
+  "notify.hint_for_you": "Hint for you: {item}, in {finder}'s world ({loc})",
   "notify.dismiss": "Dismiss",
 
   // Footer
@@ -318,7 +318,7 @@ const fr: Dict = {
   "hof.empty": "Rien à afficher pour l'instant.",
   "hof.by": "par",
 
-  "notify.hint_for_you": "Indice pour vous : {item} — dans le monde de {finder} ({loc})",
+  "notify.hint_for_you": "Indice pour vous : {item}, dans le monde de {finder} ({loc})",
   "notify.dismiss": "Fermer",
 
   "footer.left": "archipelago · nguengant.fr",
