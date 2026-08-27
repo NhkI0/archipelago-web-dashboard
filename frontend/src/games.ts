@@ -1,7 +1,7 @@
 // Per-game icons. Keyed by the exact game name from `slot_info.game`
 // in the multidata. To add a new game, just append to GAME_EMOJI.
 //
-// The optional PNG override path is `/games/<slug>.png` — drop a file
+// The optional PNG override path is `/games/<slug>.png`, drop a file
 // into `frontend/public/games/` and `<GameIcon>` will pick it up.
 
 export const GAME_EMOJI: Record<string, string> = {

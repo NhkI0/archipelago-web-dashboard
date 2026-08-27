@@ -1,6 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
 import { SiteConfig, TagDef, api } from "./api";
 import { Lang } from "./i18n";
+import { getBasePath, readInjectedConfig, resolveAssetUrl } from "./basePath";
+
+export { getBasePath, resolveAssetUrl };
 
 // Fallback used before /api/config resolves and if the request fails. Mirrors
 // the backend DEFAULTS in server/config.py so the UI is never blank.
@@ -35,13 +38,6 @@ function merge(base: SiteConfig, over: Partial<SiteConfig>): SiteConfig {
   };
 }
 
-/** Resolve a branding image path to a URL usable from the current base. */
-
-export function resolveAssetUrl(path: string): string {
-  if (!path || /^(https?:)?\/\//.test(path) || path.startsWith("/")) return path;
-  return import.meta.env.BASE_URL.replace(/\/$/, "") + "/" + path;
-}
-
 /** Localized label for a tag definition. */
 export function tagLabel(tag: TagDef, lang: Lang): string {
   return (lang === "fr" && tag.label_fr) || tag.label || tag.id;
@@ -50,9 +46,13 @@ export function tagLabel(tag: TagDef, lang: Lang): string {
 const Context = createContext<SiteConfig | null>(null);
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
+  const injected = readInjectedConfig();
+  const [config, setConfig] = useState<SiteConfig>(
+    injected ? merge(DEFAULT_CONFIG, injected) : DEFAULT_CONFIG,
+  );
 
   useEffect(() => {
+    if (injected) return; // hosted rooms already have everything from the tag
     let alive = true;
     api
       .config()
@@ -61,7 +61,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [injected]);
 
   return <Context.Provider value={config}>{children}</Context.Provider>;
 }

@@ -1,4 +1,5 @@
 import * as demo from "./demo/store";
+import { getBasePath } from "./basePath";
 
 export type Slot = {
   slot: number;
@@ -120,15 +121,22 @@ export type SiteConfig = {
   hints: { blocked_tag: string; tags: TagDef[] };
 };
 
+// "" at the root (self-hosted), "/<uuid>" for a hosted room -- every /api/*
+// call must go through this, or a hosted room's requests land on the
+// supervisor at the domain root instead of the room's own socket (verified
+// on the real VPS 2026-08-26: absolute "/api/..." fetches 404'd once a room
+// was actually reached via its "/<uuid>/" prefix through Caddy).
+const apiUrl = (path: string) => getBasePath() + path;
+
 const realApi = {
-  config: () => fetch("/api/config").then(j<SiteConfig>),
-  hallOfFame: () => fetch("/api/hall_of_fame").then(j<HallOfFameEntry[]>),
-  state: () => fetch("/api/state").then(j<Snapshot>),
-  deaths: () => fetch("/api/deaths").then(j<Deaths>),
-  slot: (name: string) => fetch(`/api/slot/${encodeURIComponent(name)}`).then(j<SlotDetail>),
-  me: () => fetch("/api/me").then(j<Me>),
+  config: () => fetch(apiUrl("/api/config")).then(j<SiteConfig>),
+  hallOfFame: () => fetch(apiUrl("/api/hall_of_fame")).then(j<HallOfFameEntry[]>),
+  state: () => fetch(apiUrl("/api/state")).then(j<Snapshot>),
+  deaths: () => fetch(apiUrl("/api/deaths")).then(j<Deaths>),
+  slot: (name: string) => fetch(apiUrl(`/api/slot/${encodeURIComponent(name)}`)).then(j<SlotDetail>),
+  me: () => fetch(apiUrl("/api/me")).then(j<Me>),
   login: async (slot: string, password: string) => {
-    const r = await fetch("/api/login", {
+    const r = await fetch(apiUrl("/api/login"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ slot, password }),
@@ -139,15 +147,15 @@ const realApi = {
     }
     return r.json() as Promise<{ ok: true; slot: string; game: string; hint_points: number }>;
   },
-  logout: () => fetch("/api/logout", { method: "POST" }).then(j),
+  logout: () => fetch(apiUrl("/api/logout"), { method: "POST" }).then(j),
   hint: (kind: "item" | "location", target: string) =>
-    fetch("/api/hint", {
+    fetch(apiUrl("/api/hint"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ kind, target }),
     }).then(j<{ ok: boolean; reply?: string; queued?: boolean; hint_points: number; error?: string }>),
   hintTag: (h: Pick<Hint, "finding_slot" | "receiving_slot" | "item_id" | "location_id">, tag: HintTag | "") =>
-    fetch("/api/hint_tag", {
+    fetch(apiUrl("/api/hint_tag"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -160,15 +168,48 @@ const realApi = {
     }).then(j<{ ok: boolean; tag: string }>),
 };
 
-function realLiveSocket(onEvent: (e: any) => void): () => void {
+export type LiveSocketState = "open" | "reconnecting";
+
+const RECONNECT_BASE_MS = 500;
+const RECONNECT_MAX_MS = 10000;
+
+function realLiveSocket(onEvent: (e: any) => void, onStateChange?: (s: LiveSocketState) => void): () => void {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(`${proto}//${location.host}/ws/live`);
-  ws.onmessage = (e) => {
-    try {
-      onEvent(JSON.parse(e.data));
-    } catch {}
+  let ws: WebSocket | null = null;
+  let stopped = false;
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function connect() {
+    ws = new WebSocket(`${proto}//${location.host}${getBasePath()}/ws/live`);
+    ws.onopen = () => {
+      attempt = 0;
+      onStateChange?.("open");
+    };
+    ws.onmessage = (e) => {
+      try {
+        const parsed = JSON.parse(e.data);
+        if (parsed?.type === "ping") return; // keepalive only, not a UI event
+        onEvent(parsed);
+      } catch {}
+    };
+    const scheduleReconnect = () => {
+      if (stopped) return;
+      onStateChange?.("reconnecting");
+      const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS) * (0.75 + Math.random() * 0.5);
+      attempt += 1;
+      retryTimer = setTimeout(connect, delay);
+    };
+    ws.onclose = scheduleReconnect;
+    ws.onerror = () => ws?.close();
+  }
+  connect();
+
+  return () => {
+    stopped = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    ws?.close();
   };
-  return () => ws.close();
 }
 
 // The static "try it" build (VITE_DEMO=1) swaps the whole backend for an

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { gameMeta } from "../games";
+import { getBasePath } from "../config";
 
 type Props = {
   game: string;
@@ -25,7 +26,7 @@ export default function GameIcon({ game, size = 24, className = "" }: Props) {
 
   return (
     <img
-      src={`/games/${slug}.png`}
+      src={`${getBasePath()}/games/${slug}.png`}
       alt={game}
       width={size}
       height={size}
