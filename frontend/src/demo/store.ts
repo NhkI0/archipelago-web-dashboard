@@ -1,7 +1,7 @@
 // In-memory demo backend. Powers the static "try it" build (VITE_DEMO=1): the
 // same api surface as ../api, but every call reads/writes module-level state
 // with no network. Because the module re-initialises on each page load, all
-// changes (hints, tags, login) reset on reload — exactly the view-only demo the
+// changes (hints, tags, login) reset on reload, exactly the view-only demo the
 // site advertises. See ../api.ts for where this is swapped in.
 import { DEFAULT_CONFIG } from "../config";
 import { HALL_OF_FAME } from "./hallOfFame";
@@ -36,7 +36,7 @@ const HINT_COST = 10;
 let seq = 1000;
 
 // Real placements from the spoiler (finder → receiver, item, location). Every
-// item belongs to its receiver's game — no cross-game mismatches.
+// item belongs to its receiver's game, no cross-game mismatches.
 let hints: Hint[] = [
   h(1, 2, "Archery", "Secret Panel Completion", false, "mandatory"),
   h(1, 3, "Coin", "Turret Intro Completion", true, ""),
@@ -121,8 +121,8 @@ const GAME_ITEMS: Record<string, string[]> = {
 const gameItems = (game: string): string[] => GAME_ITEMS[game] ?? ["Reward A", "Reward B", "Reward C"];
 
 // Some items have several copies still to hint, so the "Hint an item" tab shows
-// its ×N count badge (e.g. Coin ×4 for Cuphead — after one Coin is already
-// hinted, 5 available − 1 hinted = 4 shown).
+// its ×N count badge (e.g. Coin ×4 for Cuphead, after one Coin is already
+// hinted, 5 available - 1 hinted = 4 shown).
 const AVAIL_COUNTS = [5, 2, 1, 1, 1, 1];
 const availableFor = (game: string): string[] =>
   gameItems(game).flatMap((item, i) => Array<string>(AVAIL_COUNTS[i] ?? 1).fill(item));

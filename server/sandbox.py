@@ -1,33 +1,13 @@
 """Sandboxed execution of the untrusted .archipelago parse.
 
-multidata.parse_untrusted() is the only function that unpickles hostile input, and the
-allowlisted unpickler (see multidata.py) is meant to be a sufficient chokepoint on its own.
-This module is defense in depth on top of that: run the parse in a child process with
-OS-level isolation, so a bug in the allowlist (a class nobody anticipated, a stdlib import
-path that slips through) still can't reach the network, the filesystem, or more than a
-bounded amount of CPU/memory/wall-clock time.
+Defense in depth on top of multidata.py's allowlisted unpickler: runs the parse in a
+child process so a bug in the allowlist can't reach the network, filesystem, or more
+than a bounded amount of CPU/memory/time.
 
-Two execution paths, chosen automatically:
-
-Linux, with systemd-run available: spawn a transient systemd service with PrivateNetwork=yes,
-a memory ceiling, a wall-clock ceiling, NoNewPrivileges=yes/ProtectSystem=strict/ProtectHome=yes,
-and LimitFSIZE=0 (the worker never needs to write a file). Pass user= to also run as a
-dedicated unprivileged system account; set one up on the host before relying on this in
-production. This is the only path considered an actual security boundary.
-
-Anywhere else (dev machines, CI, Windows; systemd doesn't exist there): fall back to a plain
-subprocess.run of the same worker. This gives process isolation only (a crash or hang can't
-take the parent down) and is explicitly not a security boundary. Every call through this
-fallback logs a warning so it can never look secure by accident.
-
-Phase 1 is "testable entirely offline" for the parser itself; the actual isolation guarantees
-of the systemd-run path can only be verified on the target VPS (see the hosted-dashboard-plan
-memory's "Practically" note under multidata-unpickle-rce). Before relying on this in
-production, run:
-
-    systemd-run --pipe --property=PrivateNetwork=yes --property=MemoryMax=64M true
-
-and confirm it succeeds on the actual host.
+On Linux with systemd-run available, the parse runs in a transient systemd service
+with PrivateNetwork, memory/time ceilings, and no filesystem write access; this is
+the only path that is an actual security boundary. Everywhere else it falls back to
+a plain subprocess, which only isolates crashes/hangs and logs a warning each time.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """
-Host configuration — the single ``config.toml`` a host edits to control the site.
+Host configuration: the single ``config.toml`` a host edits to control the site.
 
 Parsed with the stdlib :mod:`tomllib` (Python 3.11+), so there is no extra
 dependency. A missing or partial file still boots: whatever the host provides is
@@ -7,7 +7,7 @@ deep-merged over :data:`DEFAULTS`. Environment variables continue to override
 the resolved values in ``main.py``, for hosts that prefer env-based config
 (e.g. Docker) over editing ``config.toml``.
 
-Only the subset returned by :func:`public_config` is ever sent to browsers
+Only the subset returned by :func:`public_config` is ever sent to browsers:
 the AP password and filesystem paths never leave the backend.
 """
 
@@ -39,7 +39,7 @@ DEFAULTS: dict[str, Any] = {
             "host": "",
             "port": 38281,
             "password": "",
-            # Public rooms (e.g. archipelago.gg) are served over TLS — leave
+            # Public rooms (e.g. archipelago.gg) are served over TLS, leave
             # this on unless your remote server specifically isn't.
             "tls": True,
         },
@@ -155,7 +155,7 @@ class RoomConfig:
 
     Self-hosted mode builds this from `config.toml` + env vars via
     `resolve_room_config()` below. Hosted mode (ap-dashboard-hosted) builds
-    it directly from the room's creation-form data instead — it already
+    it directly from the room's creation-form data instead: it already
     knows the AP host/port/password, so it never needs to touch
     `config.toml`'s `[server]`/`[server.remote]` tables or a local
     `host.yaml`.
@@ -222,11 +222,9 @@ def _env_or(cfg_val: Any, env_key: str, cast=str) -> Any:
 def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfig:
     """Resolve one room's `RoomConfig` from `config.toml` + env vars.
 
-    This is the self-hosted-only "figure out my one room from the files on disk" step:
-    locate the `.archipelago`, decide whether to connect to a local `host.yaml`-described server or 
-    `[server.remote]`, and resolve the runtime data-file paths. Raises `FileNotFoundError` / `RuntimeError` with
-    an actionable message on misconfiguration rather than exiting the process-callers (the CLI entrypoint) decide
-    how to report that.
+    Locates the `.archipelago` file, decides whether to connect to a local `host.yaml`-described
+    server or `[server.remote]`, and resolves the runtime data-file paths. Raises
+    `FileNotFoundError` / `RuntimeError` on misconfiguration; the caller decides how to report it.
     """
     cfg = load_config(path)
 

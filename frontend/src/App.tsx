@@ -22,7 +22,7 @@ function Footer() {
           <span className="text-steel">{config.footer.left || t("footer.left")}</span>
           <span className="text-steel">{config.footer.right || t("footer.right")}</span>
         </div>
-        {/* Maintainer links — the only socials shown, baked in, not configurable */}
+        {/* Maintainer links: the only socials shown, baked in, not configurable */}
         <div className="flex items-center gap-3 text-steel">
           <span className="text-caption-up uppercase tracking-wider">{t("footer.report")}</span>
           <SocialLinks links={MAINTAINER_LINKS} />

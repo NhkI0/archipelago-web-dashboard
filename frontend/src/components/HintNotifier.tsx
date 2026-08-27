@@ -60,7 +60,7 @@ export default function HintNotifier() {
     function resolveMySlot(slots: { slot: number; name: string }[]) {
       // Re-checked on every event while unresolved, since login typically
       // happens well after this component mounts (it lives at the App shell
-      // level) — a one-time check at mount would miss it.
+      // level): a one-time check at mount would miss it.
       if (mySlot.current !== null) return Promise.resolve();
       return api.me().then((m) => {
         if (cancelled || !m.logged_in) return;

@@ -1,5 +1,5 @@
 """
-AP WebSocket trackers — one connection per real player slot.
+AP WebSocket trackers: one connection per real player slot.
 
 AP's `RoomUpdate.checked_locations` is scoped to the slot the client connected
 as, so to mirror the entire team's progress on the dashboard we open a separate
@@ -116,7 +116,7 @@ class _SlotClient:
         # every slot's data through one connection. AP replicates each hint into
         # both the finder's and the receiver's `_read_hints_0_<slot>` store, so
         # the union across all slot connections (deduped in apply_hint_store)
-        # still covers every hint — but now a single offline/refused slot can no
+        # still covers every hint, but now a single offline/refused slot can no
         # longer take down hints for the whole multiworld.
         keys = [
             f"_read_hints_0_{self.slot_num}",

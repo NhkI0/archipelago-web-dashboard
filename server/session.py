@@ -3,7 +3,7 @@ Per-browser AP WebSocket sessions.
 
 When a player logs in via /api/login the backend opens a dedicated AP WS as
 that slot, keeps it open, and returns a session id. /api/hint uses the open
-socket to issue `!hint <item>` / `!hint_location <location>` chat commands —
+socket to issue `!hint <item>` / `!hint_location <location>` chat commands;
 the AP server charges them to the slot's hint points and broadcasts the
 result, which the persistent Tracker connection picks up.
 """
@@ -146,7 +146,7 @@ class SessionManager:
 
         log.info("send_hint sid=%s slot=%s -> %r (hp=%d)", sid[:8], sess.slot, cmd, sess.hint_points)
         await sess.ws.send(json.dumps([{"cmd": "Say", "text": cmd}]))
-        # Drain any replies that arrive within a window — AP often emits
+        # Drain any replies that arrive within a window: AP often emits
         # several PrintJSON lines (chat echo, error, hint result).
         replies: list[str] = []
         deadline = asyncio.get_event_loop().time() + 4
