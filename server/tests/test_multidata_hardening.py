@@ -80,13 +80,13 @@ class _EvilReduce:
 
 
 def test_reduce_calling_os_system_is_neutered(monkeypatch):
-    # Pack first, while os.system is still the real function — __reduce__ pickles
+    # Pack first, while os.system is still the real function: __reduce__ pickles
     # it by (module, qualname) reference, same as a genuine hostile file would.
     payload = _pack({"seed_name": "x", "evil": _EvilReduce()})
     calls = []
     monkeypatch.setattr(os, "system", lambda cmd: calls.append(cmd))
     # find_class("os", "system") is never in the allowlist, so REDUCE resolves
-    # to the inert stub instead of the real os.system — it just builds a stub
+    # to the inert stub instead of the real os.system, it just builds a stub
     # tuple out of the args, it never calls anything.
     sanitized = multidata.parse_untrusted(payload)
     assert calls == []  # os.system was never invoked
@@ -138,7 +138,7 @@ def _reconstruct_fake_slot(args):
 
 def test_unknown_ap_class_stubs_and_still_round_trips(monkeypatch):
     # Simulate "NetUtils.NetworkSlot" by pickling a class whose module path
-    # find_class will be asked to resolve as ("tests_fake", "NetworkSlot") —
+    # find_class will be asked to resolve as ("tests_fake", "NetworkSlot"),
     # not in the allowlist, so it must come back as the inert stub, and the
     # stub's tuple contents must still be usable by _coerce_slot_info.
     class FakeModule:
@@ -179,7 +179,7 @@ def test_ordered_dict_resolves_to_real_class():
     assert sanitized["slot_data"]["1"] == {"a": 1, "b": 2}
 
 
-# --- corpus sanity (small, hand-built — the real files are exercised separately) --
+# --- corpus sanity (small, hand-built; the real files are exercised separately) --
 
 
 def test_well_formed_multidata_round_trips_through_sanitized_form(tmp_path: pathlib.Path):

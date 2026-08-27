@@ -1,5 +1,5 @@
 """
-Hall of Fame — host-droppable images + a small TOML manifest, no rebuild needed.
+Hall of Fame: host-droppable images + a small TOML manifest, no rebuild needed.
 
 A host drops image files into ``hall_of_fame_dir`` (see config.toml) alongside
 an ``entries.toml`` describing them:
@@ -12,7 +12,7 @@ an ``entries.toml`` describing them:
 
 The directory is served statically at /hall-of-fame/<file>; /api/hall_of_fame
 returns the parsed entries. A missing manifest is treated as "no entries yet",
-not an error — the folder may legitimately be empty. A malformed one is loud,
+not an error: the folder may legitimately be empty. A malformed one is loud,
 same as a bad config.toml, since it silently dropping entries would be
 confusing.
 """

@@ -151,10 +151,8 @@ def _coerce_datapackage(raw_dp: Any) -> dict[str, GamePackage]:
 class _StubClass(tuple):
     """Inert stand-in for any pickled class we don't explicitly trust.
 
-    Inherits tuple so NamedTuple-based AP classes (NetworkSlot, SlotType, Hint, ...) reconstruct
-    correctly via tuple.__new__(cls, args) during unpickling, and so __reduce__/REDUCE-driven
-    construction can never do anything beyond building a plain tuple: there is no __init__,
-    __call__, or side-effecting method for a hostile pickle to reach.
+    Inherits tuple so NamedTuple-based AP classes reconstruct correctly during unpickling,
+    with no __init__, __call__, or side-effecting method for a hostile pickle to reach.
     """
 
     _ap_class_name = ""
@@ -222,10 +220,8 @@ def _stub_class_for(module: str, name: str) -> type:
 class _AllowlistUnpickler(pickle.Unpickler):
     """Resolve pickled classes through a strict allowlist.
 
-    find_class is pickle's only route to naming a callable, so this is the correct and
-    sufficient chokepoint. Only _SAFE_REAL_CLASSES entries resolve to a real, callable class;
-    every other (module, name), known AP classes as much as unexpected/hostile ones, resolves
-    to the inert _StubClass. The real Unpickler.find_class() is never called.
+    Only _SAFE_REAL_CLASSES entries resolve to a real, callable class; everything else,
+    known AP classes included, resolves to the inert _StubClass.
     """
 
     def find_class(self, module: str, name: str):
@@ -273,11 +269,8 @@ def _bounded_decompress(
 def _to_jsonable(obj: Any, *, depth: int = 0) -> Any:
     """Recursively flatten an unpickled object graph to JSON-safe primitives.
 
-    This is the actual sanitization step: whatever came out of the allowlisted unpickler
-    (dicts, lists, tuples, _StubClass instances, the handful of real safe classes) is reduced
-    here to nothing but dict/list/str/int/float/bool/None. No object identity, custom class, or
-    reference to executable code survives this call; what goes in a sanitized JSON file (or is
-    later re-parsed) can never resume being a pickle.
+    Reduces everything to dict/list/str/int/float/bool/None so no object identity,
+    custom class, or executable code can survive into the sanitized output.
     """
     if depth > MAX_SANITIZE_DEPTH:
         raise ValueError(f"multidata nesting exceeds depth {MAX_SANITIZE_DEPTH}")

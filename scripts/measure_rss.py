@@ -4,7 +4,7 @@ Dev-only tool, not part of the shipped `server` package or its requirements.
 Install its one extra dependency before running: pip install psutil
 
 Usage (run from the `core/` directory, same env vars `python -m server`
-understands — AP_FILE, AP_HOST/AP_PORT/AP_PASSWORD/AP_SECURE, AP_CONFIG, ...):
+understands: AP_FILE, AP_HOST/AP_PORT/AP_PASSWORD/AP_SECURE, AP_CONFIG, ...):
 
     AP_FILE=/path/to/big.archipelago AP_HOST=archipelago.gg AP_PORT=12345 \\
         python scripts/measure_rss.py

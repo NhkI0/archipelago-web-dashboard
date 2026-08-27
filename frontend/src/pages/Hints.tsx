@@ -51,7 +51,7 @@ export default function Hints() {
   // The AP broadcast that fires HintNotifier's toast can land while the
   // /api/hint POST itself is still in flight, so the "are we waiting" check
   // needs to be readable synchronously (a ref) rather than only after the
-  // POST resolves — otherwise the always-on listener below can miss it.
+  // POST resolves, otherwise the always-on listener below can miss it.
   const waitingRef = useRef(false);
 
   function closeConfirmPopup() {
@@ -70,7 +70,7 @@ export default function Hints() {
   }, []);
 
   // Fallback in case the broadcast never arrives (e.g. dropped socket, or this
-  // hint doesn't land on your own slot) — don't leave the user staring at a
+  // hint doesn't land on your own slot), don't leave the user staring at a
   // spinner forever. Starts counting from the moment we start waiting, not
   // from whenever the POST happens to resolve.
   useEffect(() => {
@@ -399,7 +399,7 @@ export default function Hints() {
                       ) : h.tag ? (
                         <TagChip tag={h.tag} tags={tags} colorOf={colorOf} lang={lang} />
                       ) : (
-                        <span className="text-caption text-stone">—</span>
+                        <span className="text-caption text-stone">-</span>
                       )}
                     </span>
                     <span className={`self-start sm:self-auto inline-flex h-6 items-center rounded-pill px-2.5 text-caption-up uppercase ${
@@ -464,7 +464,7 @@ export default function Hints() {
               <div className="mt-4 grid grid-cols-3 gap-3 text-body-sm">
                 <Stat label={t("hints.confirm.cost")} value={`~${cost}`} />
                 <Stat label={t("hints.confirm.balance")} value={String(me.hint_points)} />
-                <Stat label={t("hints.confirm.after")} value={enough ? String(me.hint_points - cost) : "—"} />
+                <Stat label={t("hints.confirm.after")} value={enough ? String(me.hint_points - cost) : "-"} />
               </div>
               <div className="mt-3 text-body-sm text-steel">
                 {t("hints.confirm.note", { pct })}

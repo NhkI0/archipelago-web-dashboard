@@ -29,7 +29,7 @@ export default function Dashboard() {
     );
   }, []);
 
-  // Open BKed hints that involve the logged-in slot — both the checks they're
+  // Open BKed hints that involve the logged-in slot: both the checks they're
   // waiting on (as receiver) and the BKed checks sitting in their own world
   // that they can go find to unblock someone else (as finder).
   const bked = useMemo(() => {

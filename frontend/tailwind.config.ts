@@ -1,6 +1,5 @@
 import type { Config } from "tailwindcss";
 
-// Notion design tokens — see DESIGN-notion.md.
 // Class names are kept compatible with the previous Composio theme where
 // possible (`bg-canvas`, `text-body`, `text-bodyStrong`, …) so existing JSX
 // continues to type-check; values are remapped to the Notion palette.
@@ -47,7 +46,7 @@ export default {
           gray: "#f0eeec",
         },
 
-        // Page surfaces — light by default, themed via CSS vars (dark mode swaps).
+        // Page surfaces: light by default, themed via CSS vars (dark mode swaps).
         canvas: {
           DEFAULT: "rgb(var(--c-canvas) / <alpha-value>)",
           deep:    "rgb(var(--c-canvas-deep) / <alpha-value>)",
@@ -104,7 +103,6 @@ export default {
         mono: ['"JetBrains Mono"', '"Fira Code"', "monospace"],
       },
       fontSize: {
-        // Notion type scale — keep keys backward-compatible.
         "display-mega": ["80px", { lineHeight: "1.05", letterSpacing: "-2px",   fontWeight: "600" }],
         "display-xl":   ["56px", { lineHeight: "1.10", letterSpacing: "-1px",   fontWeight: "600" }],
         "display-lg":   ["48px", { lineHeight: "1.15", letterSpacing: "-0.5px", fontWeight: "600" }],

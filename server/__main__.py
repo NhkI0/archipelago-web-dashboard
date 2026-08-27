@@ -1,4 +1,4 @@
-"""``python -m server`` — launch the dashboard using config.toml.
+"""``python -m server``: launch the dashboard using config.toml.
 
 Reads the bind address and port from config so the run.sh / run.bat wrappers don't need to parse TOML themselves.
 Environment variables still override (see server/config.py's resolve_room_config()).

@@ -266,7 +266,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
         )}
       </div>
 
-      {/* Tiny SVG dash-loop keyframes — scoped to this component via a style tag */}
+      {/* Tiny SVG dash-loop keyframes, scoped to this component via a style tag */}
       <style>{`@keyframes ap-dash { to { stroke-dashoffset: -40; } }`}</style>
     </section>
   );
