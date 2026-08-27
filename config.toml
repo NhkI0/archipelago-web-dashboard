@@ -9,6 +9,8 @@
 [server]
 ap_host = "localhost"          # host of your Archipelago server
 ap_port = 38281                # its port
+# display_host = ""            # address shown to visitors instead of ap_host; blank = show ap_host
+# display_port = 0             # port shown to visitors instead of ap_port; 0 = show ap_port
 web_port = 8080                # the port THIS dashboard listens on
 bind = "127.0.0.1"             # use "0.0.0.0" to allow other devices on your LAN
 # Folder scanned for the newest *.archipelago file, just drop your multiworld-generated file in here.
