@@ -27,6 +27,9 @@ DEFAULTS: dict[str, Any] = {
     "server": {
         "ap_host": "localhost",
         "ap_port": 38281,
+        # Address shown to visitors instead of ap_host:ap_port; blank = show as-is.
+        "display_host": "",
+        "display_port": 0,
         # Folder scanned for the newest *.archipelago, or a direct file path.
         "multiworld_dir": "./multiworld",
         "web_port": 8080,
@@ -176,6 +179,8 @@ class RoomConfig:
     static_dir: pathlib.Path
     sanitized_file: pathlib.Path | None = None  # hosted mode: load via load_sanitized() instead of ap_file
     base_path: str = "/"                        # e.g. "/<uuid>/" for a hosted room, injected into index.html
+    display_host: str = ""                       # what to show visitors instead of ap_host; "" = show ap_host
+    display_port: int = 0                        # what to show visitors instead of ap_port; 0 = show ap_port
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -294,6 +299,8 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         ap_file=ap_file,
         ap_host=ap_host,
         ap_port=ap_port,
+        display_host=cfg["server"]["display_host"],
+        display_port=int(cfg["server"]["display_port"]),
         ap_password=ap_password,
         ap_secure=ap_secure,
         hint_cost=hint_cost,
