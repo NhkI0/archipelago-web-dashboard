@@ -141,8 +141,13 @@ body {
   --bgColor--day:   #9ee3fb;
   --mooncolor:      #D9FBFF;
 
-  /* Scale: nav height is 36px → font-size 11% gives ~28px tall toggle. */
-  font-size: 11%;
+  /* Scale: target ~28px tall toggle (16em tall at this font-size).
+     Fixed px, not a %, on purpose: Safari resolves percentage font-size on
+     <button> elements against its own native control-font context rather
+     than the inherited nav font-size, so `font-size: 11%` renders this at
+     native (huge) size in Safari even with -webkit-appearance: none. An
+     absolute value sidesteps that resolution entirely. */
+  font-size: 1.75px;
   position: relative;
   height: var(--toggleHeight);
   width:  var(--toggleWidth);
@@ -153,9 +158,6 @@ body {
   border: 0;
   padding: 0;
   display: inline-block;
-  /* Tailwind Preflight sets -webkit-appearance: button, which keeps Safari on
-     native pushbutton chrome — that ignores our em-based height/width and
-     renders at native (huge) size, blowing out of the nav. */
   -webkit-appearance: none;
   appearance: none;
 }
