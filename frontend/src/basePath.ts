@@ -18,8 +18,14 @@ export function readInjectedConfig(): InjectedConfig | null {
 
 /** Site-relative base path for this room ("" at the root, "/<uuid>" when hosted), no trailing slash. */
 export function getBasePath(): string {
-  const basename = readInjectedConfig()?.basename;
-  if (basename && basename !== "/") return basename.replace(/\/$/, "");
+  const injected = readInjectedConfig();
+  // A server-rendered page always carries an authoritative basename (default "/"); trust it
+  // rather than import.meta.env.BASE_URL, which is "./" here (see vite.config.ts) and is only
+  // a valid basename for the static demo build that has no injected config at all.
+  if (injected) {
+    const basename = injected.basename ?? "/";
+    return basename === "/" ? "" : basename.replace(/\/$/, "");
+  }
   return import.meta.env.BASE_URL.replace(/\/$/, "");
 }
 
