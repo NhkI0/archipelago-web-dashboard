@@ -365,6 +365,9 @@ def build_app(room: RoomConfig) -> FastAPI:
         injected_index: bytes | None = None
         if index_path.is_file():
             injected_config = {**public_config(room.config), "basename": room.base_path}
+            injected_config["branding"]["hero_image"] = _asset_url(
+                injected_config["branding"].get("hero_image", "")
+            )
             tag = f'<script type="application/json" id="ap-config">{json.dumps(injected_config)}</script>'
             html = index_path.read_text(encoding="utf-8")
             if "</head>" in html:
