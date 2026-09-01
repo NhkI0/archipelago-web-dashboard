@@ -58,6 +58,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Sonic Adventure 2: Battle": "💨",
   "Sonic Adventure DX": "💨",
   "Sonic Heroes": "💨",
+  "Sonic Battle": "🦔",
 
   // Final Fantasy / SquareEnix
   "Final Fantasy": "🐦",
@@ -89,6 +90,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Risk of Rain 2": "☔",
   "Slay the Spire": "🃏",
   "Hades": "🔱",
+  "Hade2Rogue": "⚔️",
   "Pizza Tower": "🍕",
   "Shivers": "👻",
   "The Witness": "🧩",
@@ -115,12 +117,26 @@ export const GAME_EMOJI: Record<string, string> = {
   "Slime Rancher": "💩",
   "Undertale": "💀",
   "Monster Hunter World": "🐉",
+  "DELTARUNE": "❤️",
+  "The Binding of Isaac Repentance": "💧",
 
   // Doom / Retro shooters
   "DOOM 1993": "👹",
   "DOOM II": "👹",
   "Heretic": "🪄",
 
+  // Nintendo
+  "Kirby Super Star": "⭐",
+  "Kirby 64 - The Crystal Shards": "😮",
+  "Resident Evil 2 Remake": "🦝",
+  "Kingdom Hearts": "🗝️",
+  "Kingdom Hearts 2": "🗝️",
+  "Kingdom Hearts 3": "🗝️",
+  "Pokemon Snap": "📷",
+  "Pikmin": "🌼",
+  "Pikmin 2": "🪻",
+  "Pikmin 3": "🌷",
+  
   // Others
   "Dark Souls III": "⚔️",
   "Old School Runescape": "🪓",
@@ -141,7 +157,8 @@ export const GAME_EMOJI: Record<string, string> = {
   "Oxygen Not Included": "❄️",
   "Civilization VI": "🏛️",
   "Black Ops 3 - Zombies": "🧟",
-  "The Grinch": "🎄"
+  "The Grinch": "🎄",
+  "Jigsaw": "🧩",
 };
 
 const FALLBACK_EMOJI = "🎮";
