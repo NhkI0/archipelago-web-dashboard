@@ -141,6 +141,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Oxygen Not Included": "❄️",
   "Civilization VI": "🏛️",
   "Black Ops 3 - Zombies": "🧟",
+  "The Grinch": "🎄"
 };
 
 const FALLBACK_EMOJI = "🎮";
