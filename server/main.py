@@ -21,7 +21,9 @@ from pydantic import BaseModel
 
 from .config import RoomConfig, public_config, tag_ids
 from .hall_of_fame import load_entries as load_hall_of_fame
+from .hint_usage import HintUsageStore
 from .multidata import load_multidata, load_sanitized
+from .room_poller import RoomPoller
 from .session import SessionManager
 from .state import WorldState
 from .tracker import Tracker
@@ -81,16 +83,36 @@ def build_app(room: RoomConfig) -> FastAPI:
     display_host = room.display_host or room.ap_host
     display_port = room.display_port or room.ap_port
     world.set_server_status(display_host, display_port, False)
-    tracker = Tracker(
-        world,
-        host=room.ap_host,
-        port=room.ap_port,
-        password=room.ap_password,
-        secure=room.ap_secure,
-        deaths_file=room.deaths_file,
-        on_connection_change=lambda connected: world.set_server_status(display_host, display_port, connected),
+    on_connection_change = lambda connected: world.set_server_status(display_host, display_port, connected)
+    hint_usage: HintUsageStore | None = None
+    if room.ap_room_id:
+        # Hosted on archipelago.gg: poll its public JSON tracker API instead of
+        # opening one websocket per slot (see room_poller.py for why).
+        hint_usage = HintUsageStore(room.hints_used_file)
+        tracker: Tracker | RoomPoller = RoomPoller(
+            world,
+            hostname=room.ap_room_hostname,
+            room_id=room.ap_room_id,
+            password=room.ap_password,
+            secure=room.ap_secure,
+            deaths_file=room.deaths_file,
+            hint_usage=hint_usage,
+            on_connection_change=on_connection_change,
+        )
+    else:
+        tracker = Tracker(
+            world,
+            host=room.ap_host,
+            port=room.ap_port,
+            password=room.ap_password,
+            secure=room.ap_secure,
+            deaths_file=room.deaths_file,
+            on_connection_change=on_connection_change,
+        )
+    sessions = SessionManager(
+        host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure,
+        hint_usage=hint_usage, world=world,
     )
-    sessions = SessionManager(host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure)
 
     # lifecycle
 
@@ -191,6 +213,7 @@ def build_app(room: RoomConfig) -> FastAPI:
             "hints": related_hints,
             "available_items": available_items,
             "received_items": world.received_for(slot.slot),
+            "hint_points_estimated": world.hint_points_estimated,
         }
 
     # Live updates

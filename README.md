@@ -86,5 +86,30 @@ cd ..
 4. Run ``run.bat`` (Windows) or ``run.sh`` (macOS/Linux). 
 5. Open ``http://localhost:8080``.
 
+##### B2. The room is hosted on archipelago.gg
+Instead of step 3 above, set ``[server.remote].room_url`` to the room's full URL
+(e.g. ``https://archipelago.gg/room/AbCdEfGhIjKl``) and leave ``host``/``port`` blank.
+The dashboard then polls archipelago.gg's public tracker API instead of opening one
+websocket per player slot, which scales much better for big multiworlds.
+> **Known limitation:** hint points shown are an estimate (checks × points - hints spent
+> through this dashboard), since that public API has no way to tell a paid hint from a
+> free one. It's exact as long as every hint for the room is requested from this
+> dashboard; a hint redeemed from a player's own game client or another tool won't be
+> counted and will make the shown balance read too high.
+
+> **Update delay:** with nobody logged into this dashboard, checks/hints/goal status can
+> take up to ~75 seconds to show up as archipelago.gg caches its tracker API for 60s, and
+> the dashboard polls it every 15s on top of that. As soon as anyone logs in, checks,
+> received items, and goal completions become instant for everyone over that one
+> connection, not just the logged-in player's own slot. Hints stay instant only for
+> the logged-in slot's own hints (as finder or receiver); other players' hints still
+> follow the poll cycle.
+
+> **DeathLink:** doesn't start tracking until the DeathLink player's slot is seen
+> connected at least once, since that public API has no way to notify us. Any death before that first
+> detected connection won't be counted. If you want deaths tracked from the start,
+> have that player connect (their game client, or just log into this dashboard as
+> their slot) as soon as they reach the page, before they start playing.
+
 ### Open it to others
 Now seek on the internet how to make a local website accessible outside your network, you'll find many tutorials (or AIs) that will explain it way better than I could.

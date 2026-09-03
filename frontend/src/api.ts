@@ -37,6 +37,10 @@ export type Snapshot = {
   slots: Slot[];
   hints: Hint[];
   hint_cost: number;
+  // True for archipelago.gg-polled rooms: hint_points below are a local
+  // estimate (see server/room_poller.py), only accurate if every hint for
+  // this room is requested through this dashboard.
+  hint_points_estimated: boolean;
   server: ServerStatus;
   totals: { total_locations: number; total_checked: number };
 };
@@ -56,6 +60,7 @@ export type SlotDetail = {
   hints: Hint[];
   available_items: string[];
   received_items: ReceivedItem[];
+  hint_points_estimated: boolean;
 };
 
 export type ReceivedItem = {
