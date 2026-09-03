@@ -139,7 +139,9 @@ export default function Dashboard() {
           <div className="text-body-sm text-steel">{t("dash.active_n", { n: snap.slots.length })}</div>
         </div>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {snap.slots.map((s) => <SlotCard key={s.slot} slot={s} />)}
+          {snap.slots.map((s) => (
+            <SlotCard key={s.slot} slot={s} hintPointsEstimated={snap.hint_points_estimated} />
+          ))}
         </div>
       </section>
 

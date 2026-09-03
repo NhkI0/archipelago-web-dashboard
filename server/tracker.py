@@ -162,7 +162,7 @@ class DeathLinkClient:
     """Persistent passive WS that piggybacks on an existing player slot.
 
     Connects as a second client on a slot that already has DeathLink enabled
-    (chosen by `Tracker._pick_deathlink_host`), listens for AP `Bounced`
+    (chosen by `pick_deathlink_host`), listens for AP `Bounced`
     packets carrying the `DeathLink` tag, and maintains an in-memory
     `{player_name: death_count}` map persisted to `deaths_file` so counts
     survive restarts. AP routes Bounces per-connection, so this works even
@@ -219,6 +219,10 @@ class DeathLinkClient:
             os.replace(tmp, self.deaths_file)
         except OSError as e:
             log.warning("[%s] could not persist %s: %s", self.slot_name, self.deaths_file, e)
+
+    @property
+    def active(self) -> bool:
+        return not self._stopped_permanently
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -282,10 +286,29 @@ class DeathLinkClient:
             self._persist()
 
 
+PREFERRED_DEATHLINK_HOST = "dopamine"
+
+
+def pick_deathlink_host(state: WorldState, preferred_name: str = PREFERRED_DEATHLINK_HOST):
+    """Pick which slot's connection should also listen for DeathLink Bounces.
+
+    Prefers `preferred_name` if it has DeathLink enabled, otherwise the first slot
+    (in `state.slots` order) that does. Shared by both the self-hosted `Tracker` and
+    the archipelago.gg `RoomPoller`, since DeathLink tracking is identical either way
+    (always a single live websocket, never one-per-slot).
+    """
+    md = state.multidata
+    slots = list(state.slots.values())
+    preferred = next((s for s in slots if s.name == preferred_name), None)
+    if preferred and md.deathlink_enabled(preferred.slot):
+        return preferred
+    return next((s for s in slots if md.deathlink_enabled(s.slot)), None)
+
+
 class Tracker:
     """Aggregates one `_SlotClient` per real player slot, plus a DeathLink client."""
 
-    PREFERRED_DEATHLINK_HOST = "dopamine"
+    PREFERRED_DEATHLINK_HOST = PREFERRED_DEATHLINK_HOST
 
     def __init__(
         self,
@@ -320,14 +343,6 @@ class Tracker:
         """True once at least one slot connection has reached the multiworld."""
         return self._connected
 
-    def _pick_deathlink_host(self):
-        md = self.state.multidata
-        slots = list(self.state.slots.values())
-        preferred = next((s for s in slots if s.name == self.PREFERRED_DEATHLINK_HOST), None)
-        if preferred and md.deathlink_enabled(preferred.slot):
-            return preferred
-        return next((s for s in slots if md.deathlink_enabled(s.slot)), None)
-
     def start(self) -> None:
         if self._clients:
             return
@@ -349,7 +364,7 @@ class Tracker:
         log.info("started %d slot trackers", len(self._clients))
 
         if self.deaths_file is not None:
-            host = self._pick_deathlink_host()
+            host = pick_deathlink_host(self.state)
             if host is None:
                 log.warning("no DeathLink-enabled slot found; death leaderboard disabled")
             else:
@@ -380,4 +395,4 @@ class Tracker:
         return rows
 
     def death_client_connected(self) -> bool:
-        return self._death_client is not None and not self._death_client._stopped_permanently
+        return self._death_client is not None and self._death_client.active

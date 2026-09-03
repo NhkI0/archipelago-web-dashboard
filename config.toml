@@ -28,6 +28,12 @@ port = 38281
 password = ""          # room password, if the remote server has one
 tls = true              # public rooms (archipelago.gg included) need this on; turn off only for a plain ws:// remote server
 
+# Room hosted on archipelago.gg?
+# Paste its room URL here instead of host/port/tls above (e.g. "https://archipelago.gg/room/AbCdEfGhIjKl")
+# polls its API instead of opening one websocket per slot.
+# Hint points shown are then an estimate, accurate only if hints are requested from this dashboard.
+room_url = ""
+
 [paths] # Ideally shouldn't be touched, but you still can, it's supposed to work
 assets_dir = "./assets"        # drop custom images here (served under /host/)
 data_dir = "./data"            # where death / item / hint-tag logs are written

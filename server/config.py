@@ -14,10 +14,14 @@ the AP password and filesystem paths never leave the backend.
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 import pathlib
+import re
 import tomllib
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,6 +49,7 @@ DEFAULTS: dict[str, Any] = {
             # Public rooms (e.g. archipelago.gg) are served over TLS, leave
             # this on unless your remote server specifically isn't.
             "tls": True,
+            "room_url": "",
         },
     },
     "paths": {
@@ -181,6 +186,11 @@ class RoomConfig:
     base_path: str = "/"                        # e.g. "/<uuid>/" for a hosted room, injected into index.html
     display_host: str = ""                       # what to show visitors instead of ap_host; "" = show ap_host
     display_port: int = 0                        # what to show visitors instead of ap_port; 0 = show ap_port
+    # Non-empty ap_room_id => this room is polled via archipelago.gg's public JSON
+    # tracker API (see server/room_poller.py) instead of opening N per-slot websockets.
+    ap_room_hostname: str = ""
+    ap_room_id: str = ""
+    hints_used_file: pathlib.Path | None = None  # local hint-spend counter, polling mode only
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -224,6 +234,48 @@ def _env_or(cfg_val: Any, env_key: str, cast=str) -> Any:
     return cast(raw) if raw is not None else cfg_val
 
 
+def _parse_room_url(url: str) -> tuple[str, str]:
+    """Extract (hostname, opaque room token) from a pasted archipelago.gg room URL.
+
+    The token (e.g. in ``https://archipelago.gg/room/<token>``) is a URL-safe-base64
+    encoding of the room's UUID bytes (AP's custom `suuid` Flask converter), not a
+    canonical hyphenated UUID string, it must stay an opaque string, never reparsed
+    with `uuid.UUID(...)`.
+    """
+    raw = url.strip()
+    parsed = urllib.parse.urlsplit(raw if "://" in raw else f"https://{raw}")
+    segments = [s for s in parsed.path.split("/") if s]
+    valid = (
+        parsed.scheme in ("http", "https")
+        and parsed.hostname
+        and len(segments) >= 2
+        and segments[-2] == "room"
+        and re.fullmatch(r"[A-Za-z0-9_-]+", segments[-1])
+    )
+    if not valid:
+        raise RuntimeError(
+            f"[server.remote].room_url {url!r} doesn't look like an archipelago.gg room URL; "
+            f"expected something like https://archipelago.gg/room/<id>, copy it straight from "
+            f"your browser's address bar while viewing the room page"
+        )
+    return parsed.hostname, segments[-1]
+
+
+def _fetch_room_status(hostname: str, room_id: str) -> dict[str, Any]:
+    """One-time blocking fetch of a room's public status, used only during startup
+    config resolution (SessionManager needs a real host:port before build_app() runs).
+    """
+    url = f"https://{hostname}/api/room_status/{room_id}"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return json.loads(resp.read())
+    except (OSError, ValueError) as e:
+        raise RuntimeError(
+            f"could not reach {url} ({e}); check that [server.remote].room_url is correct and "
+            f"the room hasn't expired on archipelago.gg"
+        ) from e
+
+
 def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfig:
     """Resolve one room's `RoomConfig` from `config.toml` + env vars.
 
@@ -261,12 +313,18 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
     # fall back to [server.remote] in config.toml, since there's no local host.yaml
     # to read a port/password from.
     remote = cfg["server"]["remote"]
+    ap_room_hostname = ""
+    ap_room_id = ""
     if os.environ.get("AP_HOST") or os.environ.get("AP_PORT"):
+        if remote.get("room_url"):
+            log.warning("AP_HOST/AP_PORT env vars are set; ignoring [server.remote].room_url")
         ap_host = _env_or(cfg["server"]["ap_host"], "AP_HOST")
         ap_port = int(_env_or(cfg["server"]["ap_port"], "AP_PORT", int))
         ap_password = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(server_opts.get("password", ""))
         ap_secure = os.environ.get("AP_SECURE", "").lower() in ("1", "true", "yes")
     elif host_yaml_found:
+        if remote.get("room_url"):
+            log.warning("host.yaml found at %s; ignoring [server.remote].room_url", ap_host_yaml)
         log.info("host.yaml found at %s; connecting to the local multiworld", ap_host_yaml)
         ap_host = cfg["server"]["ap_host"]
         try:
@@ -275,12 +333,22 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
             ap_port = int(cfg["server"]["ap_port"])
         ap_password = os.environ.get("AP_PASSWORD") or _coerce_yaml_scalar(server_opts.get("password", ""))
         ap_secure = False
+    elif remote.get("room_url"):
+        ap_room_hostname, ap_room_id = _parse_room_url(remote["room_url"])
+        log.info("room_url set; polling archipelago.gg's tracker API for %s", ap_room_hostname)
+        room_status = _fetch_room_status(ap_room_hostname, ap_room_id)
+        ap_host = ap_room_hostname
+        ap_port = int(room_status["last_port"])
+        ap_password = os.environ.get("AP_PASSWORD") or remote.get("password", "")
+        # Public rooms (archipelago.gg included) are served over TLS.
+        ap_secure = bool(remote.get("tls", True))
     else:
         if not remote.get("host"):
             raise RuntimeError(
-                f"no host.yaml found at {ap_host_yaml} and no [server.remote].host set in "
-                f"config.toml, either drop host.yaml next to your .archipelago file, or set "
-                f"[server.remote] to the address of the remotely hosted multiworld"
+                f"no host.yaml found at {ap_host_yaml} and no [server.remote].host or "
+                f"[server.remote].room_url set in config.toml, either drop host.yaml next to "
+                f"your .archipelago file, or set [server.remote] to the address of the "
+                f"remotely hosted multiworld (or its archipelago.gg room_url)"
             )
         log.info("no host.yaml at %s; connecting to remote multiworld at %s:%s",
                   ap_host_yaml, remote["host"], remote["port"])
@@ -310,6 +378,9 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         assets_dir=pathlib.Path(cfg["paths"]["assets_dir"]),
         hall_of_fame_dir=pathlib.Path(cfg["paths"]["hall_of_fame_dir"]),
         static_dir=pathlib.Path(os.environ.get("WEB_DIST", pathlib.Path(__file__).parent.parent / "frontend" / "dist")),
+        ap_room_hostname=ap_room_hostname,
+        ap_room_id=ap_room_id,
+        hints_used_file=pathlib.Path(os.environ.get("HINTS_USED_FILE") or str(data_dir / "hints_used_polling.json")),
     )
 
 

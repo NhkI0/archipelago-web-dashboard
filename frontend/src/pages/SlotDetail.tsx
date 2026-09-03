@@ -94,7 +94,12 @@ export default function SlotDetail() {
             <Stat label={t("slot.progress")} value={`${s.percent.toFixed(1)}%`} />
             <Stat label={t("slot.checks")} value={`${s.checked} / ${s.total}`} />
             <Stat label={t("slot.remaining")} value={String(s.remaining)} />
-            <Stat label={t("slot.hint_pts")} value={String(s.hint_points)} />
+            <Stat
+              label={t("slot.hint_pts")}
+              value={String(s.hint_points)}
+              title={data.hint_points_estimated ? t("slot.hint_pts_estimated_note") : undefined}
+              suffix={data.hint_points_estimated ? "*" : undefined}
+            />
             <Stat label={t("slot.open_hints")} value={String(s.open_hints)} />
           </div>
           <ProgressBar value={s.checked} total={s.total} />
@@ -207,11 +212,14 @@ function formatWhen(epochSeconds: number, lang: string): string {
   });
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, title, suffix }: { label: string; value: string; title?: string; suffix?: string }) {
   return (
-    <div>
+    <div title={title}>
       <div className="text-caption text-steel uppercase tracking-[0.06em]">{label}</div>
-      <div className="text-title-sm text-ink tabular-nums">{value}</div>
+      <div className="text-title-sm text-ink tabular-nums">
+        {value}
+        {suffix && <span className="ml-0.5 text-steel">{suffix}</span>}
+      </div>
     </div>
   );
 }

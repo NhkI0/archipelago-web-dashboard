@@ -6,6 +6,10 @@ that slot, keeps it open, and returns a session id. /api/hint uses the open
 socket to issue `!hint <item>` / `!hint_location <location>` chat commands;
 the AP server charges them to the slot's hint points and broadcasts the
 result, which the persistent Tracker connection picks up.
+
+When `world` is given, this connection also feeds its own slot's checks and
+received items into `WorldState` live, instead of waiting on RoomPoller's poll
+cycle (a harmless no-op duplicate in self-hosted mode).
 """
 
 from __future__ import annotations
@@ -20,7 +24,9 @@ from typing import Any
 
 import websockets
 
+from .hint_usage import HintUsageStore
 from .multidata import MultiData
+from .state import WorldState
 
 log = logging.getLogger("ap.session")
 
@@ -61,6 +67,7 @@ class Session:
     inbox: asyncio.Queue = field(default_factory=lambda: asyncio.Queue(maxsize=64))
     hint_points: int = 0
     last_text: str = ""
+    slot_num: int | None = None  # resolved at login; None if slot isn't in multidata
 
     async def close(self) -> None:
         try:
@@ -76,11 +83,18 @@ class SessionManager:
         port: int = 38281,
         multidata: "MultiData | None" = None,
         secure: bool = False,
+        hint_usage: "HintUsageStore | None" = None,
+        world: "WorldState | None" = None,
     ) -> None:
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self._sessions: dict[str, Session] = {}
         self._lock = asyncio.Lock()
         self.multidata = multidata
+        # Only set for archipelago.gg-polled rooms
+        # records a spend whenever a hint requested through this dashboard actually costs points,
+        # so RoomPoller can estimate hint_points locally (see hint_usage.py).
+        self.hint_usage = hint_usage
+        self.world = world  # optional; see module docstring
 
     def get(self, sid: str) -> Session | None:
         return self._sessions.get(sid)
@@ -100,7 +114,7 @@ class SessionManager:
             "uuid": str(uuid.uuid4()),
             "tags": ["TextOnly"],
             "version": {"major": 0, "minor": 6, "build": 7, "class": "Version"},
-            "items_handling": 0,
+            "items_handling": 0b111,  # receive ReceivedItems (see _pump)
         }]))
 
         # Wait for Connected/Refused
@@ -117,8 +131,14 @@ class SessionManager:
                 # hint_points sometimes ships on Connected; otherwise it lands
                 # on the next RoomUpdate.
                 hp = int(packet.get("hint_points", 0) or 0)
-                sess = Session(sid=sid, slot=slot, ws=ws, hint_points=hp)
+                slot_info = self.multidata.slot_by_name(slot) if self.multidata else None
+                sess = Session(sid=sid, slot=slot, ws=ws, hint_points=hp,
+                                slot_num=slot_info.slot if slot_info else None)
                 self._sessions[sid] = sess
+                if self.world is not None and sess.slot_num is not None:
+                    cl = packet.get("checked_locations")
+                    if isinstance(cl, list):
+                        self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=True)
                 asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
                 return sess
             if cmd == "ConnectionRefused":
@@ -145,6 +165,7 @@ class SessionManager:
             return {"ok": False, "error": f"unknown hint kind {kind!r}"}
 
         log.info("send_hint sid=%s slot=%s -> %r (hp=%d)", sid[:8], sess.slot, cmd, sess.hint_points)
+        hint_points_before = sess.hint_points
         await sess.ws.send(json.dumps([{"cmd": "Say", "text": cmd}]))
         # Drain any replies that arrive within a window: AP often emits
         # several PrintJSON lines (chat echo, error, hint result).
@@ -159,6 +180,14 @@ class SessionManager:
             except asyncio.TimeoutError:
                 break
         log.info("send_hint sid=%s replies=%r", sid[:8], replies)
+
+        # A real drop in the server-reported balance means the hint was
+        # genuinely paid for (never inferred from reply text), record it so
+        # RoomPoller can estimate hint_points for archipelago.gg-polled rooms.
+        if self.hint_usage is not None and sess.hint_points < hint_points_before:
+            slot_info = self.multidata.slot_by_name(sess.slot) if self.multidata else None
+            if slot_info is not None:
+                self.hint_usage.record_used(slot_info.slot)
         if not replies:
             return {"ok": True, "queued": True}
         return {"ok": True, "reply": replies[-1], "all": replies}
@@ -168,17 +197,32 @@ class SessionManager:
             async for raw in sess.ws:
                 for packet in json.loads(raw):
                     cmd = packet.get("cmd")
-                    if cmd == "RoomUpdate" and "hint_points" in packet:
-                        hp = packet["hint_points"]
-                        if isinstance(hp, dict):
-                            for v in hp.values():
-                                sess.hint_points = int(v)
-                                break
-                        else:
+                    if cmd == "RoomUpdate":
+                        if "hint_points" in packet:
+                            hp = packet["hint_points"]
+                            if isinstance(hp, dict):
+                                for v in hp.values():
+                                    sess.hint_points = int(v)
+                                    break
+                            else:
+                                try:
+                                    sess.hint_points = int(hp)
+                                except Exception:
+                                    pass
+                        if self.world is not None and sess.slot_num is not None:
+                            cl = packet.get("checked_locations")
+                            if isinstance(cl, list):
+                                self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=False)
+                    elif cmd == "ReceivedItems" and self.world is not None:
+                        # `player` is the finder's slot, not us; marking their
+                        # check feeds our received-items log for free.
+                        for item in packet.get("items") or []:
                             try:
-                                sess.hint_points = int(hp)
-                            except Exception:
-                                pass
+                                sender_slot = int(item["player"])
+                                location_id = int(item["location"])
+                            except (KeyError, TypeError, ValueError):
+                                continue
+                            self.world.apply_slot_checks(sender_slot, [location_id], replace=False)
                     elif cmd == "PrintJSON":
                         text = _render_print_json(packet.get("data") or [], self.multidata)
                         sess.last_text = text
@@ -187,6 +231,22 @@ class SessionManager:
                             sess.inbox.put_nowait(text)
                         except asyncio.QueueFull:
                             pass
+                        # Goal is room-wide; Hint only reaches us if our slot
+                        # is the finder or receiver. Both reuse WorldState's
+                        # existing PrintJSON handler.
+                        if self.world is not None and packet.get("type") in ("Hint", "Goal"):
+                            self.world.apply_print_json(packet)
+                        # ItemSend is room-wide too: any check on the team
+                        # reaches us, not just our own slot's.
+                        if self.world is not None and packet.get("type") == "ItemSend":
+                            item = packet.get("item") or {}
+                            try:
+                                finder_slot = int(item["player"])
+                                location_id = int(item["location"])
+                            except (KeyError, TypeError, ValueError):
+                                pass
+                            else:
+                                self.world.apply_slot_checks(finder_slot, [location_id], replace=False)
                     else:
                         log.debug("session %s packet cmd=%s", sess.sid[:8], cmd)
         except Exception as e:

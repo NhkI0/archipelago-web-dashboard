@@ -16,7 +16,7 @@ const TINTS = [
   "bg-card-cream",
 ];
 
-export default function SlotCard({ slot }: { slot: Slot }) {
+export default function SlotCard({ slot, hintPointsEstimated }: { slot: Slot; hintPointsEstimated?: boolean }) {
   const { t } = useT();
   const tint = TINTS[slot.slot % TINTS.length];
   return (
@@ -50,7 +50,9 @@ export default function SlotCard({ slot }: { slot: Slot }) {
 
       <div className="mt-4 flex items-center justify-between text-caption text-slate">
         <span><span className="text-stone">{t("slot.remaining")} </span>{slot.remaining}</span>
-        <span><span className="text-stone">{t("slot.hint_pts")} </span>{slot.hint_points}</span>
+        <span title={hintPointsEstimated ? t("slot.hint_pts_estimated_note") : undefined}>
+          <span className="text-stone">{t("slot.hint_pts")} </span>{slot.hint_points}{hintPointsEstimated && "*"}
+        </span>
         <span><span className="text-stone">{t("slot.hints")} </span>{slot.open_hints}</span>
       </div>
     </Link>
