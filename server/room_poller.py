@@ -8,8 +8,11 @@ Two unauthenticated, server-cached endpoints: `GET /api/room_status/<room_id>`
 fetched only when `last_activity` advances - the pattern an existing
 open-source poller (wrjones104/ap-tracker) already runs in production.
 
-DeathLink still needs a real websocket (no live Bounce events in the API),
-gated on its host slot having connected at least once (`_maybe_start_deathlink`).
+DeathLink has no live Bounce events here, and `connection_timers` turned out
+(verified against a real room) to move on both connect and disconnect, so it
+can't gate a persistent connection either. Deaths are instead caught by
+SessionManager tagging a DeathLink-enabled slot's login (session.py) into the
+shared `DeathLinkCounter` (server/deathlink.py); RoomPoller only reads it.
 
 `RoomPoller` mirrors enough of `Tracker`'s public surface that main.py only
 needs one if/else at construction time.
@@ -20,15 +23,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import pathlib
 from typing import Any, Awaitable, Callable
 
 import aiohttp
 import websockets
 
+from .deathlink import DeathLinkCounter
 from .hint_usage import HintUsageStore
 from .state import WorldState
-from .tracker import DeathLinkClient, pick_deathlink_host
 
 log = logging.getLogger("ap.room_poller")
 
@@ -44,7 +46,7 @@ class RoomPoller:
         room_id: str,
         password: str = "",
         secure: bool = True,
-        deaths_file: pathlib.Path | None = None,
+        deathlink: DeathLinkCounter | None = None,
         hint_usage: HintUsageStore | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
         poll_interval: float = 15.0,
@@ -55,7 +57,8 @@ class RoomPoller:
         self.room_id = room_id
         self.password = password
         self.secure = secure
-        self.deaths_file = deaths_file
+        # Shared with SessionManager (the one actually catching deaths); see docstring.
+        self.deathlink = deathlink
         self.hint_usage = hint_usage
         self._on_connection_change = on_connection_change
         self.poll_interval = poll_interval
@@ -65,10 +68,6 @@ class RoomPoller:
         self._session: "aiohttp.ClientSession | None" = None
         self._task: asyncio.Task | None = None
         self._connected = False
-        self._death_client: DeathLinkClient | None = None
-        # See _maybe_start_deathlink: gates the first connection on host-slot presence.
-        self._deathlink_ever_started = False
-        self._connected_slots: set[int] = set()
         self._last_port: int | None = None
         self._last_activity: str | None = None
         self._location_check_points = 1
@@ -90,9 +89,6 @@ class RoomPoller:
                 await self._task
             except (asyncio.CancelledError, Exception):
                 pass
-        if self._death_client is not None:
-            await self._death_client.stop()
-            self._death_client = None
         if self._session is not None:
             await self._session.close()
             self._session = None
@@ -103,14 +99,11 @@ class RoomPoller:
         return self._connected
 
     def death_rows(self) -> list[dict]:
-        if self._death_client is None:
-            return []
-        rows = [{"name": n, "deaths": c} for n, c in self._death_client.counts.items()]
-        rows.sort(key=lambda r: -r["deaths"])
-        return rows
+        return self.deathlink.rows() if self.deathlink is not None else []
 
     def death_client_connected(self) -> bool:
-        return self._death_client is not None and self._death_client.active
+        """True while a DeathLink-enabled slot is logged in (server/deathlink.py)."""
+        return self.deathlink is not None and self.deathlink.is_active
 
     # ── HTTP ─────────────────────────────────────────────────────────────────
 
@@ -165,12 +158,9 @@ class RoomPoller:
             tracker_id = status.get("tracker") or self.room_id
             payload = await self._http_get(f"{self._base_url()}/api/tracker/{tracker_id}")
             self._apply(payload)
-            await self._maybe_start_deathlink()
 
     async def _on_port_change(self, port: int) -> None:
         await self._peek_room_info(port)
-        if self._death_client is not None or self._deathlink_ever_started:
-            await self._rebuild_deathlink(port)
 
     async def _peek_room_info(self, port: int) -> None:
         """One-shot connect-read-close: `RoomInfo` carries `hint_cost` and
@@ -187,37 +177,6 @@ class RoomPoller:
         except Exception as e:
             log.warning("could not read RoomInfo from %s: %s", uri, e)
 
-    async def _maybe_start_deathlink(self) -> None:
-        """Start DeathLink once its host slot has connected at least once.
-
-        `connection_timers` is a last-connected timestamp, not live "connected
-        now" - a one-time gate, so DeathLink doesn't flap on reconnects."""
-        if self._death_client is not None or self._deathlink_ever_started:
-            return
-        if self.deaths_file is None or self._last_port is None:
-            return
-        host = pick_deathlink_host(self.state)
-        if host is None or host.slot not in self._connected_slots:
-            return
-        await self._rebuild_deathlink(self._last_port)
-
-    async def _rebuild_deathlink(self, port: int) -> None:
-        if self._death_client is not None:
-            await self._death_client.stop()
-            self._death_client = None
-        if self.deaths_file is None:
-            return
-        host = pick_deathlink_host(self.state)
-        if host is None:
-            return
-        uri = f"{'wss' if self.secure else 'ws'}://{self.hostname}:{port}"
-        self._death_client = DeathLinkClient(
-            uri=uri, slot_num=host.slot, slot_name=host.name, game=host.game,
-            password=self.password, deaths_file=self.deaths_file,
-        )
-        self._death_client.start()
-        self._deathlink_ever_started = True
-
     # ── mapping ──────────────────────────────────────────────────────────────
 
     def _hint_cost_per_hint(self, slot_num: int) -> int:
@@ -228,14 +187,6 @@ class RoomPoller:
         return max(1, int(self.hint_cost_pct * 0.01 * total))
 
     def _apply(self, payload: dict[str, Any]) -> None:
-        # A non-null `time` here means this slot has connected at least once
-        # (ever, not "right now") - see `_maybe_start_deathlink`.
-        self._connected_slots = {
-            int(e["player"])
-            for e in payload.get("connection_timers") or []
-            if e.get("team") == 0 and e.get("time")
-        }
-
         checks_done: dict[int, int] = {}
 
         for entry in payload.get("player_checks_done") or []:

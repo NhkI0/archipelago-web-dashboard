@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import RoomConfig, public_config, tag_ids
+from .deathlink import DeathLinkCounter
 from .hall_of_fame import load_entries as load_hall_of_fame
 from .hint_usage import HintUsageStore
 from .multidata import load_multidata, load_sanitized
@@ -85,16 +86,19 @@ def build_app(room: RoomConfig) -> FastAPI:
     world.set_server_status(display_host, display_port, False)
     on_connection_change = lambda connected: world.set_server_status(display_host, display_port, connected)
     hint_usage: HintUsageStore | None = None
+    deathlink: DeathLinkCounter | None = None
     if room.ap_room_id:
         # Hosted on archipelago.gg: poll its JSON API (see room_poller.py).
         hint_usage = HintUsageStore(room.hints_used_file)
+        # Shared with SessionManager below, which does the actual catching (deathlink.py).
+        deathlink = DeathLinkCounter(room.deaths_file)
         tracker: Tracker | RoomPoller = RoomPoller(
             world,
             hostname=room.ap_room_hostname,
             room_id=room.ap_room_id,
             password=room.ap_password,
             secure=room.ap_secure,
-            deaths_file=room.deaths_file,
+            deathlink=deathlink,
             hint_usage=hint_usage,
             on_connection_change=on_connection_change,
         )
@@ -111,7 +115,7 @@ def build_app(room: RoomConfig) -> FastAPI:
         )
     sessions = SessionManager(
         host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure,
-        hint_usage=hint_usage, world=world,
+        hint_usage=hint_usage, world=world, deathlink=deathlink,
         tracker=tracker if isinstance(tracker, Tracker) else None,
     )
 

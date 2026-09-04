@@ -123,11 +123,9 @@ websocket per player slot, which scales much better for big multiworlds.
 > the logged-in slot's own hints (as finder or receiver); other players' hints still
 > follow the poll cycle.
 
-> **DeathLink:** doesn't start tracking until the DeathLink player's slot is seen
-> connected at least once, since that public API has no way to notify us. Any death before that first
-> detected connection won't be counted. If you want deaths tracked from the start,
-> have that player connect (their game client, or just log into this dashboard as
-> their slot) as soon as they reach the page, before they start playing.
+> **DeathLink:** only tracked while someone with DeathLink enabled is logged
+> into *this dashboard* (not their AP game client). Log out and tracking
+> pauses until a DeathLink slot logs back in, any one of them is enough to catch all deaths for everyone.
 
 ### Open it to others
 Now seek on the internet how to make a local website accessible outside your network, you'll find many tutorials (or AIs) that will explain it way better than I could.
