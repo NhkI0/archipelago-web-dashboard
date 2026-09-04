@@ -93,9 +93,9 @@ cd ..
 > hints, and goal completions live. The moment anyone logs into the dashboard, that
 > login takes over the job and the placeholder disconnects; when they log out, duty
 > passes to another logged-in player if one's still around, or the placeholder comes
-> back. The one thing that isn't instant for other slots: hint points, which refresh
-> every ~10 minutes instead of live (the logged-in/placeholder slot's own hint points
-> stay live throughout).
+> back. The one thing that isn't instant for other slots: hint points, seeded once when
+> the dashboard starts and never refreshed again unless that slot logs in - the
+> logged-in/placeholder slot's own hint points stay live throughout.
 
 > **Picking the placeholder slot:** ``[server].default_slot`` names which slot the
 > placeholder connects as. Leave it blank and it picks automatically (a slot that's

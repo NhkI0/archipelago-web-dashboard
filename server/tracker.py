@@ -6,8 +6,8 @@ DataStorage keys aren't restricted to the reading connection's own slot. So one
 connection sees the whole room's checks, hints, and goals live.
 
 Gap: `hint_points` only arrives via a slot's own `RoomUpdate`. `_baseline_sweep`
-(brief one-shot connects, at startup and periodically) refreshes it for every
-other slot, and seeds each slot's `checked_locations` baseline.
+(brief one-shot connects, once at startup) seeds it and `checked_locations` for
+every slot; after that, a slot's hint_points only updates again if it logs in.
 """
 
 from __future__ import annotations
@@ -25,8 +25,6 @@ import websockets
 from .state import WorldState
 
 log = logging.getLogger("ap.tracker")
-
-BASELINE_SWEEP_INTERVAL = 600.0  # 10 minutes
 
 
 def _connect_packet(password: str, game: str, name: str, tags: list[str]) -> str:
@@ -354,7 +352,6 @@ class Tracker:
         deaths_file: pathlib.Path | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
         default_slot: str = "",
-        baseline_interval: float = BASELINE_SWEEP_INTERVAL,
     ) -> None:
         self.state = state
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
@@ -362,7 +359,6 @@ class Tracker:
         self.deaths_file = deaths_file
         self._on_connection_change = on_connection_change
         self.default_slot = default_slot
-        self.baseline_interval = baseline_interval
         self._observer: _ObserverClient | None = None
         self._observer_claimed = False
         self._death_client: DeathLinkClient | None = None
@@ -452,7 +448,11 @@ class Tracker:
         if self._baseline_task is not None:
             return
         self._start_observer_connection()
-        self._baseline_task = asyncio.create_task(self._baseline_loop(), name="ap-baseline-sweep")
+        # One-shot, not repeated: hint_points for a slot that never logs in
+        # just stays whatever it was seeded as here.
+        self._baseline_task = asyncio.create_task(
+            _baseline_sweep(self.state, self.uri, self.password), name="ap-baseline-sweep",
+        )
         self._start_deathlink_if_needed()
 
     async def try_claim_observer(self) -> bool:
@@ -479,12 +479,6 @@ class Tracker:
             await self._death_client.stop()
             self._death_client = None
         self._notify_connection_change()
-
-    async def _baseline_loop(self) -> None:
-        # Runs immediately, then every baseline_interval (self-heals drift).
-        while True:
-            await _baseline_sweep(self.state, self.uri, self.password)
-            await asyncio.sleep(self.baseline_interval)
 
     async def stop(self) -> None:
         if self._baseline_task is not None:
