@@ -86,8 +86,7 @@ def build_app(room: RoomConfig) -> FastAPI:
     on_connection_change = lambda connected: world.set_server_status(display_host, display_port, connected)
     hint_usage: HintUsageStore | None = None
     if room.ap_room_id:
-        # Hosted on archipelago.gg: poll its public JSON tracker API instead of
-        # opening one websocket per slot (see room_poller.py for why).
+        # Hosted on archipelago.gg: poll its JSON API (see room_poller.py).
         hint_usage = HintUsageStore(room.hints_used_file)
         tracker: Tracker | RoomPoller = RoomPoller(
             world,
@@ -108,10 +107,12 @@ def build_app(room: RoomConfig) -> FastAPI:
             secure=room.ap_secure,
             deaths_file=room.deaths_file,
             on_connection_change=on_connection_change,
+            default_slot=room.default_slot,
         )
     sessions = SessionManager(
         host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure,
         hint_usage=hint_usage, world=world,
+        tracker=tracker if isinstance(tracker, Tracker) else None,
     )
 
     # lifecycle

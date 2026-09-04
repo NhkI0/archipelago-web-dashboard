@@ -8,8 +8,12 @@ the AP server charges them to the slot's hint points and broadcasts the
 result, which the persistent Tracker connection picks up.
 
 When `world` is given, this connection also feeds its own slot's checks and
-received items into `WorldState` live, instead of waiting on RoomPoller's poll
+received items into `WorldState` live instead of waiting on RoomPoller's poll
 cycle (a harmless no-op duplicate in self-hosted mode).
+
+When `tracker` is given, the first login claims its observer duty (subscribes
+to every slot's hint/status keys, stops Tracker's placeholder). On logout,
+duty passes to another logged-in session, or back to Tracker if none remain.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ import websockets
 from .hint_usage import HintUsageStore
 from .multidata import MultiData
 from .state import WorldState
+from .tracker import Tracker
 
 log = logging.getLogger("ap.session")
 
@@ -85,19 +90,44 @@ class SessionManager:
         secure: bool = False,
         hint_usage: "HintUsageStore | None" = None,
         world: "WorldState | None" = None,
+        tracker: "Tracker | None" = None,
     ) -> None:
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self._sessions: dict[str, Session] = {}
         self._lock = asyncio.Lock()
         self.multidata = multidata
-        # Only set for archipelago.gg-polled rooms
-        # records a spend whenever a hint requested through this dashboard actually costs points,
-        # so RoomPoller can estimate hint_points locally (see hint_usage.py).
-        self.hint_usage = hint_usage
+        self.hint_usage = hint_usage  # archipelago.gg rooms only; see hint_usage.py
         self.world = world  # optional; see module docstring
+        self.tracker = tracker  # self-hosted only; see module docstring
+        self._observer_sid: str | None = None
 
     def get(self, sid: str) -> Session | None:
         return self._sessions.get(sid)
+
+    async def _send_hint_status_subscription(self, sess: Session) -> None:
+        """Upgrade this session to full observer duty: subscribe to every
+        slot's hint/status keys, same as Tracker's own observer connection."""
+        if self.world is None:
+            return
+        keys = []
+        for slot in self.world.slots.values():
+            keys.append(f"_read_hints_0_{slot.slot}")
+            keys.append(f"_read_client_status_0_{slot.slot}")
+        await sess.ws.send(json.dumps([{"cmd": "Get", "keys": keys}]))
+        await sess.ws.send(json.dumps([{"cmd": "SetNotify", "keys": keys}]))
+
+    async def _handle_session_gone(self, sid: str) -> None:
+        """Reassign observer duty if the departing session held it."""
+        if sid != self._observer_sid:
+            return
+        self._observer_sid = None
+        other = next(iter(self._sessions.items()), None)
+        if other is not None:
+            other_sid, other_sess = other
+            self._observer_sid = other_sid
+            await self._send_hint_status_subscription(other_sess)
+        elif self.tracker is not None:
+            await self.tracker.release_observer()
 
     async def login(self, slot: str, password: str = "", game: str = "") -> Session:
         try:
@@ -140,6 +170,10 @@ class SessionManager:
                     if isinstance(cl, list):
                         self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=True)
                 asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
+                if self.tracker is not None and self._observer_sid is None:
+                    if await self.tracker.try_claim_observer():
+                        self._observer_sid = sid
+                        await self._send_hint_status_subscription(sess)
                 return sess
             if cmd == "ConnectionRefused":
                 await ws.close()
@@ -152,6 +186,7 @@ class SessionManager:
         sess = self._sessions.pop(sid, None)
         if sess:
             await sess.close()
+        await self._handle_session_gone(sid)
 
     async def send_hint(self, sid: str, kind: str, target: str) -> dict[str, Any]:
         sess = self._sessions.get(sid)
@@ -181,9 +216,8 @@ class SessionManager:
                 break
         log.info("send_hint sid=%s replies=%r", sid[:8], replies)
 
-        # A real drop in the server-reported balance means the hint was
-        # genuinely paid for (never inferred from reply text), record it so
-        # RoomPoller can estimate hint_points for archipelago.gg-polled rooms.
+        # A real balance drop means the hint was genuinely paid for (never
+        # inferred from reply text).
         if self.hint_usage is not None and sess.hint_points < hint_points_before:
             slot_info = self.multidata.slot_by_name(sess.slot) if self.multidata else None
             if slot_info is not None:
@@ -231,9 +265,7 @@ class SessionManager:
                             sess.inbox.put_nowait(text)
                         except asyncio.QueueFull:
                             pass
-                        # Goal is room-wide; Hint only reaches us if our slot
-                        # is the finder or receiver. Both reuse WorldState's
-                        # existing PrintJSON handler.
+                        # Goal is room-wide; Hint only if our slot is involved.
                         if self.world is not None and packet.get("type") in ("Hint", "Goal"):
                             self.world.apply_print_json(packet)
                         # ItemSend is room-wide too: any check on the team
@@ -247,9 +279,23 @@ class SessionManager:
                                 pass
                             else:
                                 self.world.apply_slot_checks(finder_slot, [location_id], replace=False)
+                    elif cmd == "Retrieved" and self.world is not None:
+                        # Only arrives if we subscribed (see _send_hint_status_subscription).
+                        for key, value in (packet.get("keys") or {}).items():
+                            if key.startswith("_read_hints_"):
+                                self.world.apply_hint_store(key, value)
+                            elif key.startswith("_read_client_status_"):
+                                self.world.apply_client_status(key, value)
+                    elif cmd == "SetReply" and self.world is not None:
+                        key = packet.get("key")
+                        if key and key.startswith("_read_hints_"):
+                            self.world.apply_hint_store(key, packet.get("value"))
+                        elif key and key.startswith("_read_client_status_"):
+                            self.world.apply_client_status(key, packet.get("value"))
                     else:
                         log.debug("session %s packet cmd=%s", sess.sid[:8], cmd)
         except Exception as e:
             log.info("session %s closed: %s", sess.sid[:8], e)
         finally:
             self._sessions.pop(sess.sid, None)
+            await self._handle_session_gone(sess.sid)
