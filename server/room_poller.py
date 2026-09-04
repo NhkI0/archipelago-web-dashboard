@@ -1,26 +1,18 @@
 """
 Tracks an archipelago.gg-hosted multiworld by polling its public JSON tracker
-API instead of opening one websocket per player slot (see server/tracker.py
-for the self-hosted equivalent).
+API instead of opening one websocket per player slot.
 
-archipelago.gg exposes two unauthenticated, server-cached endpoints:
-  - GET /api/room_status/<room_id>  - cheap gatekeeper: tracker id, last_port,
-    last_activity. Polled often; hits the DB directly so isn't itself cached.
-  - GET /api/tracker/<tracker_id>   - the real payload (server-memoized 60s):
-    player_checks_done, player_status, hints, connection_timers for every
-    slot at once.
+Two unauthenticated, server-cached endpoints: `GET /api/room_status/<room_id>`
+(cheap gatekeeper - tracker id, last_port, last_activity) and
+`GET /api/tracker/<tracker_id>` (the real payload, memoized 60s server-side),
+fetched only when `last_activity` advances - the pattern an existing
+open-source poller (wrjones104/ap-tracker) already runs in production.
 
-DeathLink still needs a real websocket (no live Bounce events in the API), but
-only starts once its host slot has connected at least once (see
-`_maybe_start_deathlink`).
+DeathLink still needs a real websocket (no live Bounce events in the API),
+gated on its host slot having connected at least once (`_maybe_start_deathlink`).
 
-Only fetched when `last_activity` has actually advanced, mirroring the pattern
-an existing open-source poller (wrjones104/ap-tracker) already runs in
-production against this same API.
-
-`RoomPoller` mirrors just enough of `Tracker`'s public surface (start/stop/
-connected/death_rows/death_client_connected) that main.py only needs one
-if/else at construction time.
+`RoomPoller` mirrors enough of `Tracker`'s public surface that main.py only
+needs one if/else at construction time.
 """
 
 from __future__ import annotations
@@ -158,9 +150,8 @@ class RoomPoller:
                 delay = min(delay * 2, 60)
 
     async def _poll_once(self) -> None:
-        """One gatekeeper check, fetching the full tracker payload only when
-        `last_activity` actually advanced. Split out from `_run` so tests can
-        drive individual ticks without waiting on `poll_interval` sleeps."""
+        """One gatekeeper check; fetches the tracker payload only if `last_activity`
+        advanced. Split from `_run` so tests can drive ticks without sleeping."""
         status = await self._http_get(f"{self._base_url()}/api/room_status/{self.room_id}")
 
         last_port = status.get("last_port")
@@ -182,9 +173,8 @@ class RoomPoller:
             await self._rebuild_deathlink(port)
 
     async def _peek_room_info(self, port: int) -> None:
-        """One-shot connect-read-close purely to read `hint_cost` and
-        `location_check_points` off the very first `RoomInfo` packet - sent
-        before `Connect`/auth, so this needs no persistent socket or login."""
+        """One-shot connect-read-close: `RoomInfo` carries `hint_cost` and
+        `location_check_points`, sent before `Connect`/auth, no login needed."""
         uri = f"{'wss' if self.secure else 'ws'}://{self.hostname}:{port}"
         try:
             async with websockets.connect(uri, max_size=2**24, open_timeout=10) as ws:
@@ -200,10 +190,8 @@ class RoomPoller:
     async def _maybe_start_deathlink(self) -> None:
         """Start DeathLink once its host slot has connected at least once.
 
-        `connection_timers` is a last-connected timestamp, not a live
-        "connected now" flag, so this is a one-time gate: once true, DeathLink
-        stays running rather than flapping on each disconnect/reconnect.
-        """
+        `connection_timers` is a last-connected timestamp, not live "connected
+        now" - a one-time gate, so DeathLink doesn't flap on reconnects."""
         if self._death_client is not None or self._deathlink_ever_started:
             return
         if self.deaths_file is None or self._last_port is None:
