@@ -86,6 +86,24 @@ cd ..
 4. Run ``run.bat`` (Windows) or ``run.sh`` (macOS/Linux). 
 5. Open ``http://localhost:8080``.
 
+<br>
+
+> **How live tracking works (A & B):** instead of one websocket per player slot, the
+> dashboard now holds a single placeholder connection that already sees everyone's checks,
+> hints, and goal completions live. The moment anyone logs into the dashboard, that
+> login takes over the job and the placeholder disconnects; when they log out, duty
+> passes to another logged-in player if one's still around, or the placeholder comes
+> back. The one thing that isn't instant for other slots: hint points, which refresh
+> every ~10 minutes instead of live (the logged-in/placeholder slot's own hint points
+> stay live throughout).
+
+> **Picking the placeholder slot:** ``[server].default_slot`` names which slot the
+> placeholder connects as. Leave it blank and it picks automatically (a slot that's
+> already goaled and has DeathLink, else any DeathLink slot, else just the first one).
+> If you name a slot yourself and it has no DeathLink enabled, DeathLink simply won't
+> be tracked so pick a DeathLink-enabled slot if you want both or simply make people
+> with deathlink connect whenever they play.
+
 ##### B2. The room is hosted on archipelago.gg
 Instead of step 3 above, set ``[server.remote].room_url`` to the room's full URL
 (e.g. ``https://archipelago.gg/room/AbCdEfGhIjKl``) and leave ``host``/``port`` blank.
