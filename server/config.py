@@ -39,6 +39,8 @@ DEFAULTS: dict[str, Any] = {
         "web_port": 8080,
         "bind": "127.0.0.1",   # use "0.0.0.0" to expose on the local network
         "password": "",
+        # Slot the tracker connects as before anyone logs in. Blank = auto.
+        "default_slot": "",
         # Used only when no host.yaml is found next to multiworld_dir
         # Meaning: the multiworld runs on someone else's machine and this dashboard just watches it.
         # Ignored entirely when a local host.yaml is present.
@@ -186,11 +188,11 @@ class RoomConfig:
     base_path: str = "/"                        # e.g. "/<uuid>/" for a hosted room, injected into index.html
     display_host: str = ""                       # what to show visitors instead of ap_host; "" = show ap_host
     display_port: int = 0                        # what to show visitors instead of ap_port; 0 = show ap_port
-    # Non-empty ap_room_id => this room is polled via archipelago.gg's public JSON
-    # tracker API (see server/room_poller.py) instead of opening N per-slot websockets.
+    # Non-empty ap_room_id => polled via archipelago.gg's JSON API (room_poller.py).
     ap_room_hostname: str = ""
     ap_room_id: str = ""
     hints_used_file: pathlib.Path | None = None  # local hint-spend counter, polling mode only
+    default_slot: str = ""  # preferred slot for Tracker's placeholder observer connection
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -237,10 +239,8 @@ def _env_or(cfg_val: Any, env_key: str, cast=str) -> Any:
 def _parse_room_url(url: str) -> tuple[str, str]:
     """Extract (hostname, opaque room token) from a pasted archipelago.gg room URL.
 
-    The token (e.g. in ``https://archipelago.gg/room/<token>``) is a URL-safe-base64
-    encoding of the room's UUID bytes (AP's custom `suuid` Flask converter), not a
-    canonical hyphenated UUID string, it must stay an opaque string, never reparsed
-    with `uuid.UUID(...)`.
+    The token is a URL-safe-base64 encoding of the room's UUID bytes, not a
+    hyphenated UUID string - keep it opaque, never reparse with `uuid.UUID(...)`.
     """
     raw = url.strip()
     parsed = urllib.parse.urlsplit(raw if "://" in raw else f"https://{raw}")
@@ -381,6 +381,7 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         ap_room_hostname=ap_room_hostname,
         ap_room_id=ap_room_id,
         hints_used_file=pathlib.Path(os.environ.get("HINTS_USED_FILE") or str(data_dir / "hints_used_polling.json")),
+        default_slot=cfg["server"]["default_slot"],
     )
 
 
