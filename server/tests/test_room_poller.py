@@ -8,8 +8,7 @@ from __future__ import annotations
 import asyncio
 import pathlib
 
-import pytest
-
+from server.deathlink import DeathLinkCounter
 from server.hint_usage import HintUsageStore
 from server.multidata import multidata_from_sanitized
 from server.room_poller import RoomPoller
@@ -43,33 +42,12 @@ def _fixture_state(death_link_slot: int | None = None) -> WorldState:
     return WorldState(multidata)
 
 
-class _FakeDeathLinkClient:
-    """Stands in for the real DeathLinkClient so gating tests never open a
-    real websocket."""
-
-    def __init__(self, **kwargs) -> None:
-        self.kwargs = kwargs
-        self.counts: dict[str, int] = {}
-        self.started = False
-        self._stopped_permanently = False
-
-    @property
-    def active(self) -> bool:
-        return not self._stopped_permanently
-
-    def start(self) -> None:
-        self.started = True
-
-    async def stop(self) -> None:
-        self._stopped_permanently = True
-
-
 def _poller(state: WorldState, hint_usage: HintUsageStore | None = None) -> RoomPoller:
     poller = RoomPoller(
         state, hostname="archipelago.gg", room_id="fake-room", hint_usage=hint_usage,
     )
-    # Skip the real-websocket RoomInfo peek / DeathLink restart entirely for
-    # these tests - hint_cost/location_check_points are set directly instead.
+    # Skip the real-websocket RoomInfo peek entirely for these tests -
+    # hint_cost/location_check_points are set directly instead.
     poller._last_port = 12345
     return poller
 
@@ -182,59 +160,27 @@ def test_poll_once_refetches_tracker_when_activity_changes() -> None:
     assert state.slots[1].checked == {100}
 
 
-def test_deathlink_not_started_before_host_slot_has_connected(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path,
-) -> None:
-    monkeypatch.setattr("server.room_poller.DeathLinkClient", _FakeDeathLinkClient)
+def test_death_rows_and_connected_reflect_shared_counter(tmp_path: pathlib.Path) -> None:
+    """RoomPoller just reads the shared DeathLinkCounter now (session.py owns it)."""
     state = _fixture_state(death_link_slot=1)
     poller = _poller(state)
-    poller.deaths_file = tmp_path / "deaths.json"
+    assert poller.death_rows() == []
+    assert poller.death_client_connected() is False
 
-    poller._apply({"player_checks_done": [], "player_status": [], "hints": [], "connection_timers": []})
-    asyncio.run(poller._maybe_start_deathlink())
-    assert poller._death_client is None
+    counter = DeathLinkCounter(tmp_path / "deaths.json")
+    poller.deathlink = counter
+    assert poller.death_rows() == []
+    assert poller.death_client_connected() is False
 
-    poller._apply({
-        "player_checks_done": [], "player_status": [], "hints": [],
-        "connection_timers": [{"team": 0, "player": 1, "time": "Mon, 01 Jan 2026 00:00:00 GMT"}],
-    })
-    asyncio.run(poller._maybe_start_deathlink())
-    assert poller._death_client is not None
-    assert poller._death_client.started
-    assert poller._deathlink_ever_started is True
+    counter.note_session_open()
+    assert poller.death_client_connected() is True
 
+    # Distinct event_time -> two genuinely separate deaths.
+    counter.record("Alice", event_time=1)
+    counter.record("Alice", event_time=2)
+    assert poller.death_rows() == [{"name": "Alice", "deaths": 2}]
 
-def test_deathlink_not_started_for_a_slot_never_seen_connected(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path,
-) -> None:
-    monkeypatch.setattr("server.room_poller.DeathLinkClient", _FakeDeathLinkClient)
-    state = _fixture_state(death_link_slot=1)
-    poller = _poller(state)
-    poller.deaths_file = tmp_path / "deaths.json"
-
-    # Slot 2 (no DeathLink) connects, but slot 1 (the DeathLink host) never does.
-    poller._apply({
-        "player_checks_done": [], "player_status": [], "hints": [],
-        "connection_timers": [{"team": 0, "player": 2, "time": "Mon, 01 Jan 2026 00:00:00 GMT"}],
-    })
-    asyncio.run(poller._maybe_start_deathlink())
-    assert poller._death_client is None
-
-
-def test_deathlink_rebuilds_on_port_change_once_started(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path,
-) -> None:
-    monkeypatch.setattr("server.room_poller.DeathLinkClient", _FakeDeathLinkClient)
-    state = _fixture_state(death_link_slot=1)
-    poller = _poller(state)
-    poller.deaths_file = tmp_path / "deaths.json"
-
-    asyncio.run(poller._rebuild_deathlink(12345))
-    first_client = poller._death_client
-    assert first_client is not None and first_client.started
-
-    asyncio.run(poller._rebuild_deathlink(9999))
-    assert poller._death_client is not None
-    assert poller._death_client is not first_client
-    assert first_client._stopped_permanently is True
-    assert poller._death_client.kwargs["uri"].endswith(":9999")
+    counter.note_session_close()
+    assert poller.death_client_connected() is False
+    # Rows persist after logout; only "connected" tracks live presence.
+    assert poller.death_rows() == [{"name": "Alice", "deaths": 2}]

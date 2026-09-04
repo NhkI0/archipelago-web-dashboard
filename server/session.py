@@ -14,6 +14,10 @@ cycle (a harmless no-op duplicate in self-hosted mode).
 When `tracker` is given, the first login claims its observer duty (subscribes
 to every slot's hint/status keys, stops Tracker's placeholder). On logout,
 duty passes to another logged-in session, or back to Tracker if none remain.
+
+When `deathlink` is given (archipelago.gg rooms only), a login as a
+DeathLink-enabled slot tags its Connect with "DeathLink" and feeds Bounces
+into the shared `DeathLinkCounter`, see server/deathlink.py for why.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from typing import Any
 
 import websockets
 
+from .deathlink import DeathLinkCounter
 from .hint_usage import HintUsageStore
 from .multidata import MultiData
 from .state import WorldState
@@ -73,6 +78,7 @@ class Session:
     hint_points: int = 0
     last_text: str = ""
     slot_num: int | None = None  # resolved at login; None if slot isn't in multidata
+    deathlink: bool = False  # True if this login's Connect was tagged "DeathLink"
 
     async def close(self) -> None:
         try:
@@ -91,6 +97,7 @@ class SessionManager:
         hint_usage: "HintUsageStore | None" = None,
         world: "WorldState | None" = None,
         tracker: "Tracker | None" = None,
+        deathlink: "DeathLinkCounter | None" = None,
     ) -> None:
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self._sessions: dict[str, Session] = {}
@@ -100,6 +107,7 @@ class SessionManager:
         self.world = world  # optional; see module docstring
         self.tracker = tracker  # self-hosted only; see module docstring
         self._observer_sid: str | None = None
+        self.deathlink = deathlink  # optional; see module docstring
 
     def get(self, sid: str) -> Session | None:
         return self._sessions.get(sid)
@@ -130,6 +138,15 @@ class SessionManager:
             await self.tracker.release_observer()
 
     async def login(self, slot: str, password: str = "", game: str = "") -> Session:
+        # Decided up front so the tag rides the initial Connect, not a follow-up.
+        slot_info = self.multidata.slot_by_name(slot) if self.multidata else None
+        wants_deathlink = (
+            self.deathlink is not None
+            and slot_info is not None
+            and self.multidata.deathlink_enabled(slot_info.slot)
+        )
+        tags = ["TextOnly"] + (["DeathLink"] if wants_deathlink else [])
+
         try:
             ws = await websockets.connect(self.uri, max_size=2**24)
         except (OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException) as e:
@@ -142,7 +159,7 @@ class SessionManager:
             "game": game or "Archipelago",
             "name": slot,
             "uuid": str(uuid.uuid4()),
-            "tags": ["TextOnly"],
+            "tags": tags,
             "version": {"major": 0, "minor": 6, "build": 7, "class": "Version"},
             "items_handling": 0b111,  # receive ReceivedItems (see _pump)
         }]))
@@ -161,14 +178,16 @@ class SessionManager:
                 # hint_points sometimes ships on Connected; otherwise it lands
                 # on the next RoomUpdate.
                 hp = int(packet.get("hint_points", 0) or 0)
-                slot_info = self.multidata.slot_by_name(slot) if self.multidata else None
                 sess = Session(sid=sid, slot=slot, ws=ws, hint_points=hp,
-                                slot_num=slot_info.slot if slot_info else None)
+                                slot_num=slot_info.slot if slot_info else None,
+                                deathlink=wants_deathlink)
                 self._sessions[sid] = sess
                 if self.world is not None and sess.slot_num is not None:
                     cl = packet.get("checked_locations")
                     if isinstance(cl, list):
                         self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=True)
+                if wants_deathlink and self.deathlink is not None:
+                    self.deathlink.note_session_open()
                 asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
                 if self.tracker is not None and self._observer_sid is None:
                     if await self.tracker.try_claim_observer():
@@ -185,8 +204,16 @@ class SessionManager:
     async def logout(self, sid: str) -> None:
         sess = self._sessions.pop(sid, None)
         if sess:
+            self._note_deathlink_session_closed(sess)
             await sess.close()
         await self._handle_session_gone(sid)
+
+    def _note_deathlink_session_closed(self, sess: Session) -> None:
+        # Idempotent (clears sess.deathlink) so both logout() and _pump()'s
+        # finally can call this for the same session without double-counting.
+        if sess.deathlink and self.deathlink is not None:
+            self.deathlink.note_session_close()
+            sess.deathlink = False
 
     async def send_hint(self, sid: str, kind: str, target: str) -> dict[str, Any]:
         sess = self._sessions.get(sid)
@@ -292,6 +319,11 @@ class SessionManager:
                             self.world.apply_hint_store(key, packet.get("value"))
                         elif key and key.startswith("_read_client_status_"):
                             self.world.apply_client_status(key, packet.get("value"))
+                    elif cmd == "Bounced" and sess.deathlink and self.deathlink is not None:
+                        if "DeathLink" in (packet.get("tags") or []):
+                            data = packet.get("data") or {}
+                            who = str(data.get("source") or "unknown")
+                            self.deathlink.record(who, data.get("time"))
                     else:
                         log.debug("session %s packet cmd=%s", sess.sid[:8], cmd)
         except Exception as e:
@@ -299,3 +331,4 @@ class SessionManager:
         finally:
             self._sessions.pop(sess.sid, None)
             await self._handle_session_gone(sess.sid)
+            self._note_deathlink_session_closed(sess)
