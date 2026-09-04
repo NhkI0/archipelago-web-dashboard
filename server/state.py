@@ -106,9 +106,8 @@ class WorldState:
         self.slots: dict[int, SlotState] = {}
         self.hints: list[HintRecord] = []
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
-        # True for archipelago.gg-polled rooms: hint_points are computed locally
-        # (see room_poller.py) since the public tracker API doesn't expose them,
-        # so they're only accurate if every hint was requested from this dashboard.
+        # True for archipelago.gg-polled rooms: hint_points is a local estimate
+        # (see room_poller.py), accurate only if hints go through this dashboard.
         self.hint_points_estimated: bool = False
         # Reachability of the multiworld server itself, as opposed to any single
         # slot's login state, set by main.py from AP_HOST/AP_PORT and kept live

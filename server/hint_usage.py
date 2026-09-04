@@ -1,16 +1,10 @@
 """
 Local hint-spend counter, used only for archipelago.gg-polled rooms.
 
-archipelago.gg's public tracker API (see room_poller.py) has no way to tell a
-paid `!hint` from a free/automatic one, so it can't expose a real hint_points
-balance. Instead we track spends locally: SessionManager already opens a real,
-authenticated-as-that-slot WebSocket whenever someone requests a hint through
-this dashboard, and observes the server's own RoomUpdate.hint_points drop when
-a hint is actually paid for. `RoomPoller` combines that persisted count with
-the poll data (checks done, hint_cost) to estimate hint_points using AP's own
-formula. This is exact for any slot whose hints are ONLY ever requested from
-this dashboard - a hint redeemed via the player's own client or another tool
-is invisible to it and will make the estimate read too high.
+archipelago.gg's public tracker API can't tell a paid `!hint` from a free one,
+so SessionManager tracks spends itself (a RoomUpdate.hint_points drop) and
+RoomPoller combines that count with poll data to estimate hint_points. Exact
+only if hints are always requested through this dashboard.
 """
 
 from __future__ import annotations
