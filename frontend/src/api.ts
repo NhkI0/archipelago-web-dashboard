@@ -173,6 +173,59 @@ const realApi = {
     }).then(j<{ ok: boolean; tag: string }>),
 };
 
+export type AdminStatus = {
+  logged_in: boolean;
+  host_yaml_present: boolean;
+  // Only present when logged in and not in host.yaml mode; password never round-trips.
+  current?: {
+    room_url: string;
+    ap_host: string;
+    ap_port: number;
+    ap_secure: boolean;
+    default_slot: string;
+    hint_cost: number | null;
+  };
+};
+
+export type ReconfigureFields = {
+  file: File;
+  roomUrl: string;
+  apHost: string;
+  apPort: string;
+  apPassword: string;
+  apSecure: boolean;
+  hintCost: string;
+  defaultSlot: string;
+};
+
+export const adminApi = {
+  status: () => fetch(apiUrl("/api/admin/status")).then(j<AdminStatus>),
+  login: async (password: string) => {
+    const r = await fetch(apiUrl("/api/admin/login"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!r.ok) throw new Error((await r.text()) || r.statusText);
+    return r.json() as Promise<{ ok: true }>;
+  },
+  logout: () => fetch(apiUrl("/api/admin/logout"), { method: "POST" }).then(j),
+  reconfigure: async (fields: ReconfigureFields) => {
+    const body = new FormData();
+    body.set("archipelago_file", fields.file);
+    body.set("room_url", fields.roomUrl);
+    body.set("ap_host", fields.apHost);
+    body.set("ap_port", fields.apPort);
+    body.set("ap_password", fields.apPassword);
+    if (fields.apSecure) body.set("ap_secure", "true");
+    body.set("hint_cost", fields.hintCost);
+    body.set("default_slot", fields.defaultSlot);
+    const r = await fetch(apiUrl("/api/admin/reconfigure"), { method: "POST", body });
+    if (!r.ok) throw new Error((await r.text()) || r.statusText);
+    return r.json() as Promise<{ ok: true; restarting: true }>;
+  },
+};
+
 export type LiveSocketState = "open" | "reconnecting";
 
 const RECONNECT_BASE_MS = 500;

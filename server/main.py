@@ -129,6 +129,10 @@ def build_app(room: RoomConfig) -> FastAPI:
 
     app = FastAPI(title="Archipelago Web", version="0.1.0", lifespan=_lifespan)
 
+    if room.config.get("admin", {}).get("enabled"):
+        from .admin import build_admin_router
+        app.include_router(build_admin_router(room))
+
     # REST
 
     def _asset_url(name: str) -> str:

@@ -41,6 +41,9 @@ DEFAULTS: dict[str, Any] = {
         "password": "",
         # Slot the tracker connects as before anyone logs in. Blank = auto.
         "default_slot": "",
+        # Only used when no host.yaml is found (remote mode); host.yaml's own
+        # hint_cost always wins when present.
+        "hint_cost_override": None,
         # Used only when no host.yaml is found next to multiworld_dir
         # Meaning: the multiworld runs on someone else's machine and this dashboard just watches it.
         # Ignored entirely when a local host.yaml is present.
@@ -82,6 +85,12 @@ DEFAULTS: dict[str, Any] = {
         "death_leaderboard": True,
         "constellation": True,
     },
+    "admin": {
+        # Gates the /admin page + /api/admin/* endpoints entirely; both are
+        # 404 when this is false, regardless of `password`.
+        "enabled": False,
+        "password": "",
+    },
     "hints": {
         # Which tag drives the dashboard "BKed checks" panel; "" hides it.
         "blocked_tag": "bked",
@@ -108,9 +117,14 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> None:
             base[key] = val
 
 
+def resolve_config_path(path: str | os.PathLike[str] | None = None) -> pathlib.Path:
+    """The config.toml path `load_config()` would use for the same arguments."""
+    return pathlib.Path(path or os.environ.get("AP_CONFIG") or "config.toml")
+
+
 def load_config(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     """Load config.toml over the defaults. Never raises for a bad/missing file."""
-    resolved = pathlib.Path(path or os.environ.get("AP_CONFIG") or "config.toml")
+    resolved = resolve_config_path(path)
     cfg = copy.deepcopy(DEFAULTS)
     if resolved.is_file():
         try:
@@ -193,6 +207,7 @@ class RoomConfig:
     ap_room_id: str = ""
     hints_used_file: pathlib.Path | None = None  # local hint-spend counter, polling mode only
     default_slot: str = ""  # preferred slot for Tracker's placeholder observer connection
+    config_path: pathlib.Path | None = None  # self-hosted mode only: where config.toml was loaded from
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -276,6 +291,16 @@ def _fetch_room_status(hostname: str, room_id: str) -> dict[str, Any]:
         ) from e
 
 
+def resolve_host_yaml_path(cfg: dict[str, Any]) -> str:
+    """Where `resolve_room_config()` would look for host.yaml, given a loaded config."""
+    multiworld = cfg["server"]["multiworld_dir"]
+    return os.environ.get("AP_HOST_YAML") or (
+        cfg["paths"]["host_yaml"] or str(pathlib.Path(multiworld).parent / "host.yaml")
+        if pathlib.Path(multiworld).is_file()
+        else cfg["paths"]["host_yaml"] or str(pathlib.Path(multiworld) / "host.yaml")
+    )
+
+
 def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfig:
     """Resolve one room's `RoomConfig` from `config.toml` + env vars.
 
@@ -283,17 +308,14 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
     server or `[server.remote]`, and resolves the runtime data-file paths. Raises
     `FileNotFoundError` / `RuntimeError` on misconfiguration; the caller decides how to report it.
     """
-    cfg = load_config(path)
+    config_path = resolve_config_path(path)
+    cfg = load_config(config_path)
 
     data_dir = pathlib.Path(cfg["paths"]["data_dir"])
     multiworld = cfg["server"]["multiworld_dir"]
     ap_file = os.environ.get("AP_FILE") or find_multiworld_file(multiworld)
 
-    ap_host_yaml = os.environ.get("AP_HOST_YAML") or (
-        cfg["paths"]["host_yaml"] or str(pathlib.Path(multiworld).parent / "host.yaml")
-        if pathlib.Path(multiworld).is_file()
-        else cfg["paths"]["host_yaml"] or str(pathlib.Path(multiworld) / "host.yaml")
-    )
+    ap_host_yaml = resolve_host_yaml_path(cfg)
 
     host_yaml_found = pathlib.Path(ap_host_yaml).is_file()
     server_opts = _read_server_options_from_host_yaml(ap_host_yaml) if host_yaml_found else {}
@@ -303,8 +325,10 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         hint_cost = int(server_opts["hint_cost"])
         log.info("hint_cost = %d%% (from %s)", hint_cost, ap_host_yaml)
     except (KeyError, ValueError):
-        hint_cost = None
-        log.warning("could not read hint_cost from %s; using default", ap_host_yaml)
+        override = cfg["server"].get("hint_cost_override")
+        hint_cost = int(override) if override is not None else None
+        log.warning("could not read hint_cost from %s; using %s", ap_host_yaml,
+                    "override" if hint_cost is not None else "default")
 
     # AP_HOST/AP_PORT/AP_PASSWORD: an explicit env override always wins.
     # Otherwise, a host.yaml found next to the multiworld file means the multiworld is running locally
@@ -382,6 +406,7 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         ap_room_id=ap_room_id,
         hints_used_file=pathlib.Path(os.environ.get("HINTS_USED_FILE") or str(data_dir / "hints_used_polling.json")),
         default_slot=cfg["server"]["default_slot"],
+        config_path=config_path,
     )
 
 

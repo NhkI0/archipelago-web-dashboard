@@ -6,6 +6,7 @@ import SlotDetail from "./pages/SlotDetail";
 import Hints from "./pages/Hints";
 import HallOfFame from "./pages/HallOfFame";
 import Login from "./pages/Login";
+import Admin from "./pages/Admin";
 import { LanguageProvider, useT } from "./i18n";
 import { ThemeProvider } from "./theme";
 import { ConfigProvider, useConfig } from "./config";
@@ -46,6 +47,7 @@ function Shell() {
           <Route path="/hints" element={<Hints />} />
           {config.features.hall_of_fame && <Route path="/hall-of-fame" element={<HallOfFame />} />}
           <Route path="/login" element={<Login />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
       <Footer />
