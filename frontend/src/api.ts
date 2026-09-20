@@ -70,9 +70,14 @@ export type ReceivedItem = {
   timestamp: number | null;
 };
 
+export type MySlot = { slot: string; slot_num: number | null; hint_points: number; last_text: string };
+
+// A browser can be logged into several slots at once, so `slots` is a list.
 export type Me =
-  | { logged_in: false }
-  | { logged_in: true; slot: string; hint_points: number; last_text: string };
+  | { logged_in: false; slots: [] }
+  | { logged_in: true; slots: MySlot[] };
+
+export type AvailableSlot = { name: string; connected: boolean };
 
 const j = async <T,>(r: Response): Promise<T> => {
   if (!r.ok) throw new Error((await r.text()) || r.statusText);
@@ -150,14 +155,34 @@ const realApi = {
       const detail = await loginErrorDetail(r);
       throw new LoginError(r.status, loginReason(r.status, detail), detail);
     }
-    return r.json() as Promise<{ ok: true; slot: string; game: string; hint_points: number }>;
+    return r.json() as Promise<Extract<Me, { logged_in: true }>>;
   },
   logout: () => fetch(apiUrl("/api/logout"), { method: "POST" }).then(j),
-  hint: (kind: "item" | "location", target: string) =>
+  // Connects another slot using the room password cached from the first login.
+  slotsAvailable: () => fetch(apiUrl("/api/slots/available")).then(j<{ slots: AvailableSlot[] }>),
+  slotsAdd: async (slot: string) => {
+    const r = await fetch(apiUrl("/api/slots/add"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slot }),
+    });
+    if (!r.ok) {
+      const detail = await loginErrorDetail(r);
+      throw new LoginError(r.status, loginReason(r.status, detail), detail);
+    }
+    return r.json() as Promise<Extract<Me, { logged_in: true }>>;
+  },
+  slotsRemove: (slot: string) =>
+    fetch(apiUrl("/api/slots/remove"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slot }),
+    }).then(j<Me>),
+  hint: (slot: string, kind: "item" | "location", target: string) =>
     fetch(apiUrl("/api/hint"), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind, target }),
+      body: JSON.stringify({ slot, kind, target }),
     }).then(j<{ ok: boolean; reply?: string; queued?: boolean; hint_points: number; error?: string }>),
   hintTag: (h: Pick<Hint, "finding_slot" | "receiving_slot" | "item_id" | "location_id">, tag: HintTag | "") =>
     fetch(apiUrl("/api/hint_tag"), {

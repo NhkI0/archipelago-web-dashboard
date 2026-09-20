@@ -25,7 +25,7 @@ from .hall_of_fame import load_entries as load_hall_of_fame
 from .hint_usage import HintUsageStore
 from .multidata import load_multidata, load_sanitized
 from .room_poller import RoomPoller
-from .session import SessionManager
+from .session import MAX_SLOTS_PER_BAG, SessionManager
 from .state import WorldState
 from .tracker import Tracker
 
@@ -38,7 +38,12 @@ class LoginBody(BaseModel):
     password: str = ""
 
 
+class SlotBody(BaseModel):
+    slot: str
+
+
 class HintBody(BaseModel):
+    slot: str  # which of the caller's connected slots to spend points from
     kind: str  # "item" | "location"
     target: str  # item or location name as the AP server expects it
 
@@ -227,36 +232,30 @@ def build_app(room: RoomConfig) -> FastAPI:
 
     # Live updates
 
-    def _slot_num_for_session(sid: str | None) -> int | None:
-        """Resolve a session cookie to its slot number, if logged in."""
-        if not sid:
-            return None
-        sess = sessions.get(sid)
-        if not sess:
-            return None
-        slot_info = world.multidata.slot_by_name(sess.slot)
-        return slot_info.slot if slot_info else None
+    def _slot_nums_for_bag(bag_id: str | None) -> set[int]:
+        """Resolve a session cookie to every slot number it's logged into."""
+        if not bag_id:
+            return set()
+        return {s.slot_num for s in sessions.bag_sessions(bag_id) if s.slot_num is not None}
 
     @app.websocket("/ws/live")
     async def ws_live(ws: WebSocket) -> None:
         await ws.accept()
         queue = world.subscribe()
         sid = ws.cookies.get("ap_session")
-        # Presence (the green dot) follows this socket's logged-in session. We hold
-        # the slot we last lit so we can both react to logout
-        # (session vanishes while the socket stays open) and always release on disconnect.
-        present_slot: int | None = None
+        # Presence follows this socket's logged-in slots; tracked so logout/disconnect can release them.
+        present_slots: set[int] = set()
 
         def sync_presence() -> None:
-            nonlocal present_slot
-            slot_num = _slot_num_for_session(sid)
-            if slot_num == present_slot:
+            nonlocal present_slots
+            slot_nums = _slot_nums_for_bag(sid)
+            if slot_nums == present_slots:
                 return
-            if present_slot is not None:
-                world.remove_presence(present_slot)
-            if slot_num is not None:
-                world.add_presence(slot_num)
-            present_slot = slot_num
+            for gone in present_slots - slot_nums:
+                world.remove_presence(gone)
+            for new in slot_nums - present_slots:
+                world.add_presence(new)
+            present_slots = slot_nums
 
         async def pump() -> None:
             await ws.send_json({"type": "snapshot", "snapshot": world.snapshot()})
@@ -294,40 +293,96 @@ def build_app(room: RoomConfig) -> FastAPI:
                 except (asyncio.CancelledError, Exception):
                     pass
             world.unsubscribe(queue)
-            if present_slot is not None:
-                world.remove_presence(present_slot)
+            for slot_num in present_slots:
+                world.remove_presence(slot_num)
 
-    # Auth + hints
+    # Auth + hints - a cookie ("bag") can hold several logged-in slots at once; see server/session.py.
+
+    def _me_payload(bag_id: str) -> dict[str, Any]:
+        slots = sessions.bag_sessions(bag_id)
+        if not slots:
+            return {"logged_in": False, "slots": []}
+        return {
+            "logged_in": True,
+            "slots": [
+                {
+                    "slot": s.slot,
+                    "slot_num": s.slot_num,
+                    "hint_points": s.hint_points,
+                    "last_text": s.last_text,
+                }
+                for s in slots
+            ],
+        }
 
     @app.post("/api/login")
-    async def api_login(body: LoginBody, response: Response) -> dict[str, Any]:
+    async def api_login(
+        body: LoginBody, response: Response, ap_session: str | None = Cookie(default=None)
+    ) -> dict[str, Any]:
         slot_info = world.multidata.slot_by_name(body.slot)
         if slot_info is None:
             raise HTTPException(404, f"unknown slot {body.slot!r}")
+        if ap_session:
+            # Fresh sign-in replaces whatever this browser was logged into before.
+            await sessions.logout_bag(ap_session)
         try:
-            sess = await sessions.login(body.slot, body.password, slot_info.game)
+            bag_id, _sess = await sessions.login(body.slot, body.password, slot_info.game)
         except PermissionError as e:
             raise HTTPException(401, str(e))
         except ConnectionError as e:
             raise HTTPException(503, str(e))
         response.set_cookie(
             "ap_session",
-            sess.sid,
+            bag_id,
             httponly=True,
             samesite="lax",
             max_age=60 * 60 * 8,
         )
+        return _me_payload(bag_id)
+
+    @app.post("/api/slots/add")
+    async def api_slots_add(body: SlotBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+        if not ap_session or not sessions.bag_sessions(ap_session):
+            raise HTTPException(401, "not logged in")
+        if sessions.get_in_bag(ap_session, body.slot) is not None:
+            raise HTTPException(409, "already connected to this slot")
+        if len(sessions.bag_sessions(ap_session)) >= MAX_SLOTS_PER_BAG:
+            raise HTTPException(400, f"can't connect more than {MAX_SLOTS_PER_BAG} slots at once")
+        slot_info = world.multidata.slot_by_name(body.slot)
+        if slot_info is None:
+            raise HTTPException(404, f"unknown slot {body.slot!r}")
+        try:
+            await sessions.add_slot(ap_session, body.slot, slot_info.game)
+        except PermissionError as e:
+            raise HTTPException(401, str(e))
+        except ConnectionError as e:
+            raise HTTPException(503, str(e))
+        return _me_payload(ap_session)
+
+    @app.get("/api/slots/available")
+    async def api_slots_available(ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+        connected = sessions.bag_slot_names(ap_session) if ap_session else set()
         return {
-            "ok": True,
-            "slot": sess.slot,
-            "game": slot_info.game,
-            "hint_points": sess.hint_points,
+            "slots": [
+                {"name": s.name, "connected": s.name in connected}
+                for s in sorted(world.slots.values(), key=lambda s: s.name)
+            ]
         }
+
+    @app.post("/api/slots/remove")
+    async def api_slots_remove(body: SlotBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+        if not ap_session:
+            raise HTTPException(401, "not logged in")
+        sess = sessions.get_in_bag(ap_session, body.slot)
+        if sess is None:
+            raise HTTPException(404, "not connected to this slot")
+        await sessions.logout_slot(sess.sid)
+        return _me_payload(ap_session)
 
     @app.post("/api/logout")
     async def api_logout(response: Response, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
         if ap_session:
-            await sessions.logout(ap_session)
+            await sessions.logout_bag(ap_session)
         response.delete_cookie("ap_session")
         return {"ok": True}
 
@@ -335,23 +390,21 @@ def build_app(room: RoomConfig) -> FastAPI:
     async def api_hint(body: HintBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
         if not ap_session:
             raise HTTPException(401, "not logged in")
-        sess = sessions.get(ap_session)
+        sess = sessions.get_in_bag(ap_session, body.slot)
         if not sess:
-            raise HTTPException(401, "session expired")
+            raise HTTPException(401, "not connected to that slot")
         if body.kind not in ("item", "location"):
             raise HTTPException(400, "kind must be 'item' or 'location'")
-        result = await sessions.send_hint(ap_session, body.kind, body.target)
+        result = await sessions.send_hint(sess.sid, body.kind, body.target)
         return {**result, "hint_points": sess.hint_points}
 
     @app.post("/api/hint_tag")
     async def api_hint_tag(body: HintTagBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
         if not ap_session:
             raise HTTPException(401, "not logged in")
-        slot_num = _slot_num_for_session(ap_session)
-        if slot_num is None:
-            raise HTTPException(401, "session expired")
+        my_slot_nums = _slot_nums_for_bag(ap_session)
         # Tags live on a receiver's "For my world" hints, so only the receiving slot may tag its own incoming items.
-        if slot_num != body.receiving_slot:
+        if body.receiving_slot not in my_slot_nums:
             raise HTTPException(403, "you can only tag hints for your own world")
         try:
             applied = world.set_hint_tag(
@@ -366,16 +419,8 @@ def build_app(room: RoomConfig) -> FastAPI:
     @app.get("/api/me")
     async def api_me(ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
         if not ap_session:
-            return {"logged_in": False}
-        sess = sessions.get(ap_session)
-        if not sess:
-            return {"logged_in": False}
-        return {
-            "logged_in": True,
-            "slot": sess.slot,
-            "hint_points": sess.hint_points,
-            "last_text": sess.last_text,
-        }
+            return {"logged_in": False, "slots": []}
+        return _me_payload(ap_session)
 
     # Static frontend
 

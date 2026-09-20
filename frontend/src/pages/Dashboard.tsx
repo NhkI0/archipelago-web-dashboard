@@ -29,18 +29,18 @@ export default function Dashboard() {
     );
   }, []);
 
-  // Open BKed hints that involve the logged-in slot: both the checks they're
-  // waiting on (as receiver) and the BKed checks sitting in their own world
-  // that they can go find to unblock someone else (as finder).
+  // Open BKed hints that involve any of the logged-in slots: both the checks
+  // they're waiting on (as receiver) and the BKed checks sitting in their own
+  // world that they can go find to unblock someone else (as finder).
   const bked = useMemo(() => {
     if (!snap || !me?.logged_in || !blockedTag) return [];
-    const mySlot = snap.slots.find((s) => s.name === me.slot)?.slot;
-    if (mySlot == null) return [];
+    const mySlotNums = new Set(me.slots.map((s) => s.slot_num).filter((n): n is number => n != null));
+    if (mySlotNums.size === 0) return [];
     const names = new Map(snap.slots.map((s) => [s.slot, s.name]));
     return snap.hints
-      .filter((h) => h.tag === blockedTag && !h.found && (h.receiving_slot === mySlot || h.finding_slot === mySlot))
+      .filter((h) => h.tag === blockedTag && !h.found && (mySlotNums.has(h.receiving_slot) || mySlotNums.has(h.finding_slot)))
       .map((h) => {
-        const mine = h.receiving_slot === mySlot; // true: I'm waiting; false: it's in my world for someone
+        const mine = mySlotNums.has(h.receiving_slot); // true: I'm waiting; false: it's in my world for someone
         return {
           ...h,
           mine,

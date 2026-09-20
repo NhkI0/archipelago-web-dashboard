@@ -134,11 +134,11 @@ def test_logout_of_observer_promotes_remaining_session(monkeypatch) -> None:
     monkeypatch.setattr("server.session.websockets.connect", _fake_connect_returning([ws_a, ws_b]))
 
     async def do() -> None:
-        sess_a = await mgr.login("Alice")
+        _bag_a, sess_a = await mgr.login("Alice")
         await asyncio.sleep(0)
         await mgr.login("Bob")
         await asyncio.sleep(0)
-        await mgr.logout(sess_a.sid)
+        await mgr.logout_slot(sess_a.sid)
 
         assert tracker.release_calls == 0  # Bob took over, Tracker was never asked
         assert any(m["cmd"] == "Get" for m in ws_b.sent)
@@ -154,9 +154,9 @@ def test_logout_of_last_session_releases_to_tracker(monkeypatch) -> None:
     monkeypatch.setattr("server.session.websockets.connect", _fake_connect_returning(ws))
 
     async def do() -> None:
-        sess = await mgr.login("Alice")
+        _bag, sess = await mgr.login("Alice")
         await asyncio.sleep(0)
-        await mgr.logout(sess.sid)
+        await mgr.logout_slot(sess.sid)
 
         assert tracker.release_calls == 1
         assert tracker.claimed is False

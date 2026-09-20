@@ -39,10 +39,14 @@ export default function Hints() {
   const [me, setMe] = useState<Me | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [detail, setDetail] = useState<SlotDetail | null>(null);
+  // Which logged-in slot the Item/Location/Received tabs are showing; local-only since /api/slot/{name} is public.
+  const [viewingSlot, setViewingSlot] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>((location.state as { tab?: Tab } | null)?.tab ?? "item");
   const [hintFilter, setHintFilter] = useState<HintFilter>("mine_for");
+  const [slotFilter, setSlotFilter] = useState<number | "all">("all");
   const [hideFound, setHideFound] = useState(false);
   const [sortByTag, setSortByTag] = useState(false);
+  const [sortBySlot, setSortBySlot] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -92,13 +96,23 @@ export default function Hints() {
     });
   }, []);
 
+  // Defaults to the first connected slot; falls back if it gets disconnected elsewhere.
   useEffect(() => {
-    if (me?.logged_in) api.slot(me.slot).then(setDetail);
+    if (!me?.logged_in) {
+      setViewingSlot(null);
+      return;
+    }
+    if (viewingSlot && me.slots.some((s) => s.slot === viewingSlot)) return;
+    setViewingSlot(me.slots[0]?.slot ?? null);
   }, [me]);
 
   useEffect(() => {
-    if (me?.logged_in && snap) api.slot(me.slot).then(setDetail);
-  }, [snap?.hints.length, me?.logged_in ? me.slot : null]);
+    if (viewingSlot) api.slot(viewingSlot).then(setDetail);
+  }, [viewingSlot]);
+
+  useEffect(() => {
+    if (viewingSlot && snap) api.slot(viewingSlot).then(setDetail);
+  }, [snap?.hints.length]);
 
   useEffect(() => {
     if (me && snap) markConnected();
@@ -109,6 +123,15 @@ export default function Hints() {
     if (snap) for (const s of snap.slots) m.set(s.slot, s.name);
     return m;
   }, [snap]);
+
+  // Every slot number this browser is logged into.
+  const mySlotNums = useMemo(() => {
+    if (!me?.logged_in) return new Set<number>();
+    return new Set(me.slots.map((s) => s.slot_num).filter((n): n is number => n != null));
+  }, [me]);
+
+  const myConnectedSlots = useMemo(() => (me?.logged_in ? me.slots : []), [me]);
+  const myHintPoints = myConnectedSlots.find((s) => s.slot === viewingSlot)?.hint_points ?? 0;
 
   const allItems = useMemo(() => {
     if (!detail) return [] as { name: string; count: number }[];
@@ -150,23 +173,28 @@ export default function Hints() {
 
   const visibleHints = useMemo(() => {
     if (!snap || !me || !me.logged_in) return [];
-    const mySlot = detail?.slot.slot;
     let list: Hint[] = snap.hints;
-    if (hintFilter === "mine_for") list = list.filter(h => h.receiving_slot === mySlot);
-    else if (hintFilter === "mine_in") list = list.filter(h => h.finding_slot === mySlot);
+    if (hintFilter === "mine_for") list = list.filter(h => mySlotNums.has(h.receiving_slot));
+    else if (hintFilter === "mine_in") list = list.filter(h => mySlotNums.has(h.finding_slot));
+    if (hintFilter !== "all" && slotFilter !== "all") {
+      list = list.filter(h => (hintFilter === "mine_for" ? h.receiving_slot : h.finding_slot) === slotFilter);
+    }
     if (hideFound) list = list.filter(h => !h.found);
     const q = search.toLowerCase();
     if (q) list = list.filter(h =>
       h.item_name.toLowerCase().includes(q) ||
       h.location_name.toLowerCase().includes(q)
     );
-    if (sortByTag) {
+    if (sortBySlot && hintFilter !== "all") {
+      const bySlot = hintFilter === "mine_for" ? (h: Hint) => h.receiving_slot : (h: Hint) => h.finding_slot;
+      list = [...list].sort((a, b) => bySlot(a) - bySlot(b));
+    } else if (sortByTag) {
       // Configured tag order first, untagged last. Stable within each group, so
       // the server's existing order is preserved among same-tag hints.
       list = [...list].sort((a, b) => tagRank(a.tag) - tagRank(b.tag));
     }
     return list;
-  }, [snap, me, detail, hintFilter, hideFound, search, sortByTag, tagRank]);
+  }, [snap, me, mySlotNums, hintFilter, slotFilter, hideFound, search, sortByTag, sortBySlot, tagRank]);
 
   if (me === null || snap === null) {
     return <LoadingScreen />;
@@ -205,10 +233,11 @@ export default function Hints() {
   }
 
   async function performSubmit(kind: "item" | "location", target: string): Promise<boolean> {
+    if (!viewingSlot) return false;
     setBusy(target);
     setError(null);
     try {
-      const r = await api.hint(kind, target);
+      const r = await api.hint(viewingSlot, kind, target);
       const failure = r.error || looksLikeFailure(r.reply);
       if (failure) {
         setError(failure);
@@ -219,7 +248,7 @@ export default function Hints() {
       // socket so the popup closes exactly when the same broadcast fires the
       // toast, not whenever this direct request happens to resolve.
       api.me().then(setMe);
-      if (me && me.logged_in) api.slot(me.slot).then(setDetail);
+      api.slot(viewingSlot).then(setDetail);
       return true;
     } catch (e: any) {
       setError(e.message || String(e));
@@ -250,10 +279,26 @@ export default function Hints() {
       <header className="flex flex-wrap items-end gap-6 border-b hair pb-8">
         <div>
           <div className="text-caption-up uppercase text-primary">{t("hints.kicker")}</div>
-          <h1 className="mt-2 text-display-sm sm:text-display-md text-ink">{me.slot}</h1>
+          <h1 className="mt-2 text-display-sm sm:text-display-md text-ink">{viewingSlot}</h1>
+          {myConnectedSlots.length > 1 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {myConnectedSlots.map((s) => (
+                <button
+                  key={s.slot}
+                  type="button"
+                  onClick={() => setViewingSlot(s.slot)}
+                  className={`h-7 rounded-pill px-3 text-caption-up uppercase tracking-wider transition-colors ${
+                    s.slot === viewingSlot ? "bg-primary text-white" : "bg-surface text-steel hover:text-ink"
+                  }`}
+                >
+                  {s.slot}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="ml-auto flex flex-wrap items-end gap-x-8 gap-y-3 text-body-sm">
-          <Stat label={t("slot.hint_pts")} value={String(me.hint_points)} />
+          <Stat label={t("slot.hint_pts")} value={String(myHintPoints)} />
           {detail && <Stat label={t("slot.checks")} value={`${detail.slot.checked} / ${detail.slot.total}`} />}
           {detail && <Stat label={t("slot.open_hints")} value={String(detail.slot.open_hints)} />}
         </div>
@@ -263,14 +308,14 @@ export default function Hints() {
         const total = detail?.slot.total ?? 0;
         const pct = snap.hint_cost ?? 10;
         const cost = Math.ceil((pct / 100) * total);
-        const affordable = cost > 0 ? Math.floor(me.hint_points / cost) : 0;
+        const affordable = cost > 0 ? Math.floor(myHintPoints / cost) : 0;
         return (
           <div className="mt-6 flex flex-wrap items-center gap-4 rounded-lg bg-surface px-5 py-4 transition-colors duration-300">
             <div className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-pill bg-primary" />
               <span className="text-body-sm text-charcoal">
                 {t("hints.banner.cost")} <span className="font-medium text-ink">{cost} pts</span>
-                {" · "}{t("hints.banner.balance")} <span className="font-medium text-ink">{me.hint_points} pts</span>
+                {" · "}{t("hints.banner.balance")} <span className="font-medium text-ink">{myHintPoints} pts</span>
               </span>
             </div>
             <div className="ml-auto text-body-sm text-slate">
@@ -358,11 +403,19 @@ export default function Hints() {
         {tab === "hints" && (
           <div>
             <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b hair-soft">
-              <SubTab active={hintFilter === "mine_for"} onClick={() => setHintFilter("mine_for")}>{t("hints.subtab.mine_for")}</SubTab>
-              <SubTab active={hintFilter === "mine_in"} onClick={() => setHintFilter("mine_in")}>{t("hints.subtab.mine_in")}</SubTab>
-              <SubTab active={hintFilter === "all"} onClick={() => setHintFilter("all")}>{t("hints.subtab.all")}</SubTab>
+              <SubTab active={hintFilter === "mine_for"} onClick={() => { setHintFilter("mine_for"); setSlotFilter("all"); }}>{t("hints.subtab.mine_for")}</SubTab>
+              <SubTab active={hintFilter === "mine_in"} onClick={() => { setHintFilter("mine_in"); setSlotFilter("all"); }}>{t("hints.subtab.mine_in")}</SubTab>
+              <SubTab active={hintFilter === "all"} onClick={() => { setHintFilter("all"); setSlotFilter("all"); }}>{t("hints.subtab.all")}</SubTab>
+              {myConnectedSlots.length > 1 && (
+                <Toggle
+                  className="ml-auto"
+                  label={t("hints.toggle.sort_slot")}
+                  checked={sortBySlot}
+                  onChange={setSortBySlot}
+                />
+              )}
               <Toggle
-                className="ml-auto"
+                className={myConnectedSlots.length > 1 ? undefined : "ml-auto"}
                 label={t("hints.toggle.sort_tag")}
                 checked={sortByTag}
                 onChange={setSortByTag}
@@ -373,6 +426,16 @@ export default function Hints() {
                 onChange={setHideFound}
               />
             </div>
+            {hintFilter !== "all" && myConnectedSlots.length > 1 && (
+              <div className="flex flex-wrap gap-2 px-4 py-3 border-b hair-soft">
+                <SubTab active={slotFilter === "all"} onClick={() => setSlotFilter("all")}>{t("hints.slotfilter.all")}</SubTab>
+                {myConnectedSlots.map((s) => (
+                  <SubTab key={s.slot} active={slotFilter === s.slot_num} onClick={() => s.slot_num != null && setSlotFilter(s.slot_num)}>
+                    {s.slot}
+                  </SubTab>
+                ))}
+              </div>
+            )}
             <div className="hidden sm:grid grid-cols-[1fr_1fr_160px_136px_72px] gap-x-4 px-4 py-2 text-caption-up uppercase text-steel border-b hair-soft">
               <div>{t("hints.col.item")}</div>
               <div>{t("hints.col.location")}</div>
@@ -384,7 +447,7 @@ export default function Hints() {
               {visibleHints.map((h, i) => {
                 const finder = slotNames.get(h.finding_slot) ?? `slot ${h.finding_slot}`;
                 const receiver = slotNames.get(h.receiving_slot) ?? `slot ${h.receiving_slot}`;
-                const canTag = me.logged_in && h.receiving_slot === detail?.slot.slot;
+                const canTag = mySlotNums.has(h.receiving_slot);
                 return (
                   <li
                     key={`${h.finding_slot}:${h.receiving_slot}:${h.item_id}:${h.location_id}:${i}`}
@@ -447,7 +510,7 @@ export default function Hints() {
         const total = detail?.slot.total ?? 0;
         const pct = snap.hint_cost ?? 10;
         const cost = Math.ceil((pct / 100) * total);
-        const enough = me.hint_points >= cost;
+        const enough = myHintPoints >= cost;
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-inkDeep/40 p-4"
@@ -463,8 +526,8 @@ export default function Hints() {
               </p>
               <div className="mt-4 grid grid-cols-3 gap-3 text-body-sm">
                 <Stat label={t("hints.confirm.cost")} value={`~${cost}`} />
-                <Stat label={t("hints.confirm.balance")} value={String(me.hint_points)} />
-                <Stat label={t("hints.confirm.after")} value={enough ? String(me.hint_points - cost) : "-"} />
+                <Stat label={t("hints.confirm.balance")} value={String(myHintPoints)} />
+                <Stat label={t("hints.confirm.after")} value={enough ? String(myHintPoints - cost) : "-"} />
               </div>
               <div className="mt-3 text-body-sm text-steel">
                 {t("hints.confirm.note", { pct })}

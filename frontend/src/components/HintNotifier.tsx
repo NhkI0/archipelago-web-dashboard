@@ -17,7 +17,7 @@ export default function HintNotifier() {
   const nav = useNavigate();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seen = useRef<Set<string>>(new Set());
-  const mySlot = useRef<number | null>(null);
+  const mySlots = useRef<Set<number>>(new Set());
   const slotNames = useRef<Map<number, string>>(new Map());
   const initial = useRef<boolean>(true);
   const counter = useRef<number>(0);
@@ -43,7 +43,7 @@ export default function HintNotifier() {
     for (const h of snap.hints) {
       const k = hintKey(h);
       if (!seen.current.has(k)) {
-        if (!initial.current && mySlot.current !== null && h.receiving_slot === mySlot.current) {
+        if (!initial.current && mySlots.current.has(h.receiving_slot)) {
           const finder = slotNames.current.get(h.finding_slot) ?? `slot ${h.finding_slot}`;
           notify(t("notify.hint_for_you", { item: h.item_name, finder, loc: h.location_name }));
           emitNewHintForMe();
@@ -57,26 +57,26 @@ export default function HintNotifier() {
   useEffect(() => {
     let cancelled = false;
 
-    function resolveMySlot(slots: { slot: number; name: string }[]) {
+    function resolveMySlots(slots: { slot: number; name: string }[]) {
       // Re-checked on every event while unresolved, since login typically
       // happens well after this component mounts (it lives at the App shell
       // level): a one-time check at mount would miss it.
-      if (mySlot.current !== null) return Promise.resolve();
+      if (mySlots.current.size > 0) return Promise.resolve();
       return api.me().then((m) => {
         if (cancelled || !m.logged_in) return;
-        const found = slots.find((sl) => sl.name === m.slot);
-        mySlot.current = found?.slot ?? null;
+        const myNames = new Set(m.slots.map((s) => s.slot));
+        mySlots.current = new Set(slots.filter((sl) => myNames.has(sl.name)).map((sl) => sl.slot));
       });
     }
 
     api.state().then((s) => {
       if (cancelled) return;
-      resolveMySlot(s.slots).then(() => !cancelled && ingestSnapshot(s));
+      resolveMySlots(s.slots).then(() => !cancelled && ingestSnapshot(s));
     });
 
     const stop = liveSocket((e) => {
       if (!e?.snapshot) return;
-      resolveMySlot(e.snapshot.slots).then(() => !cancelled && ingestSnapshot(e.snapshot));
+      resolveMySlots(e.snapshot.slots).then(() => !cancelled && ingestSnapshot(e.snapshot));
     });
 
     return () => {

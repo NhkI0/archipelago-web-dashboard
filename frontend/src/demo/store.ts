@@ -6,12 +6,14 @@
 import { DEFAULT_CONFIG } from "../config";
 import { HALL_OF_FAME } from "./hallOfFame";
 import {
+  AvailableSlot,
   Deaths,
   HallOfFameEntry,
   Hint,
   HintTag,
   LoginError,
   Me,
+  MySlot,
   SiteConfig,
   Slot,
   SlotDetail,
@@ -63,11 +65,21 @@ function h(finding: number, receiving: number, item: string, loc: string, found:
   };
 }
 
-let currentSlot: string | null = null;
+// Demo login supports several slots at once, mirroring the real backend's bag.
+let currentSlots: string[] = [];
 const listeners = new Set<(e: unknown) => void>();
 
 function baseOf(name: string): Base | undefined {
   return BASE.find((b) => b.name === name);
+}
+
+function mySlotOf(b: Base): MySlot {
+  return { slot: b.name, slot_num: b.slot, hint_points: b.hint_points, last_text: "" };
+}
+
+function meObj(): Me {
+  const slots = currentSlots.map(baseOf).filter((b): b is Base => !!b).map(mySlotOf);
+  return slots.length > 0 ? { logged_in: true, slots } : { logged_in: false, slots: [] };
 }
 
 function openHintsFor(slot: number): number {
@@ -83,7 +95,7 @@ function slotObj(b: Base): Slot {
     checked: b.checked,
     remaining: Math.max(0, b.total - b.checked),
     percent: b.total ? (100 * b.checked) / b.total : 0,
-    online: currentSlot === b.name,
+    online: currentSlots.includes(b.name),
     hint_points: b.hint_points,
     goal_completed: b.checked >= b.total,
     open_hints: openHintsFor(b.slot),
@@ -178,27 +190,40 @@ export const demoApi = {
     ],
   }),
   slot: async (name: string): Promise<SlotDetail> => detail(name),
-  me: async (): Promise<Me> =>
-    currentSlot
-      ? { logged_in: true, slot: currentSlot, hint_points: baseOf(currentSlot)?.hint_points ?? 0, last_text: "" }
-      : { logged_in: false },
+  me: async (): Promise<Me> => meObj(),
   login: async (slot: string, _password: string) => {
     const b = baseOf(slot);
     if (!b) throw new LoginError(404, "invalid_slot", "No slot found with that name.");
-    currentSlot = slot;
+    currentSlots = [slot];
     emit("room_update");
-    return { ok: true as const, slot, game: b.game, hint_points: b.hint_points };
+    return meObj() as Extract<Me, { logged_in: true }>;
   },
   logout: async () => {
-    currentSlot = null;
+    currentSlots = [];
     emit("room_update");
     return { ok: true };
   },
+  slotsAvailable: async (): Promise<{ slots: AvailableSlot[] }> => ({
+    slots: BASE.map((b) => ({ name: b.name, connected: currentSlots.includes(b.name) })),
+  }),
+  slotsAdd: async (slot: string) => {
+    const b = baseOf(slot);
+    if (!b) throw new LoginError(404, "invalid_slot", "No slot found with that name.");
+    if (!currentSlots.includes(slot)) currentSlots = [...currentSlots, slot];
+    emit("room_update");
+    return meObj() as Extract<Me, { logged_in: true }>;
+  },
+  slotsRemove: async (slot: string): Promise<Me> => {
+    currentSlots = currentSlots.filter((s) => s !== slot);
+    emit("room_update");
+    return meObj();
+  },
   hint: async (
+    slot: string,
     kind: "item" | "location",
     target: string,
   ): Promise<{ ok: boolean; reply?: string; queued?: boolean; hint_points: number; error?: string }> => {
-    const b = currentSlot ? baseOf(currentSlot) : undefined;
+    const b = baseOf(slot);
     const me = b?.slot ?? 1;
     const other = BASE.find((x) => x.slot !== me)?.slot ?? me;
     const rec =
