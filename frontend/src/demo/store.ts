@@ -109,7 +109,6 @@ function snapshot(): Snapshot {
     slots,
     hints,
     hint_cost: HINT_COST,
-    hint_points_estimated: false,
     server: { host: "demo.archipelago.local", port: 38281, connected: true },
     totals: {
       total_locations: slots.reduce((a, s) => a + s.total, 0),
@@ -171,7 +170,6 @@ function detail(name: string): SlotDetail {
     hints: hints.filter((x) => x.finding_slot === s.slot || x.receiving_slot === s.slot),
     available_items: availableFor(s.game),
     received_items,
-    hint_points_estimated: false,
   };
 }
 
