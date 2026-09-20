@@ -121,7 +121,7 @@ def test_session_close_decrements_active_sessions_exactly_once(tmp_path) -> None
 
     # logout() afterwards must not decrement a second time.
     mgr._sessions[sess.sid] = sess
-    asyncio.run(mgr.logout(sess.sid))
+    asyncio.run(mgr.logout_slot(sess.sid))
     assert counter.active_sessions == 0
 
 
@@ -140,7 +140,7 @@ def test_login_tags_deathlink_connect_for_a_deathlink_enabled_slot(monkeypatch: 
     # Asserted inside the coroutine: asyncio.run()'s shutdown cancels the
     # spawned _pump task, which would otherwise flip sess.deathlink back off.
     async def do_login() -> tuple[Session, list, bool, int]:
-        sess = await mgr.login("Alice")
+        _bag, sess = await mgr.login("Alice")
         return sess, fake_ws.sent[0]["tags"], sess.deathlink, counter.active_sessions
 
     sess, tags, deathlink_flag, active = asyncio.run(do_login())
@@ -163,7 +163,7 @@ def test_login_does_not_tag_deathlink_for_a_non_deathlink_slot(monkeypatch: pyte
     monkeypatch.setattr("server.session.websockets.connect", fake_connect)
 
     async def do_login() -> tuple[list, bool, int]:
-        sess = await mgr.login("Bob")
+        _bag, sess = await mgr.login("Bob")
         return fake_ws.sent[0]["tags"], sess.deathlink, counter.active_sessions
 
     tags, deathlink_flag, active = asyncio.run(do_login())
@@ -187,7 +187,7 @@ def test_login_does_not_tag_deathlink_without_a_counter(monkeypatch: pytest.Monk
     monkeypatch.setattr("server.session.websockets.connect", fake_connect)
 
     async def do_login() -> tuple[list, bool]:
-        sess = await mgr.login("Alice")
+        _bag, sess = await mgr.login("Alice")
         return fake_ws.sent[0]["tags"], sess.deathlink
 
     tags, deathlink_flag = asyncio.run(do_login())

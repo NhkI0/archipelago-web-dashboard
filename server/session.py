@@ -1,13 +1,13 @@
 """
 Per-browser AP WebSocket sessions.
 
-When a player logs in via /api/login the backend opens a dedicated AP WS as
-that slot, keeps it open, and returns a session id. /api/hint uses the open
-socket to issue `!hint <item>` / `!hint_location <location>` chat commands;
-the AP server charges them to the slot's hint points and broadcasts the
-result, which the persistent Tracker connection picks up.
+A browser cookie ("bag") can hold several logged-in slots at once, each its
+own AP WebSocket connection, reusing one cached room password across all of
+them. /api/hint issues `!hint <item>` / `!hint_location <location>` chat
+commands on a given slot's socket; the AP server charges its hint points and
+broadcasts the result, which the persistent Tracker connection picks up.
 
-When `world` is given, this connection also feeds its own slot's checks and
+When `world` is given, each connection also feeds its own slot's checks and
 received items into `WorldState` live instead of waiting on RoomPoller's poll
 cycle (a harmless no-op duplicate in self-hosted mode).
 
@@ -74,6 +74,7 @@ class Session:
     sid: str
     slot: str
     ws: "websockets.WebSocketClientProtocol"
+    bag_id: str = ""  # the browser cookie this connection belongs to
     inbox: asyncio.Queue = field(default_factory=lambda: asyncio.Queue(maxsize=64))
     hint_points: int = 0
     last_text: str = ""
@@ -85,6 +86,10 @@ class Session:
             await self.ws.close()
         except Exception:
             pass
+
+
+# Bounds how many AP sockets one browser cookie can spin up.
+MAX_SLOTS_PER_BAG = 8
 
 
 class SessionManager:
@@ -100,7 +105,9 @@ class SessionManager:
         deathlink: "DeathLinkCounter | None" = None,
     ) -> None:
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
-        self._sessions: dict[str, Session] = {}
+        self._sessions: dict[str, Session] = {}  # per-connection sid -> Session
+        self._bags: dict[str, list[str]] = {}  # bag id (cookie value) -> [connection sid, ...]
+        self._bag_password: dict[str, str] = {}  # bag id -> room password, cached from the first login
         self._lock = asyncio.Lock()
         self.multidata = multidata
         self.hint_usage = hint_usage  # archipelago.gg rooms only; see hint_usage.py
@@ -111,6 +118,35 @@ class SessionManager:
 
     def get(self, sid: str) -> Session | None:
         return self._sessions.get(sid)
+
+    def bag_sessions(self, bag_id: str) -> list[Session]:
+        """Every slot connection currently open under this browser cookie."""
+        out = []
+        for sid in self._bags.get(bag_id, []):
+            sess = self._sessions.get(sid)
+            if sess is not None:
+                out.append(sess)
+        return out
+
+    def bag_slot_names(self, bag_id: str) -> set[str]:
+        return {s.slot for s in self.bag_sessions(bag_id)}
+
+    def get_in_bag(self, bag_id: str, slot: str) -> Session | None:
+        for sid in self._bags.get(bag_id, []):
+            sess = self._sessions.get(sid)
+            if sess is not None and sess.slot == slot:
+                return sess
+        return None
+
+    def _forget(self, sess: Session) -> None:
+        """Drop one connection from both the sid table and its bag."""
+        self._sessions.pop(sess.sid, None)
+        bag_list = self._bags.get(sess.bag_id)
+        if bag_list and sess.sid in bag_list:
+            bag_list.remove(sess.sid)
+            if not bag_list:
+                del self._bags[sess.bag_id]
+                self._bag_password.pop(sess.bag_id, None)
 
     async def _send_hint_status_subscription(self, sess: Session) -> None:
         """Upgrade this session to full observer duty: subscribe to every
@@ -137,7 +173,8 @@ class SessionManager:
         elif self.tracker is not None:
             await self.tracker.release_observer()
 
-    async def login(self, slot: str, password: str = "", game: str = "") -> Session:
+    async def login(self, slot: str, password: str = "", game: str = "", bag_id: str | None = None) -> tuple[str, Session]:
+        """Open one slot connection; without `bag_id` mints a fresh bag, with one it joins that bag."""
         # Decided up front so the tag rides the initial Connect, not a follow-up.
         slot_info = self.multidata.slot_by_name(slot) if self.multidata else None
         wants_deathlink = (
@@ -175,13 +212,16 @@ class SessionManager:
             cmd = packet.get("cmd")
             if cmd == "Connected":
                 sid = secrets.token_urlsafe(24)
+                resolved_bag_id = bag_id or secrets.token_urlsafe(24)
                 # hint_points sometimes ships on Connected; otherwise it lands
                 # on the next RoomUpdate.
                 hp = int(packet.get("hint_points", 0) or 0)
-                sess = Session(sid=sid, slot=slot, ws=ws, hint_points=hp,
+                sess = Session(sid=sid, slot=slot, ws=ws, bag_id=resolved_bag_id, hint_points=hp,
                                 slot_num=slot_info.slot if slot_info else None,
                                 deathlink=wants_deathlink)
                 self._sessions[sid] = sess
+                self._bags.setdefault(resolved_bag_id, []).append(sid)
+                self._bag_password[resolved_bag_id] = password
                 if self.world is not None and sess.slot_num is not None:
                     cl = packet.get("checked_locations")
                     if isinstance(cl, list):
@@ -193,7 +233,7 @@ class SessionManager:
                     if await self.tracker.try_claim_observer():
                         self._observer_sid = sid
                         await self._send_hint_status_subscription(sess)
-                return sess
+                return resolved_bag_id, sess
             if cmd == "ConnectionRefused":
                 await ws.close()
                 raise PermissionError(", ".join(packet.get("errors", []) or ["refused"]))
@@ -201,12 +241,25 @@ class SessionManager:
         await ws.close()
         raise PermissionError("unexpected reply from server")
 
-    async def logout(self, sid: str) -> None:
-        sess = self._sessions.pop(sid, None)
+    async def add_slot(self, bag_id: str, slot: str, game: str = "") -> Session:
+        """Log another slot into an already-logged-in bag, reusing its cached room password."""
+        password = self._bag_password.get(bag_id, "")
+        _, sess = await self.login(slot, password, game, bag_id=bag_id)
+        return sess
+
+    async def logout_slot(self, sid: str) -> None:
+        """Close one slot connection (used for both single-slot removal and,
+        by `logout_bag`, a full logout)."""
+        sess = self._sessions.get(sid)
         if sess:
             self._note_deathlink_session_closed(sess)
+            self._forget(sess)
             await sess.close()
         await self._handle_session_gone(sid)
+
+    async def logout_bag(self, bag_id: str) -> None:
+        for sid in list(self._bags.get(bag_id, [])):
+            await self.logout_slot(sid)
 
     def _note_deathlink_session_closed(self, sess: Session) -> None:
         # Idempotent (clears sess.deathlink) so both logout() and _pump()'s
@@ -329,6 +382,6 @@ class SessionManager:
         except Exception as e:
             log.info("session %s closed: %s", sess.sid[:8], e)
         finally:
-            self._sessions.pop(sess.sid, None)
+            self._forget(sess)
             await self._handle_session_gone(sess.sid)
             self._note_deathlink_session_closed(sess)

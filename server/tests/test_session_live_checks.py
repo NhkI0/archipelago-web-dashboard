@@ -195,7 +195,7 @@ def test_login_seeds_initial_checks_into_world(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr("server.session.websockets.connect", fake_connect)
 
     async def do_login() -> Session:
-        sess = await mgr.login("Alice")
+        _bag, sess = await mgr.login("Alice")
         await asyncio.sleep(0)  # let the just-spawned _pump task run once
         return sess
 
