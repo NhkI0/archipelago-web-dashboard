@@ -49,6 +49,12 @@ All this found in ``config.toml``:
 ### Drag and drop
 - Once everything is setup you just have to drag and drop your ``.archipelago`` (and ``host.yaml`` if locally hosting) and run the starting script corresponding to your operating system to launch the dashboard.
 
+### Admin panel (swap the running multiworld without touching the server)
+- Set ``[admin].enabled = true`` and pick an ``[admin].password`` in ``config.toml`` (separate from your AP server password), then open ``/admin`` and sign in.
+- Upload a new ``.archipelago``/``.zip`` there (and, if you're not running your own local server with a ``host.yaml``, the new host/port/password/room URL too) to replace the game in progress. The dashboard restarts itself to pick it up: a few seconds of downtime, but nothing else to run by hand.
+- The previous death/received-items/hint-tag logs are archived (renamed with a timestamp) rather than deleted, so a fresh game starts with clean state without losing the old one's history.
+- Disabled by default; both fields are ignored unless ``enabled = true``.
+
 ## SETUP (step by step)
 ### 0. Prerequisites
 If you don't have it installed yet on your device, [install npm and Node.js](https://nodejs.org/en/download).<br>

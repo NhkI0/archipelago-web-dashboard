@@ -23,6 +23,9 @@ password = ""                  # optional; better to let it read from host.yaml 
 # pick a DeathLink slot if you want both.
 # Blank = auto (goaled+DeathLink slot, else DeathLink, else first).
 default_slot = ""
+# Only read when no host.yaml is found (remote mode); host.yaml's own hint
+# cost always wins when present. Leave commented out / unset to omit it.
+# hint_cost_override = 10
 
 # Used ONLY when no host.yaml is found next to your .archipelago file;
 # you're not hosting the multiworld yourself, just watching one that's running
@@ -61,6 +64,12 @@ right = "Have fun guys :)"
 hall_of_fame      = true       # show the Hall of Fame page + nav link
 death_leaderboard = true       # show the death leaderboard on the dashboard
 constellation     = true       # show the multiworld constellation map
+
+# Lets whoever knows `password` swap the running multiworld from a /admin page,
+# no server access needed. Disabled (both fields ignored) unless enabled = true.
+[admin]
+enabled  = false
+password = ""
 
 # Hint tags players can pin on hints. Toggle built-ins by removing them, or add your own.
 # `blocked_tag` designates which tag drives the dashboard "BKed checks" panel, set it to "" to hide that panel entirely.
