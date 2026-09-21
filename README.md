@@ -55,6 +55,13 @@ All this found in ``config.toml``:
 - The previous death/received-items/hint-tag logs are archived (renamed with a timestamp) rather than deleted, so a fresh game starts with clean state without losing the old one's history.
 - Disabled by default; both fields are ignored unless ``enabled = true``.
 
+### Tracker (Universal Tracker integration)
+- Adds a "Tracker" tab showing, per slot, how many remaining locations are currently reachable in logic.
+- Runs [Universal Tracker](https://github.com/FarisTheAncient/Archipelago/releases?q=Tracker) on demand, only when a logged-in player hits "Run tracker" for their own slot.
+- Needs an Archipelago install on this machine with the Universal Tracker apworld and each relevant game's apworld installed.
+- Each player uploads their own generation YAML from the tab, once logged in. Uploads land in that Archipelago install's own `Players/` folder (where Universal Tracker actually reads YAMLs from, not an arbitrary path), so a slot whose YAML is already sitting there needs no upload.
+- Turn it on with `[tracker].enabled = true` and `[tracker].launcher` in `config.toml`. **Self-hosted only**.
+
 ## SETUP (step by step)
 ### 0. Prerequisites
 If you don't have it installed yet on your device, [install npm and Node.js](https://nodejs.org/en/download).<br>

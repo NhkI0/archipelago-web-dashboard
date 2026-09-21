@@ -91,6 +91,17 @@ DEFAULTS: dict[str, Any] = {
         "enabled": False,
         "password": "",
     },
+    "tracker": {
+        # Gates the /tracker tab + /api/tracker/* endpoints; self-hosted only.
+        "enabled": False,
+        "launcher": "",         # path to ArchipelagoLauncherDebug.exe or ArchipelagoLauncher.py
+        "python_bin": "python",  # only used when launcher ends in .py
+        # Where uploaded per-slot YAML files go. Universal Tracker reads YAMLs
+        # from the Archipelago install's own Players/ folder, not an arbitrary
+        # path, so "" (default) resolves to <launcher's folder>/Players.
+        "yaml_dir": "",
+        "timeout_seconds": 45,  # a run spawns a full AP client; give it time
+    },
     "hints": {
         # Which tag drives the dashboard "BKed checks" panel; "" hides it.
         "blocked_tag": "bked",
@@ -208,6 +219,10 @@ class RoomConfig:
     hints_used_file: pathlib.Path | None = None  # local hint-spend counter, polling mode only
     default_slot: str = ""  # preferred slot for Tracker's placeholder observer connection
     config_path: pathlib.Path | None = None  # self-hosted mode only: where config.toml was loaded from
+    ut_launcher: pathlib.Path | None = None  # Universal Tracker feature: None when disabled/unset
+    ut_python_bin: str = "python"
+    ut_yaml_dir: pathlib.Path = pathlib.Path(".")  # resolved in resolve_room_config()
+    ut_timeout: float = 45.0
 
 
 def _read_server_options_from_host_yaml(path: str) -> dict[str, str]:
@@ -386,6 +401,17 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         log.info("server password loaded (%d chars)", len(ap_password))
     log.info("connecting to %s:%s (%s)", ap_host, ap_port, "wss" if ap_secure else "ws")
 
+    ut_launcher = pathlib.Path(cfg["tracker"]["launcher"]) if cfg["tracker"].get("launcher") else None
+    ut_yaml_dir_cfg = cfg["tracker"].get("yaml_dir") or ""
+    if ut_yaml_dir_cfg:
+        ut_yaml_dir = pathlib.Path(ut_yaml_dir_cfg)
+    elif ut_launcher is not None:
+        # Universal Tracker reads YAMLs from the Archipelago install's own
+        # Players/ folder, not an arbitrary path we can point it at.
+        ut_yaml_dir = ut_launcher.parent / "Players"
+    else:
+        ut_yaml_dir = pathlib.Path(".")
+
     return RoomConfig(
         config=cfg,
         ap_file=ap_file,
@@ -407,6 +433,10 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         hints_used_file=pathlib.Path(os.environ.get("HINTS_USED_FILE") or str(data_dir / "hints_used_polling.json")),
         default_slot=cfg["server"]["default_slot"],
         config_path=config_path,
+        ut_launcher=ut_launcher,
+        ut_python_bin=str(cfg["tracker"].get("python_bin") or "python"),
+        ut_yaml_dir=ut_yaml_dir,
+        ut_timeout=float(cfg["tracker"].get("timeout_seconds") or 45),
     )
 
 
@@ -419,6 +449,7 @@ def public_config(cfg: dict[str, Any]) -> dict[str, Any]:
         "branding": dict(cfg["branding"]),
         "footer": dict(cfg["footer"]),
         "features": dict(cfg["features"]),
+        "tracker": {"enabled": bool(cfg["tracker"]["enabled"])},
         "hints": {
             "blocked_tag": cfg["hints"]["blocked_tag"],
             "tags": [dict(t) for t in cfg["hints"]["tags"]],
