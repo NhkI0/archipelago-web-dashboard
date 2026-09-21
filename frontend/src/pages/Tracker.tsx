@@ -1,5 +1,5 @@
 import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Me, TrackerMineSlot, TrackerResult, api, trackerApi } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
@@ -7,6 +7,7 @@ import { useT } from "../i18n";
 
 export default function Tracker() {
   const { t } = useT();
+  const location = useLocation();
   const [me, setMe] = useState<Me | null>(null);
   const [mine, setMine] = useState<TrackerMineSlot[] | null>(null);
   const [disabled, setDisabled] = useState(false);
@@ -108,6 +109,7 @@ export default function Tracker() {
         <p className="mt-2 text-body-sm text-slate">{t("tracker.signin_body")}</p>
         <Link
           to="/login"
+          state={{ from: location.pathname }}
           className="mt-6 inline-flex h-10 items-center rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active"
         >
           {t("nav.signin")}
