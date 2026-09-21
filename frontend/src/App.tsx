@@ -4,6 +4,7 @@ import TopNav from "./components/TopNav";
 import Dashboard from "./pages/Dashboard";
 import SlotDetail from "./pages/SlotDetail";
 import Hints from "./pages/Hints";
+import Tracker from "./pages/Tracker";
 import HallOfFame from "./pages/HallOfFame";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
@@ -45,6 +46,7 @@ function Shell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/slot/:name" element={<SlotDetail />} />
           <Route path="/hints" element={<Hints />} />
+          {config.tracker.enabled && <Route path="/tracker" element={<Tracker />} />}
           {config.features.hall_of_fame && <Route path="/hall-of-fame" element={<HallOfFame />} />}
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<Admin />} />

@@ -33,7 +33,7 @@ default_slot = ""
 [server.remote]
 host = ""              # e.g. "archipelago.gg", leave blank if you host locally
 port = 38281
-password = ""          # room password, if the remote server has one
+password = ""          # room password, if the remote server has one (also needed for the tracker)
 tls = true              # public rooms (archipelago.gg included) need this on; turn off only for a plain ws:// remote server
 
 # Room on archipelago.gg? Paste its URL here instead of host/port/tls above
@@ -70,6 +70,20 @@ constellation     = true       # show the multiworld constellation map
 [admin]
 enabled  = false
 password = ""
+
+# Adds a "Tracker" tab showing which of a slot's remaining locations are currently reachable in logic.
+# Needs an Archipelago install on this machine with the Universal Tracker apworld installed.
+# Self-hosted only.
+# Each player uploads their own generation YAML from the tab.
+[tracker]
+enabled = true
+launcher = "C:\\ProgramData\\Archipelago\\ArchipelagoLauncherDebug.exe"
+python_bin = "python"          # only used when launcher ends in .py
+# Where uploaded per-slot YAML files go.
+# Universal Tracker reads YAMLs from the Archipelago install's own Players/ folder, not an arbitrary path, 
+# so leave this blank to default to <launcher's folder>/Players.
+yaml_dir = ""
+timeout_seconds = 45          # a run spawns a full AP client; give it time
 
 # Hint tags players can pin on hints. Toggle built-ins by removing them, or add your own.
 # `blocked_tag` designates which tag drives the dashboard "BKed checks" panel, set it to "" to hide that panel entirely.

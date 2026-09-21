@@ -94,6 +94,9 @@ export default function TopNav() {
         <nav className="ml-10 hidden items-center gap-7 md:flex">
           <NavLink to="/" end className={linkClass}>{t("nav.dashboard")}</NavLink>
           <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
+          {config.tracker.enabled && (
+            <NavLink to="/tracker" className={linkClass}>{t("nav.tracker")}</NavLink>
+          )}
           {config.features.hall_of_fame && (
             <NavLink to="/hall-of-fame" className={linkClass}>{t("nav.hof")}</NavLink>
           )}
@@ -117,6 +120,7 @@ export default function TopNav() {
           ) : (
             <Link
               to="/login"
+              state={{ from: location.pathname }}
               className="hidden sm:inline-flex h-9 items-center rounded-md bg-primary px-4 text-btn text-white hover:bg-primary-active"
             >
               {t("nav.signin")}
@@ -218,6 +222,9 @@ export default function TopNav() {
           <nav className="flex flex-col gap-3">
             <NavLink to="/" end className={linkClass} onClick={() => setOpen(false)}>{t("nav.dashboard")}</NavLink>
             <NavLink to="/hints" className={linkClass} onClick={() => setOpen(false)}>{t("nav.hints")}</NavLink>
+            {config.tracker.enabled && (
+              <NavLink to="/tracker" className={linkClass} onClick={() => setOpen(false)}>{t("nav.tracker")}</NavLink>
+            )}
             {config.features.hall_of_fame && (
               <NavLink to="/hall-of-fame" className={linkClass} onClick={() => setOpen(false)}>{t("nav.hof")}</NavLink>
             )}
@@ -272,6 +279,7 @@ export default function TopNav() {
             ) : (
               <Link
                 to="/login"
+                state={{ from: location.pathname }}
                 onClick={() => setOpen(false)}
                 className="h-9 self-start inline-flex items-center rounded-md bg-primary px-4 text-btn text-white hover:bg-primary-active"
               >
