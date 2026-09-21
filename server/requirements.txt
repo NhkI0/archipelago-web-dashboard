@@ -4,3 +4,4 @@ websockets>=12
 pydantic>=2
 aiohttp>=3.9
 tomlkit>=0.12
+python-multipart>=0.0.9
