@@ -14,7 +14,7 @@ from collections import Counter
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
-from fastapi import Cookie, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import Cookie, FastAPI, File, Form, HTTPException, Response, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -28,6 +28,7 @@ from .room_poller import RoomPoller
 from .session import MAX_SLOTS_PER_BAG, SessionManager
 from .state import WorldState
 from .tracker import Tracker
+from .ut_tracker import NoYamlError, UTError, UTProcessError, UTRunner, UTTimeoutError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("ap.web")
@@ -123,6 +124,18 @@ def build_app(room: RoomConfig) -> FastAPI:
         hint_usage=hint_usage, world=world, deathlink=deathlink,
         tracker=tracker if isinstance(tracker, Tracker) else None,
     )
+
+    ut_runner: UTRunner | None = None
+    if room.config.get("tracker", {}).get("enabled") and room.ut_launcher is not None:
+        ut_runner = UTRunner(
+            launcher=room.ut_launcher,
+            python_bin=room.ut_python_bin,
+            yaml_dir=room.ut_yaml_dir,
+            host=room.ap_host,
+            port=room.ap_port,
+            password=room.ap_password,
+            timeout=room.ut_timeout,
+        )
 
     # lifecycle
 
@@ -415,6 +428,77 @@ def build_app(room: RoomConfig) -> FastAPI:
         if not applied:
             raise HTTPException(404, "hint not found")
         return {"ok": True, "tag": body.tag}
+
+    # Universal Tracker: spawns a real UT process on demand, per logged-in slot.
+
+    def _require_tracker() -> UTRunner:
+        if ut_runner is None:
+            raise HTTPException(404, "tracker feature is not enabled on this dashboard")
+        return ut_runner
+
+    @app.get("/api/tracker/mine")
+    async def api_tracker_mine(ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+        runner = _require_tracker()
+        slots = sessions.bag_sessions(ap_session) if ap_session else []
+        return {"slots": [{"slot": s.slot, "has_yaml": runner.has_yaml(s.slot)} for s in slots]}
+
+    @app.post("/api/tracker/yaml")
+    async def api_tracker_yaml(
+        slot: str = Form(...),
+        file: UploadFile = File(...),
+        ap_session: str | None = Cookie(default=None),
+    ) -> dict[str, Any]:
+        runner = _require_tracker()
+        if not ap_session or sessions.get_in_bag(ap_session, slot) is None:
+            raise HTTPException(401, "not connected to that slot")
+        payload = await file.read()
+        try:
+            runner.save_yaml(slot, payload)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.post("/api/tracker/run")
+    async def api_tracker_run(body: SlotBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+        runner = _require_tracker()
+        if not ap_session or sessions.get_in_bag(ap_session, body.slot) is None:
+            raise HTTPException(401, "not connected to that slot")
+        slot_info = world.multidata.slot_by_name(body.slot)
+        if slot_info is None:
+            raise HTTPException(404, f"unknown slot {body.slot!r}")
+        try:
+            accessible_names = set(await runner.run(body.slot))
+        except NoYamlError as e:
+            raise HTTPException(400, str(e))
+        except UTTimeoutError as e:
+            raise HTTPException(504, str(e))
+        except UTProcessError as e:
+            raise HTTPException(502, str(e))
+        except UTError as e:
+            raise HTTPException(500, str(e))
+
+        md = world.multidata
+        slot_num = slot_info.slot
+        slot_state = world.slots.get(slot_num)
+        checked = slot_state.checked if slot_state is not None else set()
+        total = slot_state.total if slot_state is not None else md.total_locations_for(slot_num)
+
+        locations_payload = []
+        for loc_id in md.locations.get(slot_num, {}):
+            if loc_id in checked:
+                continue
+            name = md.location_name(slot_num, loc_id)
+            locations_payload.append({"id": loc_id, "name": name, "accessible": name in accessible_names})
+        locations_payload.sort(key=lambda x: (not x["accessible"], x["name"]))
+
+        return {
+            "slot": body.slot,
+            "total": total,
+            "checked": len(checked),
+            "remaining": len(locations_payload),
+            "accessible": sum(1 for l in locations_payload if l["accessible"]),
+            "locations": locations_payload,
+        }
 
     @app.get("/api/me")
     async def api_me(ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:

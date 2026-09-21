@@ -16,6 +16,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   },
   footer: { left: "archipelago · nguengant.fr", right: "Have fun guys :)" },
   features: { hall_of_fame: true, death_leaderboard: true, constellation: true },
+  tracker: { enabled: false },
   hints: {
     blocked_tag: "bked",
     tags: [
@@ -31,6 +32,7 @@ function merge(base: SiteConfig, over: Partial<SiteConfig>): SiteConfig {
     branding: { ...base.branding, ...over.branding },
     footer: { ...base.footer, ...over.footer },
     features: { ...base.features, ...over.features },
+    tracker: { ...base.tracker, ...over.tracker },
     hints: {
       blocked_tag: over.hints?.blocked_tag ?? base.hints.blocked_tag,
       tags: over.hints?.tags ?? base.hints.tags,

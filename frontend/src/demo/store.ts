@@ -18,9 +18,14 @@ import {
   Slot,
   SlotDetail,
   Snapshot,
+  TrackerMineSlot,
+  TrackerResult,
 } from "../api";
 
-const config: SiteConfig = { ...DEFAULT_CONFIG };
+// The tracker tab has no real backend to run against here either, but it's
+// fully mockable from data this store already has, so the demo shows it off too rather than hiding it
+// (see demoTrackerApi below).
+const config: SiteConfig = { ...DEFAULT_CONFIG, tracker: { enabled: true } };
 
 type Base = { slot: number; name: string; game: string; total: number; checked: number; hint_points: number };
 
@@ -248,6 +253,34 @@ export const demoApi = {
     hints = [...hints];
     emit("hints_replaced");
     return { ok: true, tag };
+  },
+};
+
+// Which logged-in slots have "uploaded" a YAML in this demo session; resets on reload.
+const yamlUploaded = new Set<string>();
+
+export const demoTrackerApi = {
+  mine: async (): Promise<{ slots: TrackerMineSlot[] }> => ({
+    slots: currentSlots.map((slot) => ({ slot, has_yaml: yamlUploaded.has(slot) })),
+  }),
+  uploadYaml: async (slot: string, _file: File): Promise<{ ok: true }> => {
+    yamlUploaded.add(slot);
+    return { ok: true };
+  },
+  run: async (slot: string): Promise<TrackerResult> => {
+    const d = detail(slot);
+    const remaining = d.locations.filter((l) => !l.checked);
+    // No real game logic to run in the demo, so just flag roughly two thirds
+    // of what's left as "accessible" to show both states in the list.
+    const locations = remaining.map((l, i) => ({ id: l.id, name: l.name, accessible: i % 3 !== 0 }));
+    return {
+      slot,
+      total: d.slot.total,
+      checked: d.slot.checked,
+      remaining: locations.length,
+      accessible: locations.filter((l) => l.accessible).length,
+      locations,
+    };
   },
 };
 
