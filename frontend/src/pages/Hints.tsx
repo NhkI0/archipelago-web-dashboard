@@ -207,6 +207,7 @@ export default function Hints() {
         <p className="mt-2 text-body-sm text-slate">{t("hints.signin_body")}</p>
         <Link
           to="/login"
+          state={{ from: location.pathname }}
           className="mt-6 inline-flex h-10 items-center rounded-md bg-primary px-5 text-btn text-white hover:bg-primary-active"
         >
           {t("nav.signin")}

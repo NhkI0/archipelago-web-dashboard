@@ -1,12 +1,17 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { LoginError, Snapshot, api } from "../api";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
 
 export default function Login() {
   const nav = useNavigate();
+  const location = useLocation();
   const { t } = useT();
+  // Wherever the "Sign in" link that brought us here remembered as `from`;
+  // falls back to Hints for a direct visit to /login (e.g. a bookmark).
+  const from = (location.state as { from?: string } | null)?.from;
+  const returnTo = from && from !== "/login" ? from : "/hints";
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [slot, setSlot] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +26,7 @@ export default function Login() {
     setBusy(true);
     try {
       await api.login(slot, password);
-      nav("/hints");
+      nav(returnTo);
     } catch (err: any) {
       if (err instanceof LoginError) {
         setError(t(`login.error.${err.reason}`));

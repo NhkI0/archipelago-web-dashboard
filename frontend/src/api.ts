@@ -123,6 +123,7 @@ export type SiteConfig = {
   };
   footer: { left: string; right: string };
   features: { hall_of_fame: boolean; death_leaderboard: boolean; constellation: boolean };
+  tracker: { enabled: boolean };
   hints: { blocked_tag: string; tags: TagDef[] };
 };
 
@@ -246,6 +247,37 @@ export const adminApi = {
   },
 };
 
+export type TrackerMineSlot = { slot: string; has_yaml: boolean };
+
+export type TrackerLocation = { id: number; name: string; accessible: boolean };
+
+export type TrackerResult = {
+  slot: string;
+  total: number;
+  checked: number;
+  remaining: number;
+  accessible: number;
+  locations: TrackerLocation[];
+};
+
+const realTrackerApi = {
+  mine: () => fetch(apiUrl("/api/tracker/mine")).then(j<{ slots: TrackerMineSlot[] }>),
+  uploadYaml: async (slot: string, file: File) => {
+    const body = new FormData();
+    body.set("slot", slot);
+    body.set("file", file);
+    const r = await fetch(apiUrl("/api/tracker/yaml"), { method: "POST", body });
+    if (!r.ok) throw new Error((await r.text()) || r.statusText);
+    return r.json() as Promise<{ ok: true }>;
+  },
+  run: (slot: string) =>
+    fetch(apiUrl("/api/tracker/run"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slot }),
+    }).then(j<TrackerResult>),
+};
+
 export type LiveSocketState = "open" | "reconnecting";
 
 const RECONNECT_BASE_MS = 500;
@@ -298,3 +330,4 @@ export const IS_DEMO = !!import.meta.env.VITE_DEMO;
 
 export const api = IS_DEMO ? demo.demoApi : realApi;
 export const liveSocket = IS_DEMO ? demo.demoLiveSocket : realLiveSocket;
+export const trackerApi = IS_DEMO ? demo.demoTrackerApi : realTrackerApi;
