@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import pathlib
 import re
 
@@ -160,6 +161,10 @@ class UTRunner:
                     stdin=asyncio.subprocess.DEVNULL,  # never let UT block waiting on input
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    # Piped stdout isn't a tty, so Python block-buffers it instead of
+                    # flushing per line; without this, output sits unseen in the
+                    # child's buffer until it exits, defeating the timeout diagnostics.
+                    env={**os.environ, "PYTHONUNBUFFERED": "1"},
                 )
             except OSError as e:
                 raise UTProcessError(f"could not start Universal Tracker: {e}") from e
