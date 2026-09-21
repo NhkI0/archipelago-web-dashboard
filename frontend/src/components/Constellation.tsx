@@ -94,7 +94,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
       .filter((x): x is NonNullable<typeof x> => x != null);
   }, [hints, slotIndex, pcts]);
   
-  const MAX_ANIMATED_ARCS = 120;
+  const MAX_ANIMATED_ARCS = 250;
   const freshArcCount = useMemo(() => arcs.reduce((n, a) => n + (a.h.found ? 0 : 1), 0), [arcs]);
   const animateArcs = freshArcCount <= MAX_ANIMATED_ARCS;
 
@@ -104,16 +104,6 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
     return h.finding_slot === slotId || h.receiving_slot === slotId;
   }
   
-  const relatedToHover = useMemo(() => {
-    if (hover == null) return null;
-    const set = new Set<number>();
-    for (const h of hints) {
-      if (h.finding_slot === hover) set.add(h.receiving_slot);
-      if (h.receiving_slot === hover) set.add(h.finding_slot);
-    }
-    return set;
-  }, [hover, hints]);
-
   // Grow the canvas with the slot count so avatars (fixed pixel size) keep
   // breathing room around the ring instead of crowding at the top.
   // ~62px of width per node keeps labels legible; clamp to a sane range.
@@ -211,7 +201,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
           const x = (p.x / VB) * 100;
           const y = (p.y / VB) * 100;
           const tint = TINTS[s.slot % TINTS.length];
-          const dimmed = hover !== null && hover !== s.slot && !relatedToHover?.has(s.slot);
+          const dimmed = hover !== null && hover !== s.slot && !hints.some(h => isInvolved(s.slot, h) && (h.finding_slot === hover || h.receiving_slot === hover));
           // Float the label radially outward from the centre along the node's
           // angle, so it always sits on the outer edge clear of the arcs:
           // straight up at the top, up-right in the upper-right corner, etc.
