@@ -120,6 +120,7 @@ export default function TopNav() {
           ) : (
             <Link
               to="/login"
+              state={{ from: location.pathname }}
               className="hidden sm:inline-flex h-9 items-center rounded-md bg-primary px-4 text-btn text-white hover:bg-primary-active"
             >
               {t("nav.signin")}
@@ -278,6 +279,7 @@ export default function TopNav() {
             ) : (
               <Link
                 to="/login"
+                state={{ from: location.pathname }}
                 onClick={() => setOpen(false)}
                 className="h-9 self-start inline-flex items-center rounded-md bg-primary px-4 text-btn text-white hover:bg-primary-active"
               >
