@@ -241,6 +241,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
                 <GameIcon game={s.game} size={24} />
                 <span
                   className={`absolute -left-1 -top-1 h-3.5 w-3.5 rounded-pill border-[3px] border-canvas transition-colors duration-300 ${s.online ? "bg-semantic-success" : "bg-stone"}`}
+                  style={{ boxShadow: "0 0 0 3px rgb(var(--c-canvas))" }}
                   aria-label={s.online ? t("slot.online") : t("slot.offline")}
                 />
                 <span
@@ -256,7 +257,7 @@ export default function Constellation({ slots, hints, totalChecked, totalLocatio
       </div>
 
       {/* Hover detail bar */}
-      <div className="mx-auto mt-6 max-w-[760px] rounded-lg border hair bg-surface-soft px-5 py-3 text-body-sm text-slate transition-colors duration-300">
+      <div className="mx-auto mt-14 max-w-[760px] rounded-lg border hair bg-surface-soft px-5 py-3 text-body-sm text-slate transition-colors duration-300">
         {hoveredSlot ? (
           <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
             <Field label={t("nav.slot")} value={hoveredSlot.name} />
