@@ -90,7 +90,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Risk of Rain 2": "☔",
   "Slay the Spire": "🃏",
   "Hades": "🔱",
-  "Hade2Rogue": "⚔️",
+  "Hades2Rogue": "⚔️",
   "Pizza Tower": "🍕",
   "Shivers": "👻",
   "The Witness": "🧩",
@@ -159,6 +159,8 @@ export const GAME_EMOJI: Record<string, string> = {
   "Black Ops 3 - Zombies": "🧟",
   "The Grinch": "🎄",
   "Jigsaw": "🧩",
+  "Geometry Dash": "🔲",
+  "Paint": "🎨",
 };
 
 const FALLBACK_EMOJI = "🎮";
