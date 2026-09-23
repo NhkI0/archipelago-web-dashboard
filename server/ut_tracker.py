@@ -16,11 +16,34 @@ log = logging.getLogger("ap.ut_tracker")
 
 MAX_YAML_BYTES = 256 * 1024
 
-_NOISE_SUBSTRINGS = ("[", "Archipelago", "Connecting", "Connected", "Skipping", "host", "Warning")
-_FILLER_RE = re.compile(r"adding \d+ filler items", re.IGNORECASE)
-# Every AP client prints this once right after a successful Connect; a more
-# stable anchor than blocklisting each version's pre-connect noise.
-_HANDSHAKE_MARKER = "now that you are connected"
+# Log/status lines to drop, matched by pattern rather than position: 
+# the location list's position relative to the connect handshake isn't stable
+# (observed both before and after it across different real captures), so filtering can't anchor on line order.
+_NOISE_RES = [re.compile(p, re.IGNORECASE) for p in (
+    r"^\[",                                    # bracketed log lines, e.g. "[Info]"
+    r"^Archipelago \(.*logging initialized",
+    r"^Invalid or missing manifest file for",
+    r"^compatible_version\b",
+    r"^There is no item named",
+    r"^P\d+ Weights:",
+    r"^Generating for \d+ players,",
+    r"^Now that you are connected\b",
+    r"^Notice \(",
+    r"\(Team #\d+\)",                          # join/part notices
+    r"adding \d+ filler items",
+    r"Warning:",
+    r"^(Kivy|KivyMD|Python|Audio|Factory|Image|Text|Window|GL|Clipboard|Loader|Base):",
+    r"^Could not identify Component",
+    r"^Connection refused by the server",
+    r"^Traceback \(most recent call last\)",
+    r"^\s*File \"",
+    r"^\w+Error[:\)]",
+    r"^Exception[:\b]",
+    r"^Internal generation failed",
+    r"^Run the /faris_asked",
+    r"^\d+\.\s+File \S+\.ya?ml",                # numbered per-file validation errors
+    r"^\d+(\s+\d+)*$",                          # bare fill-progress counters, e.g. "0 2 3"
+)]
 
 
 class UTError(Exception):
@@ -72,24 +95,21 @@ def find_duplicate_player_name(yaml_dir: pathlib.Path) -> str | None:
 
 
 def parse_ut_output(stdout: str) -> list[str]:
-    """Pure text filter; standalone so it's unit-testable without a subprocess."""
-    lines = stdout.split("\n")
-    start = None
-    for i, raw_line in enumerate(lines):
-        if _HANDSHAKE_MARKER in raw_line.lower():
-            start = i + 1  # last match wins, in case of multiple connect attempts
-    if start is None:
-        return []  # never actually connected; nothing here is a real location
+    """Pure text filter; standalone so it's unit-testable without a subprocess.
+    """
     out = []
-    for raw_line in lines[start:]:
+    in_traceback = False
+    for raw_line in stdout.split("\n"):
         line = raw_line.strip()
         if not line:
+            in_traceback = False
             continue
-        if _FILLER_RE.search(line.lower()):
+        if line.startswith("Traceback (most recent call last):"):
+            in_traceback = True
             continue
-        if line.startswith("Notice ("):
+        if in_traceback:
             continue
-        if any(x in line for x in _NOISE_SUBSTRINGS):
+        if any(p.search(line) for p in _NOISE_RES):
             continue
         out.append(line)
     return out
@@ -161,10 +181,19 @@ class UTRunner:
                     stdin=asyncio.subprocess.DEVNULL,  # never let UT block waiting on input
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    # Piped stdout isn't a tty, so Python block-buffers it instead of
-                    # flushing per line; without this, output sits unseen in the
-                    # child's buffer until it exits, defeating the timeout diagnostics.
-                    env={**os.environ, "PYTHONUNBUFFERED": "1"},
+                    env={
+                        **os.environ,
+                        # Piped stdout isn't a tty, so Python block-buffers it instead of flushing per line;
+                        # without this, output sits unseen the child's buffer until it exits,
+                        # defeating the timeout diagnostics.
+                        "PYTHONUNBUFFERED": "1",
+                        # This launcher is Kivy-based and tries to open a real window
+                        # even with --nogui; on a headless server with no display it
+                        # hangs forever with zero output instead of erroring. Force
+                        # a software/no-op backend so it runs without one.
+                        "SDL_VIDEODRIVER": "dummy",
+                        "KIVY_WINDOW": "mock",
+                    },
                 )
             except OSError as e:
                 raise UTProcessError(f"could not start Universal Tracker: {e}") from e
