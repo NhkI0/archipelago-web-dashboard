@@ -1,9 +1,11 @@
 import { Route, Routes } from "react-router-dom";
 import HintNotifier from "./components/HintNotifier";
+import LiveFeedCollector from "./components/LiveFeedCollector";
 import TopNav from "./components/TopNav";
 import Dashboard from "./pages/Dashboard";
 import SlotDetail from "./pages/SlotDetail";
 import Hints from "./pages/Hints";
+import LiveFeed from "./pages/LiveFeed";
 import Tracker from "./pages/Tracker";
 import HallOfFame from "./pages/HallOfFame";
 import Login from "./pages/Login";
@@ -41,11 +43,13 @@ function Shell() {
       <DemoBanner />
       <TopNav />
       <HintNotifier />
+      {config.features.live_feed && <LiveFeedCollector />}
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/slot/:name" element={<SlotDetail />} />
           <Route path="/hints" element={<Hints />} />
+          {config.features.live_feed && <Route path="/live" element={<LiveFeed />} />}
           {config.tracker.enabled && <Route path="/tracker" element={<Tracker />} />}
           {config.features.hall_of_fame && <Route path="/hall-of-fame" element={<HallOfFame />} />}
           <Route path="/login" element={<Login />} />

@@ -65,6 +65,19 @@ export type ReceivedItem = {
   timestamp: number | null;
 };
 
+// One newly-checked location from the "check" live-socket event; an event can carry several at once.
+export type CheckEvent = {
+  ts: number;
+  finder_slot: number;
+  recv_slot: number;
+  finder_name: string;
+  recv_name: string;
+  finder_game: string;
+  recv_game: string;
+  item_name: string;
+  location_name: string;
+};
+
 export type MySlot = { slot: string; slot_num: number | null; hint_points: number; last_text: string };
 
 // A browser can be logged into several slots at once, so `slots` is a list.
@@ -132,7 +145,7 @@ export type SiteConfig = {
     loading_name: string;
   };
   footer: { left: string; right: string };
-  features: { hall_of_fame: boolean; death_leaderboard: boolean; constellation: boolean };
+  features: { hall_of_fame: boolean; death_leaderboard: boolean; constellation: boolean; live_feed: boolean };
   tracker: { enabled: boolean };
   hints: { blocked_tag: string; tags: TagDef[] };
 };

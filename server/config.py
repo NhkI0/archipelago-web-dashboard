@@ -84,6 +84,7 @@ DEFAULTS: dict[str, Any] = {
         "hall_of_fame": True,
         "death_leaderboard": True,
         "constellation": True,
+        "live_feed": True,
     },
     "admin": {
         # Gates the /admin page + /api/admin/* endpoints entirely; both are

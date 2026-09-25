@@ -98,6 +98,9 @@ export default function TopNav() {
         <nav className="ml-10 hidden items-center gap-7 md:flex">
           <NavLink to="/" end className={linkClass}>{t("nav.dashboard")}</NavLink>
           <NavLink to="/hints" className={linkClass}>{t("nav.hints")}</NavLink>
+          {config.features.live_feed && (
+            <NavLink to="/live" className={linkClass}>{t("nav.live")}</NavLink>
+          )}
           {config.tracker.enabled && (
             <NavLink to="/tracker" className={linkClass}>{t("nav.tracker")}</NavLink>
           )}
@@ -226,6 +229,9 @@ export default function TopNav() {
           <nav className="flex flex-col gap-3">
             <NavLink to="/" end className={linkClass} onClick={() => setOpen(false)}>{t("nav.dashboard")}</NavLink>
             <NavLink to="/hints" className={linkClass} onClick={() => setOpen(false)}>{t("nav.hints")}</NavLink>
+            {config.features.live_feed && (
+              <NavLink to="/live" className={linkClass} onClick={() => setOpen(false)}>{t("nav.live")}</NavLink>
+            )}
             {config.tracker.enabled && (
               <NavLink to="/tracker" className={linkClass} onClick={() => setOpen(false)}>{t("nav.tracker")}</NavLink>
             )}
