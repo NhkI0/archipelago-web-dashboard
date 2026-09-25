@@ -161,6 +161,8 @@ export const GAME_EMOJI: Record<string, string> = {
   "Jigsaw": "🧩",
   "Geometry Dash": "🔲",
   "Paint": "🎨",
+  "Bloons TD6": "🎈",
+  "Plants vs. Zombies": "🧟",
 };
 
 const FALLBACK_EMOJI = "🎮";
