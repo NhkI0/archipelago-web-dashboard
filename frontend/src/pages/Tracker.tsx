@@ -5,6 +5,9 @@ import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
 
+// Outside the component so a run's result survives leaving /tracker and coming back.
+const resultCache: Record<string, TrackerResult> = {};
+
 export default function Tracker() {
   const { t } = useT();
   const location = useLocation();
@@ -48,7 +51,7 @@ export default function Tracker() {
   }, [me]);
 
   useEffect(() => {
-    setResult(null);
+    setResult((viewingSlot && resultCache[viewingSlot]) || null);
     setRunError(null);
     setFile(null);
     setUploadError(null);
@@ -90,7 +93,9 @@ export default function Tracker() {
     setRunning(true);
     setRunError(null);
     try {
-      setResult(await trackerApi.run(viewingSlot));
+      const r = await trackerApi.run(viewingSlot);
+      resultCache[viewingSlot] = r;
+      setResult(r);
     } catch (err: any) {
       setRunError(err?.message || t("tracker.error.default"));
     } finally {
