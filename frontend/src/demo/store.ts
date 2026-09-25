@@ -284,10 +284,33 @@ export const demoTrackerApi = {
   },
 };
 
+// Simulated checks so the Live Feed tab isn't empty in the demo build.
+let demoCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+function emitDemoCheck() {
+  const finder = BASE[Math.floor(Math.random() * BASE.length)];
+  const others = BASE.filter((b) => b.slot !== finder.slot);
+  const recv = Math.random() < 0.6 ? finder : others[Math.floor(Math.random() * others.length)];
+  const pool = gameItems(recv.game);
+  const checks = [{
+    ts: Date.now() / 1000,
+    finder_slot: finder.slot,
+    recv_slot: recv.slot,
+    finder_name: finder.name,
+    recv_name: recv.name,
+    finder_game: finder.game,
+    recv_game: recv.game,
+    item_name: pool[Math.floor(Math.random() * pool.length)],
+    location_name: `${finder.game}: Check ${1 + Math.floor(Math.random() * finder.total)}`,
+  }];
+  for (const l of listeners) l({ type: "check", checks });
+}
+
 export function demoLiveSocket(onEvent: (e: unknown) => void, onStateChange?: (s: "open" | "reconnecting") => void): () => void {
   listeners.add(onEvent);
   onEvent({ type: "snapshot", snapshot: snapshot() });
   onStateChange?.("open"); // demo store has no real socket, so it's always "open"
+  if (!demoCheckTimer) demoCheckTimer = setInterval(emitDemoCheck, 4000);
   return () => {
     listeners.delete(onEvent);
   };

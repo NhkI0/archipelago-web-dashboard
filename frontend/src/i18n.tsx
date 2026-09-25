@@ -8,6 +8,7 @@ const en: Dict = {
   // Top nav
   "nav.dashboard": "Dashboard",
   "nav.hints": "Hint manager",
+  "nav.live": "Live feed",
   "nav.tracker": "Tracker",
   "nav.hof": "Hall of Fame",
   "nav.signin": "Sign in",
@@ -136,6 +137,21 @@ const en: Dict = {
   "hints.confirm.cancel": "Cancel",
   "hints.confirm.confirm": "Confirm",
 
+  // Live feed page
+  "live.kicker": "Live feed",
+  "live.title": "What's happening",
+  "live.intro": "Every check, hint, and goal across the multiworld, as it happens.",
+  "live.tab.all": "All",
+  "live.tab.checks": "Checks",
+  "live.tab.hints": "Hints",
+  "live.tab.goals": "Goals",
+  "live.row.found": "found",
+  "live.row.for": "for",
+  "live.row.hint_for": "hinted for",
+  "live.row.in": "in",
+  "live.row.goaled": "completed their goal 🎉",
+  "live.empty": "Nothing yet. New checks, hints, and goals will show up here live.",
+
   // Tracker page
   "tracker.kicker": "Tracker",
   "tracker.title": "Universal Tracker",
@@ -213,6 +229,7 @@ const en: Dict = {
 const fr: Dict = {
   "nav.dashboard": "Tableau de bord",
   "nav.hints": "Gestion d'indices",
+  "nav.live": "Fil en direct",
   "nav.tracker": "Tracker",
   "nav.hof": "Panthéon",
   "nav.signin": "Connexion",
@@ -336,6 +353,20 @@ const fr: Dict = {
   "hints.confirm.not_enough": "Points d'indice insuffisants.",
   "hints.confirm.cancel": "Annuler",
   "hints.confirm.confirm": "Confirmer",
+
+  "live.kicker": "Fil en direct",
+  "live.title": "Ce qu'il se passe",
+  "live.intro": "Tous les checks, indices et objectifs du multimonde, en direct.",
+  "live.tab.all": "Tous",
+  "live.tab.checks": "Checks",
+  "live.tab.hints": "Indices",
+  "live.tab.goals": "Objectifs",
+  "live.row.found": "a trouvé",
+  "live.row.for": "pour",
+  "live.row.hint_for": "indiqué pour",
+  "live.row.in": "dans",
+  "live.row.goaled": "a terminé son objectif 🎉",
+  "live.empty": "Rien pour l'instant. Les checks, indices et objectifs apparaîtront ici en direct.",
 
   "tracker.kicker": "Tracker",
   "tracker.title": "Universal Tracker",

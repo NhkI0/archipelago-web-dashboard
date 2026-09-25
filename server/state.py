@@ -237,6 +237,37 @@ class WorldState:
         if changed:
             self._persist_items()
 
+    def _emit_checks(self, finder_slot: int, loc_ids: set[int]) -> None:
+        """Broadcast newly-checked locations with names resolved, for the live feed.
+
+        Batched into one event, not one per location, so a reconnect burst can't flood a subscriber's queue.
+        """
+        table = self.multidata.locations.get(finder_slot, {})
+        finder = self.slots.get(finder_slot)
+        finder_name = finder.name if finder else f"slot#{finder_slot}"
+        finder_game = finder.game if finder else ""
+        now = time.time()
+        entries: list[dict[str, Any]] = []
+        for loc_id in loc_ids:
+            entry = table.get(loc_id)
+            if entry is None:
+                continue
+            item_id, recv_slot, _flags = entry
+            recv = self.slots.get(recv_slot)
+            entries.append({
+                "ts": now,
+                "finder_slot": finder_slot,
+                "recv_slot": recv_slot,
+                "finder_name": finder_name,
+                "recv_name": recv.name if recv else f"slot#{recv_slot}",
+                "finder_game": finder_game,
+                "recv_game": recv.game if recv else "",
+                "item_name": self.multidata.item_name(recv_slot, item_id),
+                "location_name": self.multidata.location_name(finder_slot, loc_id),
+            })
+        if entries:
+            self._emit({"type": "check", "checks": entries})
+
     def received_for(self, slot_num: int) -> list[dict[str, Any]]:
         """Items this slot has received, most recent first (undated last)."""
         rows = [
@@ -420,6 +451,8 @@ class WorldState:
                 # (unless we already had a persisted log to compare against).
                 backfill = replace and slot_num not in self._initial_loaded and not self._had_persisted
                 self._record_received(slot_num, added, backfill=backfill)
+                # Live feed gets everything, including a slot's initial catch-up burst.
+                self._emit_checks(slot_num, added)
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
         if replace:
             self._initial_loaded.add(slot_num)
