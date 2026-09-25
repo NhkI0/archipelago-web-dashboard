@@ -1,12 +1,41 @@
 import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Me, TrackerMineSlot, TrackerResult, api, trackerApi } from "../api";
+import { Me, TrackerMineSlot, TrackerResult, api, liveSocket, trackerApi } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
 
 // Outside the component so a run's result survives leaving /tracker and coming back.
 const resultCache: Record<string, TrackerResult> = {};
+
+function withoutChecked(result: TrackerResult, checkedIds: Set<number>): TrackerResult {
+  const locations = result.locations.filter((l) => !checkedIds.has(l.id));
+  if (locations.length === result.locations.length) return result;
+  const removed = result.locations.length - locations.length;
+  return {
+    ...result,
+    checked: result.checked + removed,
+    remaining: locations.length,
+    accessible: locations.filter((l) => l.accessible).length,
+    locations,
+  };
+}
+
+// Fetches live checked state and prunes it from the cached result.
+function pruneAgainstLive(slot: string, setResult: (fn: (prev: TrackerResult | null) => TrackerResult | null) => void) {
+  api
+    .slot(slot)
+    .then((d) => {
+      const checkedIds = new Set(d.locations.filter((l) => l.checked).map((l) => l.id));
+      setResult((prev) => {
+        if (!prev) return prev;
+        const next = withoutChecked(prev, checkedIds);
+        resultCache[slot] = next;
+        return next;
+      });
+    })
+    .catch(() => {});
+}
 
 export default function Tracker() {
   const { t } = useT();
@@ -55,6 +84,26 @@ export default function Tracker() {
     setRunError(null);
     setFile(null);
     setUploadError(null);
+  }, [viewingSlot]);
+
+  // Reconcile the cache against whatever got checked while this page wasn't mounted.
+  useEffect(() => {
+    if (!viewingSlot || !resultCache[viewingSlot]) return;
+    pruneAgainstLive(viewingSlot, setResult);
+  }, [viewingSlot]);
+
+  // Debounced: a busy room broadcasts a check often enough to hammer /api/slot otherwise.
+  useEffect(() => {
+    if (!viewingSlot) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stop = liveSocket(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => pruneAgainstLive(viewingSlot, setResult), 2000);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      stop();
+    };
   }, [viewingSlot]);
 
   useEffect(() => {
