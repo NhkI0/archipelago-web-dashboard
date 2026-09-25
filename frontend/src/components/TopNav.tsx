@@ -1,6 +1,6 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, AvailableSlot, Me, Snapshot, liveSocket } from "../api";
+import { api, AvailableSlot, Me, Snapshot, liveSocket, notifyMeChanged } from "../api";
 import { useT } from "../i18n";
 import { useConfig, getBasePath } from "../config";
 import ThemeToggle from "./ThemeToggle";
@@ -62,7 +62,9 @@ export default function TopNav() {
     setBusySlot(name);
     setConnectError(null);
     try {
-      setMe(await api.slotsAdd(name));
+      const m = await api.slotsAdd(name);
+      setMe(m);
+      notifyMeChanged(m);
       await refreshAvailable();
       setConnectOpen(false);
     } catch (e: any) {
@@ -75,7 +77,9 @@ export default function TopNav() {
   async function disconnectSlot(name: string) {
     setBusySlot(name);
     try {
-      setMe(await api.slotsRemove(name));
+      const m = await api.slotsRemove(name);
+      setMe(m);
+      notifyMeChanged(m);
       await refreshAvailable();
     } finally {
       setBusySlot(null);

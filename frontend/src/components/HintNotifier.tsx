@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Hint, api, liveSocket } from "../api";
+import { Hint, api, liveSocket, onMeChanged } from "../api";
 import { useT } from "../i18n";
 import { emitNewHintForMe } from "../hintEvents";
 
@@ -84,6 +84,20 @@ export default function HintNotifier() {
       stop();
     };
   }, []);
+
+  // Unlike the mount-time resolve above, this recomputes on every change.
+  useEffect(() => onMeChanged((m) => {
+    if (!m.logged_in) {
+      mySlots.current = new Set();
+      return;
+    }
+    const myNames = new Set(m.slots.map((s) => s.slot));
+    mySlots.current = new Set(
+      Array.from(slotNames.current.entries())
+        .filter(([, name]) => myNames.has(name))
+        .map(([num]) => num),
+    );
+  }), []);
 
   function dismiss(id: number) {
     setToasts((t) => t.filter((x) => x.id !== id));
