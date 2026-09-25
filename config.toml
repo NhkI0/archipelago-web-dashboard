@@ -65,6 +65,7 @@ hall_of_fame      = true       # show the Hall of Fame page + nav link
 death_leaderboard = true       # show the death leaderboard on the dashboard
 constellation     = true       # show the multiworld constellation map
 live_feed         = true       # show the Live Feed page + nav link
+multi_slot_login  = true       # allow one browser to log into several slots at once
 
 # Lets whoever knows `password` swap the running multiworld from a /admin page,
 # no server access needed. Disabled (both fields ignored) unless enabled = true.
