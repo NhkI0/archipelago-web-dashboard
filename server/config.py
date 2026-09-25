@@ -85,6 +85,9 @@ DEFAULTS: dict[str, Any] = {
         "death_leaderboard": True,
         "constellation": True,
         "live_feed": True,
+        # Lets one browser log into several slots at once (the navbar's slot
+        # strip + "Connect a slot" button). false restricts to one at a time.
+        "multi_slot_login": True,
     },
     "admin": {
         # Gates the /admin page + /api/admin/* endpoints entirely; both are

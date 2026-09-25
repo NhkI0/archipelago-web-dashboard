@@ -355,6 +355,8 @@ def build_app(room: RoomConfig) -> FastAPI:
 
     @app.post("/api/slots/add")
     async def api_slots_add(body: SlotBody, ap_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+        if not room.config.get("features", {}).get("multi_slot_login", True):
+            raise HTTPException(403, "multiple slots per browser are disabled on this dashboard")
         if not ap_session or not sessions.bag_sessions(ap_session):
             raise HTTPException(401, "not logged in")
         if sessions.get_in_bag(ap_session, body.slot) is not None:

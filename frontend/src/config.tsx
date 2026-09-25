@@ -15,7 +15,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     loading_name: "ArchipelaGoats",
   },
   footer: { left: "archipelago · nguengant.fr", right: "Have fun guys :)" },
-  features: { hall_of_fame: true, death_leaderboard: true, constellation: true, live_feed: true },
+  features: { hall_of_fame: true, death_leaderboard: true, constellation: true, live_feed: true, multi_slot_login: true },
   tracker: { enabled: false },
   hints: {
     blocked_tag: "bked",

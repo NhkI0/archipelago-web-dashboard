@@ -37,8 +37,8 @@ export default function TopNav() {
   }, [snap]);
 
   useEffect(() => {
-    if (me?.logged_in) api.slotsAvailable().then((r) => setAvailable(r.slots)).catch(() => setAvailable([]));
-  }, [me?.logged_in]);
+    if (me?.logged_in && config.features.multi_slot_login) api.slotsAvailable().then((r) => setAvailable(r.slots)).catch(() => setAvailable([]));
+  }, [me?.logged_in, config.features.multi_slot_login]);
 
   // Close the "connect a slot" popover on an outside click.
   useEffect(() => {
@@ -182,46 +182,48 @@ export default function TopNav() {
               )}
             </span>
           ))}
-          <div className="shrink-0" ref={popRef}>
-            <button
-              type="button"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setConnectPos({ top: rect.bottom + 4, left: rect.left });
-                setConnectOpen((v) => !v);
-              }}
-              className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-pill border border-dashed hair-strong px-3 text-body-sm text-steel hover:text-ink"
-            >
-              <span aria-hidden>+</span> {t("nav.connect_slot")}
-            </button>
-            {connectOpen && connectPos && (
-              <div
-                style={{ top: connectPos.top, left: connectPos.left }}
-                className="fixed z-40 w-64 rounded-md border hair bg-canvas p-2 shadow-mockup"
+          {config.features.multi_slot_login && (
+            <div className="shrink-0" ref={popRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setConnectPos({ top: rect.bottom + 4, left: rect.left });
+                  setConnectOpen((v) => !v);
+                }}
+                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-pill border border-dashed hair-strong px-3 text-body-sm text-steel hover:text-ink"
               >
-                {connectError && (
-                  <div className="px-2 py-1 text-caption text-semantic-error">{connectError}</div>
-                )}
-                {available === null && <div className="px-2 py-2 text-caption text-steel">…</div>}
-                {available && notConnected.length === 0 && (
-                  <div className="px-2 py-2 text-caption text-steel">{t("nav.connect_slot.none")}</div>
-                )}
-                {notConnected.map((s) => (
-                  <button
-                    key={s.name}
-                    type="button"
-                    onClick={() => connectSlot(s.name)}
-                    disabled={busySlot === s.name}
-                    className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-body-sm text-ink hover:bg-surface disabled:opacity-60"
-                  >
-                    {s.name}
-                    <span className="ml-auto text-caption text-primary">{busySlot === s.name ? "…" : "→"}</span>
-                  </button>
-                ))}
-                <div className="mt-1 px-2 text-caption text-stone">{t("nav.connect_slot.hint")}</div>
-              </div>
-            )}
-          </div>
+                <span aria-hidden>+</span> {t("nav.connect_slot")}
+              </button>
+              {connectOpen && connectPos && (
+                <div
+                  style={{ top: connectPos.top, left: connectPos.left }}
+                  className="fixed z-40 w-64 rounded-md border hair bg-canvas p-2 shadow-mockup"
+                >
+                  {connectError && (
+                    <div className="px-2 py-1 text-caption text-semantic-error">{connectError}</div>
+                  )}
+                  {available === null && <div className="px-2 py-2 text-caption text-steel">…</div>}
+                  {available && notConnected.length === 0 && (
+                    <div className="px-2 py-2 text-caption text-steel">{t("nav.connect_slot.none")}</div>
+                  )}
+                  {notConnected.map((s) => (
+                    <button
+                      key={s.name}
+                      type="button"
+                      onClick={() => connectSlot(s.name)}
+                      disabled={busySlot === s.name}
+                      className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-body-sm text-ink hover:bg-surface disabled:opacity-60"
+                    >
+                      {s.name}
+                      <span className="ml-auto text-caption text-primary">{busySlot === s.name ? "…" : "→"}</span>
+                    </button>
+                  ))}
+                  <div className="mt-1 px-2 text-caption text-stone">{t("nav.connect_slot.hint")}</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
       {open && (
@@ -259,7 +261,7 @@ export default function TopNav() {
                     </div>
                   ))}
                 </div>
-                {notConnected.length > 0 && (
+                {config.features.multi_slot_login && notConnected.length > 0 && (
                   <div className="rounded-md border hair-soft p-2">
                     <div className="px-1 pb-1 text-caption-up uppercase text-steel">{t("nav.connect_slot")}</div>
                     {notConnected.map((s) => (

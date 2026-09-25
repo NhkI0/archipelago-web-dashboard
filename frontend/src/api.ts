@@ -145,7 +145,7 @@ export type SiteConfig = {
     loading_name: string;
   };
   footer: { left: string; right: string };
-  features: { hall_of_fame: boolean; death_leaderboard: boolean; constellation: boolean; live_feed: boolean };
+  features: { hall_of_fame: boolean; death_leaderboard: boolean; constellation: boolean; live_feed: boolean; multi_slot_login: boolean };
   tracker: { enabled: boolean };
   hints: { blocked_tag: string; tags: TagDef[] };
 };
