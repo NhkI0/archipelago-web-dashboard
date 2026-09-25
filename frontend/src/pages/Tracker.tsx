@@ -1,6 +1,6 @@
 import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Me, TrackerMineSlot, TrackerResult, api, liveSocket, trackerApi } from "../api";
+import { Me, TrackerMineSlot, TrackerResult, api, liveSocket, onMeChanged, trackerApi } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT } from "../i18n";
@@ -56,6 +56,9 @@ export default function Tracker() {
     api.me().then(setMe).catch(() => setMe({ logged_in: false, slots: [] }));
   }, []);
 
+  // A slot connected/disconnected from TopNav while this page is already mounted.
+  useEffect(() => onMeChanged(setMe), []);
+
   function refreshMine() {
     trackerApi
       .mine()
@@ -66,9 +69,11 @@ export default function Tracker() {
       .catch(() => setDisabled(true));
   }
 
+  const mySlotKey = me?.logged_in ? me.slots.map((s) => s.slot).join(",") : "";
+
   useEffect(() => {
     if (me?.logged_in) refreshMine();
-  }, [me?.logged_in]);
+  }, [mySlotKey]);
 
   useEffect(() => {
     if (!me?.logged_in) {

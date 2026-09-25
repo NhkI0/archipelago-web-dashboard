@@ -74,6 +74,16 @@ export type Me =
 
 export type AvailableSlot = { name: string; connected: boolean };
 
+// Carries the resolved Me so listeners don't each re-fetch and race each other.
+const meListeners = new Set<(me: Me) => void>();
+export function notifyMeChanged(me: Me): void {
+  meListeners.forEach((l) => l(me));
+}
+export function onMeChanged(listener: (me: Me) => void): () => void {
+  meListeners.add(listener);
+  return () => meListeners.delete(listener);
+}
+
 const j = async <T,>(r: Response): Promise<T> => {
   if (!r.ok) throw new Error((await r.text()) || r.statusText);
   return r.json() as Promise<T>;

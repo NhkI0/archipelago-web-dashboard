@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Hint, HintTag, Me, SlotDetail, Snapshot, TagDef, api, liveSocket } from "../api";
+import { Hint, HintTag, Me, SlotDetail, Snapshot, TagDef, api, liveSocket, onMeChanged } from "../api";
 import LoadingScreen, { markConnected } from "../components/LoadingScreen";
 import FlowerSpinner from "../components/FlowerSpinner";
 import { useT, Lang } from "../i18n";
@@ -95,6 +95,9 @@ export default function Hints() {
       if (e?.snapshot) setSnap(e.snapshot);
     });
   }, []);
+
+  // A slot connected/disconnected from TopNav while this page is already mounted.
+  useEffect(() => onMeChanged(setMe), []);
 
   // Defaults to the first connected slot; falls back if it gets disconnected elsewhere.
   useEffect(() => {

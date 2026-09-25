@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Deaths, Me, Snapshot, api, liveSocket } from "../api";
+import { Deaths, Me, Snapshot, api, liveSocket, onMeChanged } from "../api";
 import Hero from "../components/Hero";
 import SlotCard from "../components/SlotCard";
 import Constellation from "../components/Constellation";
@@ -28,6 +28,9 @@ export default function Dashboard() {
       setLive,
     );
   }, []);
+
+  // A slot connected/disconnected from TopNav while this page is already mounted.
+  useEffect(() => onMeChanged(setMe), []);
 
   // Open BKed hints that involve any of the logged-in slots: both the checks
   // they're waiting on (as receiver) and the BKed checks sitting in their own
