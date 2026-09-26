@@ -73,6 +73,8 @@ class ReceivedItem:
 # on. The empty string is the implicit "untagged" state and is never stored.
 # Hosts override the active set via config.toml (see WorldState.allowed_tags).
 HINT_TAGS: set[str] = {"bked", "mandatory", "comfort"}
+# Same hint seen again within this many seconds is the other slot's copy.
+HINT_DUP_WINDOW_S = 3.0
 
 
 @dataclass
@@ -105,6 +107,8 @@ class WorldState:
         self.allowed_tags: set[str] = set(allowed_tags) if allowed_tags is not None else set(HINT_TAGS)
         self.slots: dict[int, SlotState] = {}
         self.hints: list[HintRecord] = []
+        # Last hint emit time per key, to drop the finder/receiver duplicate.
+        self._hint_emitted_at: dict[tuple[int, int, int, int], float] = {}
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
         # True for archipelago.gg-polled rooms: hint_points is a local estimate
         # (see room_poller.py), accurate only if hints go through this dashboard.
@@ -560,7 +564,11 @@ class WorldState:
             else:
                 existing.found = existing.found or rec.found
             self._recount_open_hints()
-            self._emit({"type": "hint", "hint": rec.to_dict()})
+            # finder and receiver sessions both get this PrintJSON; emit once per request
+            now = time.monotonic()
+            if now - self._hint_emitted_at.get(key, float("-inf")) > HINT_DUP_WINDOW_S:
+                self._hint_emitted_at[key] = now
+                self._emit({"type": "hint", "hint": rec.to_dict()})
         elif msg_type == "Goal":
             slot_num = int(payload.get("slot") or 0)
             if slot_num in self.slots:
