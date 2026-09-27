@@ -274,6 +274,17 @@ class WorldState:
         if entries:
             self._emit({"type": "check", "checks": entries})
 
+    def hintable_items_for(self, slot_num: int) -> list[str]:
+        """Unsent, unhinted items for this slot, one entry per copy."""
+        hinted = {(h.finding_slot, h.location_id) for h in self.hints if h.receiving_slot == slot_num}
+        out: list[str] = []
+        for finder_slot, table in self.multidata.locations.items():
+            finder_checked = self.slots[finder_slot].checked if finder_slot in self.slots else set()
+            for loc_id, (item_id, recv, _flags) in table.items():
+                if recv == slot_num and loc_id not in finder_checked and (finder_slot, loc_id) not in hinted:
+                    out.append(self.multidata.item_name(slot_num, item_id))
+        return sorted(out)
+
     def received_for(self, slot_num: int) -> list[dict[str, Any]]:
         """Items this slot has received, most recent first (undated last)."""
         rows = [
