@@ -143,6 +143,16 @@ const gameItems = (game: string): string[] => GAME_ITEMS[game] ?? ["Reward A", "
 const AVAIL_COUNTS = [5, 2, 1, 1, 1, 1];
 const availableFor = (game: string): string[] =>
   gameItems(game).flatMap((item, i) => Array<string>(AVAIL_COUNTS[i] ?? 1).fill(item));
+// Static list includes sent copies, so drop found hints too.
+function withoutHinted(items: string[], slotNum: number): string[] {
+  const out = [...items];
+  for (const x of hints) {
+    if (x.receiving_slot !== slotNum) continue;
+    const i = out.indexOf(x.item_name);
+    if (i >= 0) out.splice(i, 1);
+  }
+  return out;
+}
 
 function detail(name: string): SlotDetail {
   const s = baseOf(name) ?? BASE[0];
@@ -173,7 +183,7 @@ function detail(name: string): SlotDetail {
     slot,
     locations,
     hints: hints.filter((x) => x.finding_slot === s.slot || x.receiving_slot === s.slot),
-    available_items: availableFor(s.game),
+    available_items: withoutHinted(availableFor(s.game), s.slot),
     received_items,
   };
 }

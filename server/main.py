@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections import Counter
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -223,16 +222,7 @@ def build_app(room: RoomConfig) -> FastAPI:
             })
         locations_payload.sort(key=lambda x: x["name"])
 
-        # Items the slot will RECEIVE that haven't been sent yet: scan every world
-        # for entries with recv==slot.slot whose finder location is unchecked.
-        # Use counts so duplicate items still appear when only some copies have arrived.
-        pending: Counter[str] = Counter()
-        for finder_slot, table in md.locations.items():
-            finder_checked = world.slots[finder_slot].checked if finder_slot in world.slots else set()
-            for loc_id, (item_id, recv, _flags) in table.items():
-                if recv == slot.slot and loc_id not in finder_checked:
-                    pending[md.item_name(slot.slot, item_id)] += 1
-        available_items = sorted(pending.elements())
+        available_items = world.hintable_items_for(slot.slot)
 
         return {
             "slot": slot.to_dict(),
