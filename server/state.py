@@ -77,6 +77,22 @@ HINT_TAGS: set[str] = {"bked", "mandatory", "comfort"}
 HINT_DUP_WINDOW_S = 3.0
 
 
+def drain_queue(q: asyncio.Queue) -> list[dict[str, Any]]:
+    """Pop everything currently queued, without waiting."""
+    out: list[dict[str, Any]] = []
+    while True:
+        try:
+            out.append(q.get_nowait())
+        except asyncio.QueueEmpty:
+            return out
+
+
+def coalesce_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only the latest snapshot event."""
+    last = max((i for i, e in enumerate(events) if "snapshot" in e), default=-1)
+    return [e for i, e in enumerate(events) if "snapshot" not in e or i == last]
+
+
 @dataclass
 class HintRecord:
     finding_slot: int           # who can find it
@@ -406,14 +422,17 @@ class WorldState:
         self._subscribers.discard(q)
 
     def _emit(self, event: dict[str, Any]) -> None:
-        dead: list[asyncio.Queue] = []
         for q in self._subscribers:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
-                dead.append(q)
-        for q in dead:
-            self._subscribers.discard(q)
+                # Dropping it would freeze its feed.
+                pending = coalesce_events(drain_queue(q) + [event])
+                if len(pending) >= q.maxsize:
+                    # Too far behind, resync.
+                    pending = [{"type": "snapshot", "snapshot": self.snapshot()}]
+                for e in pending:
+                    q.put_nowait(e)
 
     # ── presence (called by the /ws/live relay in main.py) ────────────────────
 
