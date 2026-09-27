@@ -25,7 +25,7 @@ from .hint_usage import HintUsageStore
 from .multidata import load_multidata, load_sanitized
 from .room_poller import RoomPoller
 from .session import MAX_SLOTS_PER_BAG, SessionManager
-from .state import WorldState
+from .state import WorldState, coalesce_events, drain_queue
 from .tracker import Tracker
 from .ut_tracker import NoYamlError, UTError, UTProcessError, UTRunner, UTTimeoutError
 
@@ -265,7 +265,9 @@ def build_app(room: RoomConfig) -> FastAPI:
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=5.0)
-                    await ws.send_json(event)
+                    # Batch bursts, skip stale snapshots.
+                    for e in coalesce_events([event] + drain_queue(queue)):
+                        await ws.send_json(e)
                 except asyncio.TimeoutError:
                     # Idle tick. Also doubles as a keepalive: a proxy sitting between
                     # the browser and this server (Cloudflare's ~100s idle timeout,
