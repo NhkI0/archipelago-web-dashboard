@@ -1,6 +1,7 @@
 export const MAINTAINER_LINKS: Record<string, string> = {
   github: "https://github.com/NhkI0/archipelago-web-dashboard",
   discord: "@nhankio",
+  "Ko-fi": "https://ko-fi.com/dopamined",
 };
 
 function DiscordIcon() {
@@ -19,6 +20,14 @@ function GithubIcon() {
   );
 }
 
+function KofiIcon() {
+  return (
+    <svg viewBox="1.5 0.5 14 14" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 5.5h9v4a3.5 3.5 0 0 1-3.5 3.5h-2A3.5 3.5 0 0 1 2.5 9.5v-4ZM11.5 6.5h1a2 2 0 0 1 0 4h-1.2M5.5 1.5v2M8.5 1.5v2" />
+    </svg>
+  );
+}
+
 function GenericIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -31,6 +40,11 @@ function GenericIcon() {
 const ICONS: Record<string, () => JSX.Element> = {
   discord: DiscordIcon,
   github: GithubIcon,
+  "ko-fi": KofiIcon,
+};
+
+const LABELS: Record<string, string> = {
+  "ko-fi": "Ko-fi",
 };
 
 const isUrl = (v: string) => /^(https?:)?\/\//.test(v) || v.startsWith("/");
@@ -54,7 +68,7 @@ export function SocialLinks({ links }: { links: Record<string, string> }) {
   const entries = Object.entries(links).filter(([, v]) => v);
   if (entries.length === 0) return null;
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2.5">
       {entries.map(([name, value]) => {
         const Icon = ICONS[name.toLowerCase()] ?? GenericIcon;
         return isUrl(value) ? (
@@ -65,9 +79,10 @@ export function SocialLinks({ links }: { links: Record<string, string> }) {
             rel="noopener noreferrer"
             aria-label={name}
             title={name}
-            className="text-steel hover:text-ink transition-colors"
+            className="inline-flex items-center gap-1.5 text-steel hover:text-ink transition-colors"
           >
             <Icon />
+            {LABELS[name.toLowerCase()] && <span className="text-body-sm whitespace-nowrap">{LABELS[name.toLowerCase()]}</span>}
           </a>
         ) : (
           <HandleChip key={name} name={name} value={value} Icon={Icon} />
