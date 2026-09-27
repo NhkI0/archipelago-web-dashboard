@@ -109,6 +109,8 @@ class WorldState:
         self.hints: list[HintRecord] = []
         # Last hint emit time per key, to drop the finder/receiver duplicate.
         self._hint_emitted_at: dict[tuple[int, int, int, int], float] = {}
+        # Slots with a live session reporting exact hint_points.
+        self._live_hp_slots: set[int] = set()
         self.hint_cost: int = 10            # AP default; updated from RoomInfo / RoomUpdate
         # True for archipelago.gg-polled rooms: hint_points is a local estimate
         # (see room_poller.py), accurate only if hints go through this dashboard.
@@ -490,7 +492,8 @@ class WorldState:
             if isinstance(hp, dict):
                 for s, v in hp.items():
                     s = int(s)
-                    if s in self.slots:
+                    # a logged-in slot's exact balance beats the poller's estimate
+                    if s in self.slots and s not in self._live_hp_slots:
                         try:
                             new_hp = int(v)
                         except (TypeError, ValueError):
@@ -509,6 +512,19 @@ class WorldState:
 
         if changed:
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
+    def set_live_hint_points(self, slot_num: int, hp: int) -> None:
+        """Exact balance from a logged-in slot's own AP connection."""
+        if slot_num not in self.slots:
+            return
+        self._live_hp_slots.add(slot_num)
+        if self.slots[slot_num].hint_points != hp:
+            self.slots[slot_num].hint_points = hp
+            self._emit({"type": "room_update", "snapshot": self.snapshot()})
+
+    def clear_live_hint_points(self, slot_num: int) -> None:
+        """Last session for this slot closed; estimates may apply again."""
+        self._live_hp_slots.discard(slot_num)
 
     def _hint_belongs_to_seed(
         self, finding_slot: int, location_id: int, item_id: int, receiving_slot: int

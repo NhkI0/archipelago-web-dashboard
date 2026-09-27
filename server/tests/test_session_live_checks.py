@@ -108,6 +108,20 @@ def test_pump_updates_hint_points_and_checks_from_the_same_packet() -> None:
 
     assert state.slots[1].checked == {100, 101}
     assert sess.hint_points == 7
+    assert state.slots[1].hint_points == 7
+
+
+def test_live_hint_points_win_over_poller_estimate() -> None:
+    state = _fixture_state()
+    state.set_live_hint_points(1, 7)
+    state.apply_room_update_meta({"hint_points": {"1": 99, "2": 3}})
+
+    assert state.slots[1].hint_points == 7
+    assert state.slots[2].hint_points == 3
+
+    state.clear_live_hint_points(1)
+    state.apply_room_update_meta({"hint_points": {"1": 99}})
+    assert state.slots[1].hint_points == 99
 
 
 def test_pump_feeds_received_items_into_worlds_sender_slot() -> None:
@@ -204,3 +218,4 @@ def test_login_seeds_initial_checks_into_world(monkeypatch: pytest.MonkeyPatch) 
     assert state.slots[1].checked == {100}
     assert sess.slot_num == 1
     assert sess.hint_points == 5
+    assert state.slots[1].hint_points == 5

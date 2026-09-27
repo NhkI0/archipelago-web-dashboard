@@ -141,6 +141,9 @@ class SessionManager:
     def _forget(self, sess: Session) -> None:
         """Drop one connection from both the sid table and its bag."""
         self._sessions.pop(sess.sid, None)
+        if (self.world is not None and sess.slot_num is not None
+                and not any(s.slot_num == sess.slot_num for s in self._sessions.values())):
+            self.world.clear_live_hint_points(sess.slot_num)
         bag_list = self._bags.get(sess.bag_id)
         if bag_list and sess.sid in bag_list:
             bag_list.remove(sess.sid)
@@ -226,6 +229,8 @@ class SessionManager:
                     cl = packet.get("checked_locations")
                     if isinstance(cl, list):
                         self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=True)
+                    if "hint_points" in packet:
+                        self.world.set_live_hint_points(sess.slot_num, hp)
                 if wants_deathlink and self.deathlink is not None:
                     self.deathlink.note_session_open()
                 asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
@@ -323,6 +328,8 @@ class SessionManager:
                                     sess.hint_points = int(hp)
                                 except Exception:
                                     pass
+                            if self.world is not None and sess.slot_num is not None:
+                                self.world.set_live_hint_points(sess.slot_num, sess.hint_points)
                         if self.world is not None and sess.slot_num is not None:
                             cl = packet.get("checked_locations")
                             if isinstance(cl, list):
