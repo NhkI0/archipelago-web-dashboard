@@ -49,6 +49,7 @@ class RoomPoller:
         deathlink: DeathLinkCounter | None = None,
         hint_usage: HintUsageStore | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
+        on_port_change: Callable[[int], Awaitable[None]] | None = None,
         poll_interval: float = 15.0,
         http_get: HttpGet | None = None,
     ) -> None:
@@ -61,6 +62,7 @@ class RoomPoller:
         self.deathlink = deathlink
         self.hint_usage = hint_usage
         self._on_connection_change = on_connection_change
+        self._port_listener = on_port_change
         self.poll_interval = poll_interval
         # Injectable for tests; defaults to a real aiohttp GET in production so
         # tests never need to mock aiohttp itself.
@@ -161,6 +163,11 @@ class RoomPoller:
 
     async def _on_port_change(self, port: int) -> None:
         await self._peek_room_info(port)
+        if self._port_listener is not None:
+            try:
+                await self._port_listener(port)
+            except Exception as e:
+                log.warning("port change listener failed for %d: %s", port, e)
 
     async def _peek_room_info(self, port: int) -> None:
         """One-shot connect-read-close: `RoomInfo` carries `hint_cost` and

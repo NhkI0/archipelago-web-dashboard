@@ -90,6 +90,17 @@ def build_app(room: RoomConfig) -> FastAPI:
     display_port = room.display_port or room.ap_port
     world.set_server_status(display_host, display_port, False)
     on_connection_change = lambda connected: world.set_server_status(display_host, display_port, connected)
+
+    async def on_port_change(port: int) -> None:
+        # archipelago.gg moved the room; follow it without a restart.
+        nonlocal display_port
+        if not room.display_port:
+            display_port = port
+            world.set_server_status(display_host, display_port, bool(world.server_status.get("connected")))
+        await sessions.set_port(port)
+        if ut_runner is not None:
+            ut_runner.port = port
+
     hint_usage: HintUsageStore | None = None
     deathlink: DeathLinkCounter | None = None
     if room.ap_room_id:
@@ -106,6 +117,7 @@ def build_app(room: RoomConfig) -> FastAPI:
             deathlink=deathlink,
             hint_usage=hint_usage,
             on_connection_change=on_connection_change,
+            on_port_change=on_port_change,
         )
     else:
         tracker = Tracker(

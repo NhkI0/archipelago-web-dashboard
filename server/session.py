@@ -18,6 +18,10 @@ duty passes to another logged-in session, or back to Tracker if none remain.
 When `deathlink` is given (archipelago.gg rooms only), a login as a
 DeathLink-enabled slot tags its Connect with "DeathLink" and feeds Bounces
 into the shared `DeathLinkCounter`, see server/deathlink.py for why.
+
+archipelago.gg can restart a room on a new port without closing the old one,
+so `set_port` moves every open connection over in place (same sid, new socket)
+instead of waiting for a drop that may never come.
 """
 
 from __future__ import annotations
@@ -80,6 +84,8 @@ class Session:
     last_text: str = ""
     slot_num: int | None = None  # resolved at login; None if slot isn't in multidata
     deathlink: bool = False  # True if this login's Connect was tagged "DeathLink"
+    game: str = ""  # replayed on a port move
+    uri: str = ""  # the AP address this socket is on
 
     async def close(self) -> None:
         try:
@@ -104,7 +110,9 @@ class SessionManager:
         tracker: "Tracker | None" = None,
         deathlink: "DeathLinkCounter | None" = None,
     ) -> None:
-        self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
+        self._scheme = "wss" if secure else "ws"
+        self._host = host
+        self.uri = f"{self._scheme}://{host}:{port}"
         self._sessions: dict[str, Session] = {}  # per-connection sid -> Session
         self._bags: dict[str, list[str]] = {}  # bag id (cookie value) -> [connection sid, ...]
         self._bag_password: dict[str, str] = {}  # bag id -> room password, cached from the first login
@@ -185,13 +193,48 @@ class SessionManager:
             and slot_info is not None
             and self.multidata.deathlink_enabled(slot_info.slot)
         )
-        tags = ["TextOnly"] + (["DeathLink"] if wants_deathlink else [])
+        uri = self.uri
+        ws, packet = await self._open(uri, slot, password, game, wants_deathlink)
 
+        sid = secrets.token_urlsafe(24)
+        resolved_bag_id = bag_id or secrets.token_urlsafe(24)
+        # hint_points sometimes ships on Connected otherwise it lands on the next RoomUpdate.
+        hp = int(packet.get("hint_points", 0) or 0)
+        sess = Session(sid=sid, slot=slot, ws=ws, bag_id=resolved_bag_id, hint_points=hp,
+                        slot_num=slot_info.slot if slot_info else None,
+                        deathlink=wants_deathlink, game=game, uri=uri)
+        self._sessions[sid] = sess
+        self._bags.setdefault(resolved_bag_id, []).append(sid)
+        self._bag_password[resolved_bag_id] = password
+        self._apply_connected(sess, packet)
+        if wants_deathlink and self.deathlink is not None:
+            self.deathlink.note_session_open()
+        asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
+        if self.tracker is not None and self._observer_sid is None:
+            if await self.tracker.try_claim_observer():
+                self._observer_sid = sid
+                await self._send_hint_status_subscription(sess)
+        # The port moved while we were connecting.
+        async with self._lock:
+            if sess.uri != self.uri and self._sessions.get(sid) is sess:
+                await self._migrate(sess)
+                if self._sessions.get(sid) is not sess:
+                    raise ConnectionError(f"AP server moved and {self.uri} is unreachable")
+        return resolved_bag_id, sess
+
+    async def _open(self, uri: str, slot: str, password: str, game: str,
+                    deathlink: bool) -> tuple[Any, dict]:
+        """Connect and log one slot in; returns the socket and its Connected packet."""
+        tags = ["TextOnly"] + (["DeathLink"] if deathlink else [])
         try:
-            ws = await websockets.connect(self.uri, max_size=2**24)
+            ws = await websockets.connect(uri, max_size=2**24)
         except (OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException) as e:
-            raise ConnectionError(f"AP server unreachable at {self.uri}: {e}") from e
-        await ws.recv()  # RoomInfo
+            raise ConnectionError(f"AP server unreachable at {uri}: {e}") from e
+        try:
+            await asyncio.wait_for(ws.recv(), timeout=10)  # RoomInfo
+        except asyncio.TimeoutError:
+            await ws.close()
+            raise ConnectionError(f"AP server at {uri} sent no RoomInfo")
 
         await ws.send(json.dumps([{
             "cmd": "Connect",
@@ -214,37 +257,61 @@ class SessionManager:
         for packet in json.loads(raw):
             cmd = packet.get("cmd")
             if cmd == "Connected":
-                sid = secrets.token_urlsafe(24)
-                resolved_bag_id = bag_id or secrets.token_urlsafe(24)
-                # hint_points sometimes ships on Connected; otherwise it lands
-                # on the next RoomUpdate.
-                hp = int(packet.get("hint_points", 0) or 0)
-                sess = Session(sid=sid, slot=slot, ws=ws, bag_id=resolved_bag_id, hint_points=hp,
-                                slot_num=slot_info.slot if slot_info else None,
-                                deathlink=wants_deathlink)
-                self._sessions[sid] = sess
-                self._bags.setdefault(resolved_bag_id, []).append(sid)
-                self._bag_password[resolved_bag_id] = password
-                if self.world is not None and sess.slot_num is not None:
-                    cl = packet.get("checked_locations")
-                    if isinstance(cl, list):
-                        self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=True)
-                    if "hint_points" in packet:
-                        self.world.set_live_hint_points(sess.slot_num, hp)
-                if wants_deathlink and self.deathlink is not None:
-                    self.deathlink.note_session_open()
-                asyncio.create_task(self._pump(sess), name=f"sess-{sid[:8]}")
-                if self.tracker is not None and self._observer_sid is None:
-                    if await self.tracker.try_claim_observer():
-                        self._observer_sid = sid
-                        await self._send_hint_status_subscription(sess)
-                return resolved_bag_id, sess
+                return ws, packet
             if cmd == "ConnectionRefused":
                 await ws.close()
                 raise PermissionError(", ".join(packet.get("errors", []) or ["refused"]))
 
         await ws.close()
         raise PermissionError("unexpected reply from server")
+
+    def _apply_connected(self, sess: Session, packet: dict) -> None:
+        if self.world is not None and sess.slot_num is not None:
+            cl = packet.get("checked_locations")
+            if isinstance(cl, list):
+                self.world.apply_slot_checks(sess.slot_num, [int(x) for x in cl], replace=True)
+            if "hint_points" in packet:
+                self.world.set_live_hint_points(sess.slot_num, sess.hint_points)
+
+    async def set_port(self, port: int) -> None:
+        """Move every open connection to a new AP port, keeping sids."""
+        async with self._lock:
+            uri = f"{self._scheme}://{self._host}:{port}"
+            if uri == self.uri:
+                return
+            log.info("AP port changed; moving %d session(s) to %s", len(self._sessions), uri)
+            self.uri = uri
+            results = await asyncio.gather(
+                *(self._migrate(s) for s in list(self._sessions.values())), return_exceptions=True)
+            for r in results:
+                if isinstance(r, Exception):
+                    log.warning("session move failed: %s", r)
+
+    async def _migrate(self, sess: Session) -> None:
+        """Swap one session's socket for a fresh login on `self.uri`; logs it out on failure."""
+        uri = self.uri
+        password = self._bag_password.get(sess.bag_id, "")
+        try:
+            ws, packet = await self._open(uri, sess.slot, password, sess.game, sess.deathlink)
+        except Exception as e:
+            log.warning("session %s could not move to %s: %s", sess.sid[:8], uri, e)
+            await self.logout_slot(sess.sid)
+            return
+        if self._sessions.get(sess.sid) is not sess:
+            await ws.close()  # logged out meanwhile
+            return
+        old_ws = sess.ws
+        sess.ws, sess.uri = ws, uri
+        if "hint_points" in packet:
+            sess.hint_points = int(packet["hint_points"] or 0)
+        self._apply_connected(sess, packet)
+        asyncio.create_task(self._pump(sess), name=f"sess-{sess.sid[:8]}")
+        try:
+            await old_ws.close()
+        except Exception:
+            pass
+        if sess.sid == self._observer_sid:
+            await self._send_hint_status_subscription(sess)
 
     async def add_slot(self, bag_id: str, slot: str, game: str = "") -> Session:
         """Log another slot into an already-logged-in bag, reusing its cached room password."""
@@ -312,8 +379,9 @@ class SessionManager:
         return {"ok": True, "reply": replies[-1], "all": replies}
 
     async def _pump(self, sess: Session) -> None:
+        ws = sess.ws
         try:
-            async for raw in sess.ws:
+            async for raw in ws:
                 for packet in json.loads(raw):
                     cmd = packet.get("cmd")
                     if cmd == "RoomUpdate":
@@ -389,6 +457,8 @@ class SessionManager:
         except Exception as e:
             log.info("session %s closed: %s", sess.sid[:8], e)
         finally:
-            self._forget(sess)
-            await self._handle_session_gone(sess.sid)
-            self._note_deathlink_session_closed(sess)
+            # A port move swapped the socket; the new pump owns the session now.
+            if sess.ws is ws:
+                self._forget(sess)
+                await self._handle_session_gone(sess.sid)
+                self._note_deathlink_session_closed(sess)
