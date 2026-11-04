@@ -9,6 +9,7 @@ export const GAME_EMOJI: Record<string, string> = {
   // Zelda family
   "A Link to the Past": "🗡️",
   "Ocarina of Time": "🌳",
+  "Ship of Harkinian": "🌳",
   "The Legend of Zelda": "🛡️",
   "Zelda II": "🐲",
   "Link's Awakening DX": "🪺",
@@ -31,6 +32,9 @@ export const GAME_EMOJI: Record<string, string> = {
   "Paper Mario: TTYD": "📰",
   "Yoshi's Island": "🥚",
   "Mario Kart 64": "🏁",
+  "Mario Kart Wii": "🏎️",
+  "Mario Sports Mix": "🏐",
+  "Mario Kart Double Dash": "🛺",
 
   // Pokémon
   "Pokemon Red and Blue": "🔴",
@@ -38,16 +42,23 @@ export const GAME_EMOJI: Record<string, string> = {
   "Pokemon Crystal": "💎",
   "Pokemon Emerald": "🌿",
   "Pokemon FireRed and LeafGreen": "🔥",
+  "Pokemon Platinum": "🪞",
+  "Pokemon HeartGold and SoulSilver": "🐦‍🔥",
+  "Pokemon Black and White": "🌇",
+  "Pokemon Mystery Dungeon Explorers of Sky": "⚙️",
   "Pokemon Mystery Dungeon": "🐾",
+  "Pokemon Snap": "📷",
 
   // Metroid / Castlevania
   "Super Metroid": "👽",
   "Metroid Zero Mission": "👽",
+  "Metroid: Zero Mission": "👽",
   "Metroid Prime": "🔫",
   "Metroid Fusion": "🧬",
   "AM2R": "🌐",
   "Castlevania 64": "🦇",
   "Castlevania: Circle of the Moon": "🌙",
+  "Castlevania: Dawn of Sorrow": "🦇",
   "Aria of Sorrow": "🦇",
   "Symphony of the Night": "🦇",
   "Blasphemous": "✝️",
@@ -56,6 +67,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Sonic the Hedgehog": "💨",
   "Sonic the Hedgehog 2": "💨",
   "Sonic Adventure 2: Battle": "💨",
+  "Sonic Adventure 2 Battle": "💨",
   "Sonic Adventure DX": "💨",
   "Sonic Heroes": "💨",
   "Sonic Battle": "🦔",
@@ -67,6 +79,7 @@ export const GAME_EMOJI: Record<string, string> = {
   "Final Fantasy VI": "🪄",
   "Final Fantasy Mystic Quest": "⚔️",
   "Final Fantasy Tactics Advance": "🎯",
+  "Final Fantasy Crystal Chronicles": "🏺",
   "Chrono Trigger": "⏳",
   "Secret of Mana": "🌳",
   "Secret of Evermore": "🐶",
@@ -80,6 +93,7 @@ export const GAME_EMOJI: Record<string, string> = {
 
   // Indies & modern
   "Hollow Knight": "🦋",
+  "Hollow Knight: Silksong": "🪡",
   "Celeste": "🏔️",
   "Celeste (Open World)": "🏔️",
   "Stardew Valley": "🌽",
@@ -98,8 +112,6 @@ export const GAME_EMOJI: Record<string, string> = {
   "Earthbound": "🏠",
   "Mother 3": "🏠",
   "DLC Quest": "💸",
-  "Donkey Kong Country": "🦍",
-  "Donkey Kong Country 3": "🦍",
   "Bumper Stickers": "🚗",
   "Clique": "🔘",
   "ChecksFinder": "✅",
@@ -107,11 +119,12 @@ export const GAME_EMOJI: Record<string, string> = {
   "Outer Wilds": "🪐",
   "Inscryption": "🃏",
   "Balatro": "🃏",
-  "Tunic": "🦊",
+  "TUNIC": "🦊",
   "Lingo": "🔤",
   "Ittle Dew 2": "🪓",
   "Adventure": "🐉",
   "Yacht Dice": "🎲",
+  "Powerwash Simulator": "🧽",
   "Hatsune Miku Project Diva Mega Mix+": "🎤",
   "Clair Obscur Expedition 33": "🥀",
   "Slime Rancher": "💩",
@@ -119,6 +132,10 @@ export const GAME_EMOJI: Record<string, string> = {
   "Monster Hunter World": "🐉",
   "DELTARUNE": "❤️",
   "The Binding of Isaac Repentance": "💧",
+  "Librarian Tidy Up the Arcane Library": "📚",
+  "PEAK": "⛰️",
+  "Blue Prince": "👑",
+  "Pseudoregalia": "🐐",
 
   // Doom / Retro shooters
   "DOOM 1993": "👹",
@@ -132,12 +149,20 @@ export const GAME_EMOJI: Record<string, string> = {
   "Kingdom Hearts": "🗝️",
   "Kingdom Hearts 2": "🗝️",
   "Kingdom Hearts 3": "🗝️",
-  "Pokemon Snap": "📷",
   "Pikmin": "🌼",
   "Pikmin 2": "🪻",
   "Pikmin 3": "🌷",
+  "Donkey Kong 64": "🦍",
+  "Donkey Kong Country": "🦍",
+  "Donkey Kong Country 3": "🦍",
+  "Super Smash Bros. Melee": "🫯",
+  
+  // Lego Games
+  "Lego Star Wars: The Complete Saga": "🪐",
   
   // Others
+  "Cyberpunk 2077": "🌆",
+  "Dark Souls Remastered": "🗡️",
   "Dark Souls III": "⚔️",
   "Old School Runescape": "🪓",
   "Hylics 2": "🟣",
@@ -148,7 +173,8 @@ export const GAME_EMOJI: Record<string, string> = {
   "Trackmania": "🏎️",
   "Age Of Mythology Retold": "⚡",
   "Cuphead": "🍵",
-  "Mario Sports Mix": "🏐",
+  "Star Fox Adventures": "🦊",
+  "Deep Rock Galactic": "⛏️",
   "Mirror's Edge": "🌇",
   "Paper Mario: The Thousand-Year Door": "🚪",
   "Satisfactory": "🏗️",
@@ -159,10 +185,21 @@ export const GAME_EMOJI: Record<string, string> = {
   "Black Ops 3 - Zombies": "🧟",
   "The Grinch": "🎄",
   "Jigsaw": "🧩",
+  "Wikipelago": "📑",
   "Geometry Dash": "🔲",
   "Paint": "🎨",
   "Bloons TD6": "🎈",
   "Plants vs. Zombies": "🧟",
+  "YARGGuitarHero3": "🎸",
+  "Spyro 2": "🐉",
+  "Ty the Tasmanian Tiger": "🪃",
+  "Borderlands 2": "🦄",
+  "Jak 3": "🥚",
+  "Ratchet and Clank 3": "🔧",
+  "Signalis": "🟥",
+  
+  // Hell
+  "League of Legends": "☣️"
 };
 
 const FALLBACK_EMOJI = "🎮";
