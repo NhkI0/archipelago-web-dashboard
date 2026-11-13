@@ -1,205 +1,241 @@
 // Per-game icons. Keyed by the exact game name from `slot_info.game`
-// in the multidata. To add a new game, just append to GAME_EMOJI.
+// in the multidata. To add a new game, add it to its group, alphabetically.
 //
 // The optional PNG override path is `/games/<slug>.png`, drop a file
 // into `frontend/public/games/` and `<GameIcon>` will pick it up.
 
 export const GAME_EMOJI: Record<string, string> = {
-
-  // Zelda family
+  // Zelda
+  "A Link Between Worlds": "🖼️",
   "A Link to the Past": "🗡️",
+  "Link's Awakening DX": "🪺",
+  "Majora's Mask Recompiled": "🎭",
   "Ocarina of Time": "🌳",
   "Ship of Harkinian": "🌳",
-  "The Legend of Zelda": "🛡️",
-  "Zelda II": "🐲",
-  "Link's Awakening DX": "🪺",
-  "The Minish Cap": "🍃",
-  "Twilight Princess": "🐺",
-  "A Link Between Worlds": "🖼️",
   "Skyward Sword": "🐦‍🔥",
-  "Majora's Mask Recompiled": "🎭",
+  "The Legend of Zelda": "🛡️",
+  "The Minish Cap": "🍃",
   "The Wind Waker": "⛵",
+  "Twilight Princess": "🐺",
+  "Zelda II": "🐲",
 
-  // Mario / Yoshi family
-  "Super Mario 64": "⭐",
-  "Super Mario World": "🍄",
-  "Super Mario Bros": "🍄",
-  "Super Mario Bros 3": "🍄",
-  "Super Mario Sunshine": "☀️",
-  "Super Mario Odyssey": "🎩",
-  "Super Mario Galaxy": "🌌",
-  "Paper Mario": "📰",
-  "Paper Mario: TTYD": "📰",
-  "Yoshi's Island": "🥚",
+  // Mario & Cie
   "Mario Kart 64": "🏁",
+  "Mario Kart Double Dash": "🛺",
   "Mario Kart Wii": "🏎️",
   "Mario Sports Mix": "🏐",
-  "Mario Kart Double Dash": "🛺",
+  "Paper Mario": "📰",
+  "Paper Mario: The Thousand-Year Door": "🚪",
+  "Paper Mario: TTYD": "📰",
+  "Super Mario 64": "⭐",
+  "Super Mario Bros": "🍄",
+  "Super Mario Bros 3": "🍄",
+  "Super Mario Galaxy": "🌌",
+  "Super Mario Odyssey": "🎩",
+  "Super Mario Sunshine": "☀️",
+  "Super Mario World": "🍄",
+  "Yoshi's Island": "🥚",
+  "Luigi's Mansion": "🏚️",
+  "Mario & Luigi Superstar Saga": "👬🏻",
+
+  // Donkey Kong
+  "Donkey Kong 64": "🦍",
+  "Donkey Kong Country": "🦍",
+  "Donkey Kong Country 3": "🦍",
+
+  // Kirby
+  "Kirby 64 - The Crystal Shards": "😮",
+  "Kirby Super Star": "⭐",
+
+  // Pikmin
+  "Pikmin": "🌼",
+  "Pikmin 2": "🪻",
+  "Pikmin 3": "🌷",
+
+  // Other Nintendo
+  "Earthbound": "🏠",
+  "Mother 3": "🏠",
+  "Star Fox Adventures": "🦊",
+  "Super Smash Bros. Melee": "🫯",
+  "Super Smash Bros. Brawl - The Subspace Emissary": "🫯",
 
   // Pokémon
-  "Pokemon Red and Blue": "🔴",
-  "Pokemon Yellow": "⚡",
+  "Pokemon Black and White": "🌇",
   "Pokemon Crystal": "💎",
   "Pokemon Emerald": "🌿",
   "Pokemon FireRed and LeafGreen": "🔥",
-  "Pokemon Platinum": "🪞",
   "Pokemon HeartGold and SoulSilver": "🐦‍🔥",
-  "Pokemon Black and White": "🌇",
-  "Pokemon Mystery Dungeon Explorers of Sky": "⚙️",
   "Pokemon Mystery Dungeon": "🐾",
+  "Pokemon Mystery Dungeon Explorers of Sky": "⚙️",
+  "Pokemon Platinum": "🪞",
+  "Pokemon Red and Blue": "🔴",
   "Pokemon Snap": "📷",
+  "Pokemon Yellow": "⚡",
 
-  // Metroid / Castlevania
-  "Super Metroid": "👽",
+  // Metroid
+  "AM2R": "🌐",
+  "Metroid Fusion": "🧬",
+  "Metroid Prime": "🔫",
   "Metroid Zero Mission": "👽",
   "Metroid: Zero Mission": "👽",
-  "Metroid Prime": "🔫",
-  "Metroid Fusion": "🧬",
-  "AM2R": "🌐",
+  "Super Metroid": "👽",
+
+  // Castlevania
+  "Aria of Sorrow": "🦇",
   "Castlevania 64": "🦇",
   "Castlevania: Circle of the Moon": "🌙",
   "Castlevania: Dawn of Sorrow": "🦇",
-  "Aria of Sorrow": "🦇",
   "Symphony of the Night": "🦇",
-  "Blasphemous": "✝️",
 
   // Sonic
+  "Sonic Adventure 2 Battle": "💨",
+  "Sonic Adventure 2: Battle": "💨",
+  "Sonic Adventure DX": "💨",
+  "Sonic Battle": "🦔",
+  "Sonic Heroes": "💨",
   "Sonic the Hedgehog": "💨",
   "Sonic the Hedgehog 2": "💨",
-  "Sonic Adventure 2: Battle": "💨",
-  "Sonic Adventure 2 Battle": "💨",
-  "Sonic Adventure DX": "💨",
-  "Sonic Heroes": "💨",
-  "Sonic Battle": "🦔",
 
-  // Final Fantasy / SquareEnix
-  "Final Fantasy": "🐦",
-  "Final Fantasy IV": "🌑",
-  "Final Fantasy V": "🐉",
-  "Final Fantasy VI": "🪄",
-  "Final Fantasy Mystic Quest": "⚔️",
-  "Final Fantasy Tactics Advance": "🎯",
-  "Final Fantasy Crystal Chronicles": "🏺",
-  "Chrono Trigger": "⏳",
-  "Secret of Mana": "🌳",
-  "Secret of Evermore": "🐶",
-  "Lufia II": "🏰",
-
-  // Mega Man / Capcom
-  "Mega Man Battle Network 3": "🧑‍💻",
+  // Mega Man
   "Mega Man 2": "🤖",
+  "Mega Man Battle Network 3": "🧑‍💻",
   "Mega Man X": "🤖",
   "Mega Man X3": "🤖",
 
-  // Indies & modern
-  "Hollow Knight": "🦋",
-  "Hollow Knight: Silksong": "🪡",
+  // Final Fantasy
+  "Final Fantasy": "🐦",
+  "Final Fantasy Crystal Chronicles": "🏺",
+  "Final Fantasy IV": "🌑",
+  "Final Fantasy Mystic Quest": "⚔️",
+  "Final Fantasy Tactics Advance": "🎯",
+  "Final Fantasy V": "🐉",
+  "Final Fantasy VI": "🪄",
+
+  // Kingdom Hearts
+  "Kingdom Hearts": "🗝️",
+  "Kingdom Hearts 2": "🗝️",
+  "Kingdom Hearts 3": "🗝️",
+  "Kingdom Hearts III": "🗝️",
+  "Kingdom Hearts Birth by Sleep": "🗝️",
+  "Kingdom Hearts Dream Drop Distance": "🗝️",
+  
+
+  // Lego
+  "Lego Star Wars: The Complete Saga": "🪐",
+  "Lego Batman: The Video Game": "🦇",
+
+  // Other RPGs
+  "Chrono Trigger": "⏳",
+  "Clair Obscur Expedition 33": "🥀",
+  "Cyberpunk 2077": "🌆",
+  "Dark Souls III": "⚔️",
+  "Dark Souls Remastered": "🗡️",
+  "DELTARUNE": "❤️",
+  "Hylics 2": "🟣",
+  "Lufia II": "🏰",
+  "Monster Hunter World": "🐉",
+  "Old School Runescape": "🪓",
+  "Secret of Evermore": "🐶",
+  "Secret of Mana": "🌳",
+  "Undertale": "💀",
+
+  // 2D platformers & metroidvanias
+  "Blasphemous": "✝️",
   "Celeste": "🏔️",
   "Celeste (Open World)": "🏔️",
-  "Stardew Valley": "🌽",
-  "Terraria": "⛏️",
-  "Minecraft": "⛏️",
-  "Subnautica: Below Zero": "🧊",
-  "Don't Starve Together": "🪵",
-  "Risk of Rain 2": "☔",
-  "Slay the Spire": "🃏",
-  "Hades": "🔱",
-  "Hades2Rogue": "⚔️",
-  "Pizza Tower": "🍕",
-  "Shivers": "👻",
-  "The Witness": "🧩",
-  "A Hat in Time": "🎩",
-  "Earthbound": "🏠",
-  "Mother 3": "🏠",
+  "Cuphead": "🍵",
   "DLC Quest": "💸",
-  "Bumper Stickers": "🚗",
-  "Clique": "🔘",
-  "ChecksFinder": "✅",
-  "Raft": "🛟",
-  "Outer Wilds": "🪐",
-  "Inscryption": "🃏",
-  "Balatro": "🃏",
-  "TUNIC": "🦊",
-  "Lingo": "🔤",
-  "Ittle Dew 2": "🪓",
-  "Adventure": "🐉",
-  "Yacht Dice": "🎲",
-  "Powerwash Simulator": "🧽",
-  "Hatsune Miku Project Diva Mega Mix+": "🎤",
-  "Clair Obscur Expedition 33": "🥀",
-  "Slime Rancher": "💩",
-  "Undertale": "💀",
-  "Monster Hunter World": "🐉",
-  "DELTARUNE": "❤️",
-  "The Binding of Isaac Repentance": "💧",
-  "Librarian Tidy Up the Arcane Library": "📚",
-  "PEAK": "⛰️",
-  "Blue Prince": "👑",
-  "Pseudoregalia": "🐐",
+  "Hollow Knight": "🦋",
+  "Hollow Knight: Silksong": "🪡",
+  "Ori and the Blind Forest": "🌿",
+  "Pizza Tower": "🍕",
+  "The Messenger": "📜",
+  "Timespinner": "⌛",
 
-  // Doom / Retro shooters
+  // 3D platformers
+  "A Hat in Time": "🎩",
+  "Jak 3": "🥚",
+  "Pseudoregalia": "🐐",
+  "Ratchet and Clank 3": "🔧",
+  "Spyro 2": "🐉",
+  "The Grinch": "🎄",
+  "Ty the Tasmanian Tiger": "🪃",
+
+  // Action & adventure
+  "Adventure": "🐉",
+  "Ittle Dew 2": "🪓",
+  "Mirror's Edge": "🌇",
+  "TUNIC": "🦊",
+
+  // Shooters
+  "Black Ops 3 - Zombies": "🧟",
+  "Borderlands 2": "🦄",
+  "Deep Rock Galactic": "⛏️",
   "DOOM 1993": "👹",
   "DOOM II": "👹",
   "Heretic": "🪄",
 
-  // Nintendo
-  "Kirby Super Star": "⭐",
-  "Kirby 64 - The Crystal Shards": "😮",
+  // Horror
   "Resident Evil 2 Remake": "🦝",
-  "Kingdom Hearts": "🗝️",
-  "Kingdom Hearts 2": "🗝️",
-  "Kingdom Hearts 3": "🗝️",
-  "Pikmin": "🌼",
-  "Pikmin 2": "🪻",
-  "Pikmin 3": "🌷",
-  "Donkey Kong 64": "🦍",
-  "Donkey Kong Country": "🦍",
-  "Donkey Kong Country 3": "🦍",
-  "Super Smash Bros. Melee": "🫯",
-  
-  // Lego Games
-  "Lego Star Wars: The Complete Saga": "🪐",
-  
-  // Others
-  "Cyberpunk 2077": "🌆",
-  "Dark Souls Remastered": "🗡️",
-  "Dark Souls III": "⚔️",
-  "Old School Runescape": "🪓",
-  "Hylics 2": "🟣",
-  "The Messenger": "📜",
-  "Timespinner": "⌛",
-  "Rogue Legacy": "🪙",
-  "Portal 2": "🎂",
-  "Trackmania": "🏎️",
-  "Age Of Mythology Retold": "⚡",
-  "Cuphead": "🍵",
-  "Star Fox Adventures": "🦊",
-  "Deep Rock Galactic": "⛏️",
-  "Mirror's Edge": "🌇",
-  "Paper Mario: The Thousand-Year Door": "🚪",
-  "Satisfactory": "🏗️",
-  "Subnautica": "🤿",
-  "Ori and the Blind Forest": "🌿",
-  "Oxygen Not Included": "❄️",
-  "Civilization VI": "🏛️",
-  "Black Ops 3 - Zombies": "🧟",
-  "The Grinch": "🎄",
-  "Jigsaw": "🧩",
-  "Wikipelago": "📑",
-  "Geometry Dash": "🔲",
-  "Paint": "🎨",
-  "Bloons TD6": "🎈",
-  "Plants vs. Zombies": "🧟",
-  "YARGGuitarHero3": "🎸",
-  "Spyro 2": "🐉",
-  "Ty the Tasmanian Tiger": "🪃",
-  "Borderlands 2": "🦄",
-  "Jak 3": "🥚",
-  "Ratchet and Clank 3": "🔧",
+  "Shivers": "👻",
   "Signalis": "🟥",
-  
+
+  // Roguelikes & deckbuilders
+  "Balatro": "🃏",
+  "Hades": "🔱",
+  "Hades2Rogue": "⚔️",
+  "Inscryption": "🃏",
+  "Risk of Rain 2": "☔",
+  "Rogue Legacy": "🪙",
+  "Slay the Spire": "🃏",
+  "The Binding of Isaac Repentance": "💧",
+
+  // Survival, crafting & sims
+  "Don't Starve Together": "🪵",
+  "Minecraft": "⛏️",
+  "Oxygen Not Included": "❄️",
+  "PEAK": "⛰️",
+  "Powerwash Simulator": "🧽",
+  "Raft": "🛟",
+  "Satisfactory": "🏗️",
+  "Slime Rancher": "💩",
+  "Stardew Valley": "🌽",
+  "Subnautica": "🤿",
+  "Subnautica: Below Zero": "🧊",
+  "Terraria": "⛏️",
+
+  // Strategy
+  "Age Of Mythology Retold": "⚡",
+  "Bloons TD6": "🎈",
+  "Civilization VI": "🏛️",
+  "Plants vs. Zombies": "🧟",
+
+  // Puzzle & exploration
+  "Blue Prince": "👑",
+  "Librarian Tidy Up the Arcane Library": "📚",
+  "Lingo": "🔤",
+  "Outer Wilds": "🪐",
+  "Portal 2": "🎂",
+  "The Witness": "🧩",
+
+  // Racing & rhythm
+  "Geometry Dash": "🔲",
+  "Hatsune Miku Project Diva Mega Mix+": "🎤",
+  "Trackmania": "🏎️",
+  "YARGGuitarHero3": "🎸",
+
+  // Minigames
+  "Bumper Stickers": "🚗",
+  "ChecksFinder": "✅",
+  "Clique": "🔘",
+  "Jigsaw": "🧩",
+  "Paint": "🎨",
+  "Wikipelago": "📑",
+  "Yacht Dice": "🎲",
+  "Carnival Games MiniGolf": "⛳",
+
   // Hell
-  "League of Legends": "☣️"
+  "League of Legends": "☣️",
 };
 
 const FALLBACK_EMOJI = "🎮";
