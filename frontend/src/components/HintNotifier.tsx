@@ -43,7 +43,7 @@ export default function HintNotifier() {
     for (const h of snap.hints) {
       const k = hintKey(h);
       if (!seen.current.has(k)) {
-        if (!initial.current && mySlots.current.has(h.receiving_slot)) {
+        if (!initial.current && !h.found && mySlots.current.has(h.receiving_slot)) {
           const finder = slotNames.current.get(h.finding_slot) ?? `slot ${h.finding_slot}`;
           notify(t("notify.hint_for_you", { item: h.item_name, finder, loc: h.location_name }));
           emitNewHintForMe();

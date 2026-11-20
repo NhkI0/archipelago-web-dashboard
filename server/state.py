@@ -610,6 +610,8 @@ class WorldState:
             else:
                 existing.found = existing.found or rec.found
             self._recount_open_hints()
+            if rec.found or (existing is not None and existing.found):
+                return
             # finder and receiver sessions both get this PrintJSON; emit once per request
             now = time.monotonic()
             if now - self._hint_emitted_at.get(key, float("-inf")) > HINT_DUP_WINDOW_S:
