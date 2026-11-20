@@ -257,6 +257,7 @@ def build_app(room: RoomConfig) -> FastAPI:
     async def ws_live(ws: WebSocket) -> None:
         await ws.accept()
         queue = world.subscribe()
+        history = world.feed_history()
         sid = ws.cookies.get("ap_session")
         # Presence follows this socket's logged-in slots; tracked so logout/disconnect can release them.
         present_slots: set[int] = set()
@@ -274,6 +275,7 @@ def build_app(room: RoomConfig) -> FastAPI:
 
         async def pump() -> None:
             await ws.send_json({"type": "snapshot", "snapshot": world.snapshot()})
+            await ws.send_json({"type": "feed_history", "events": history})
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=5.0)

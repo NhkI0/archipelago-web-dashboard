@@ -39,6 +39,11 @@ export function pushFeedItem(item: FeedItem): void {
   notify();
 }
 
+export function resetFeed(): void {
+  items = [];
+  notify();
+}
+
 export function nextFeedId(prefix: string): string {
   return `${prefix}${counter++}`;
 }

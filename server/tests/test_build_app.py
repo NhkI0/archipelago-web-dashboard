@@ -111,5 +111,6 @@ def test_ws_live_sends_ping_on_idle_tick(room: RoomConfig, monkeypatch: pytest.M
     with TestClient(app) as client, client.websocket_connect("/ws/live") as ws:
         first = ws.receive_json()
         assert first["type"] == "snapshot"
+        assert ws.receive_json()["type"] == "feed_history"
         ping = ws.receive_json()
         assert ping == {"type": "ping"}

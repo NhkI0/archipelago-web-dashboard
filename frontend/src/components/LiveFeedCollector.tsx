@@ -1,17 +1,13 @@
 import { useEffect, useRef } from "react";
 import { CheckEvent, Hint, liveSocket } from "../api";
-import { markFeedReady, nextFeedId, pushFeedItem } from "../liveFeedStore";
+import { markFeedReady, nextFeedId, pushFeedItem, resetFeed } from "../liveFeedStore";
 
 // Mounted once at the Shell level (see App.tsx) so it keeps capturing events no matter which page is open.
 export default function LiveFeedCollector() {
   const slotInfo = useRef<Map<number, { name: string; game: string }>>(new Map());
 
   useEffect(() => {
-    return liveSocket((e: any) => {
-      markFeedReady();
-      if (e?.snapshot) {
-        slotInfo.current = new Map(e.snapshot.slots.map((s: any) => [s.slot, { name: s.name, game: s.game }]));
-      }
+    const handle = (e: any) => {
       if (e?.type === "check" && Array.isArray(e.checks)) {
         for (const c of e.checks as CheckEvent[]) {
           pushFeedItem({
@@ -33,7 +29,7 @@ export default function LiveFeedCollector() {
         pushFeedItem({
           kind: "hint",
           id: nextFeedId("h"),
-          ts: Date.now() / 1000,
+          ts: e.ts ?? Date.now() / 1000,
           finder,
           recv,
           item: h.item_name,
@@ -44,11 +40,25 @@ export default function LiveFeedCollector() {
         pushFeedItem({
           kind: "goal",
           id: nextFeedId("g"),
-          ts: Date.now() / 1000,
+          ts: e.ts ?? Date.now() / 1000,
           name: info?.name ?? `slot ${e.slot}`,
           game: info?.game ?? "",
         });
       }
+    };
+
+    return liveSocket((e: any) => {
+      markFeedReady();
+      if (e?.snapshot) {
+        slotInfo.current = new Map(e.snapshot.slots.map((s: any) => [s.slot, { name: s.name, game: s.game }]));
+      }
+      if (e?.type === "feed_history" && Array.isArray(e.events)) {
+        // Server history replaces the local list, so reconnects never duplicate rows.
+        resetFeed();
+        for (const ev of e.events) handle(ev);
+        return;
+      }
+      handle(e);
     });
   }, []);
 

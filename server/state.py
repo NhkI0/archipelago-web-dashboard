@@ -15,12 +15,16 @@ import logging
 import os
 import pathlib
 import time
+from collections import deque
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
 from .multidata import MultiData
 
 log = logging.getLogger("ap.state")
+
+FEED_HISTORY_MAX = 300
+_FEED_TYPES = {"check", "hint", "goal"}
 
 
 @dataclass
@@ -136,6 +140,7 @@ class WorldState:
         # by Tracker's connection callback.
         self.server_status: dict[str, Any] = {"host": "", "port": 0, "connected": False}
         self._subscribers: set[asyncio.Queue] = set()
+        self._feed: deque[dict[str, Any]] = deque(maxlen=FEED_HISTORY_MAX)
         # Refcount of open dashboard WebSockets per slot; drives `online`.
         self._presence: dict[int, int] = {}
         # Received-item log, keyed by (finder_slot, location_id). Persisted to
@@ -151,6 +156,7 @@ class WorldState:
         # Slots whose initial (replace=True) check snapshot we've already
         # processed; lets us distinguish the first bulk load from live checks.
         self._initial_loaded: set[int] = set()
+        self._status_seen: set[int] = set()
         self._init_from_multidata()
         # If a same-seed log already exists, checks we discover that aren't in
         # it happened while the bridge was down and get stamped "now". With no
@@ -421,7 +427,15 @@ class WorldState:
     def unsubscribe(self, q: asyncio.Queue) -> None:
         self._subscribers.discard(q)
 
+    def feed_history(self) -> list[dict[str, Any]]:
+        return list(self._feed)
+
     def _emit(self, event: dict[str, Any]) -> None:
+        etype = event.get("type")
+        if etype == "check":
+            self._feed.extend({"type": "check", "checks": [c]} for c in event.get("checks", []))
+        elif etype in _FEED_TYPES:
+            self._feed.append(event)
         for q in self._subscribers:
             try:
                 q.put_nowait(event)
@@ -486,9 +500,10 @@ class WorldState:
                 # The first bulk snapshot of a never-seen slot is undated backlog
                 # (unless we already had a persisted log to compare against).
                 backfill = replace and slot_num not in self._initial_loaded and not self._had_persisted
+                fresh = {loc for loc in added if (slot_num, loc) not in self._received}
                 self._record_received(slot_num, added, backfill=backfill)
-                # Live feed gets everything, including a slot's initial catch-up burst.
-                self._emit_checks(slot_num, added)
+                if not backfill and fresh:
+                    self._emit_checks(slot_num, fresh)
             self._emit({"type": "room_update", "snapshot": self.snapshot()})
         if replace:
             self._initial_loaded.add(slot_num)
@@ -616,12 +631,12 @@ class WorldState:
             now = time.monotonic()
             if now - self._hint_emitted_at.get(key, float("-inf")) > HINT_DUP_WINDOW_S:
                 self._hint_emitted_at[key] = now
-                self._emit({"type": "hint", "hint": rec.to_dict()})
+                self._emit({"type": "hint", "hint": rec.to_dict(), "ts": time.time()})
         elif msg_type == "Goal":
             slot_num = int(payload.get("slot") or 0)
             if slot_num in self.slots:
                 self.slots[slot_num].goal_completed = True
-                self._emit({"type": "goal", "slot": slot_num})
+                self._emit({"type": "goal", "slot": slot_num, "ts": time.time()})
 
     def apply_client_status(self, key: str, value: Any) -> None:
         """Seed `goal_completed` from `_read_client_status_0_<slot>` data store entry.
@@ -642,9 +657,13 @@ class WorldState:
         if slot is None:
             return
         goaled = status >= 30
+        # A slot's first status read is a baseline, not an event.
+        first_read = slot_num not in self._status_seen
+        self._status_seen.add(slot_num)
         if goaled and not slot.goal_completed:
             slot.goal_completed = True
-            self._emit({"type": "goal", "slot": slot_num})
+            if not first_read:
+                self._emit({"type": "goal", "slot": slot_num, "ts": time.time()})
 
     def apply_hint_store(self, key: str, value: Any) -> None:
         """Replace hints for one slot from `_read_hints_0_<slot>` data store entry."""
