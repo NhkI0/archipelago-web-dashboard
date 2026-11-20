@@ -6,7 +6,7 @@ DataStorage keys aren't restricted to the reading connection's own slot. So one
 connection sees the whole room's checks, hints, and goals live.
 
 Gap: `hint_points` only arrives via a slot's own `RoomUpdate`. `_baseline_sweep`
-(brief one-shot connects, once at startup) seeds it and `checked_locations` for
+(brief one-shot connects, once, opt-in) seeds it and `checked_locations` for
 every slot; after that, a slot's hint_points only updates again if it logs in.
 """
 
@@ -352,8 +352,11 @@ class Tracker:
         deaths_file: pathlib.Path | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
         default_slot: str = "",
+        sweep_on_connect: bool = False,
     ) -> None:
         self.state = state
+        self.sweep_on_connect = sweep_on_connect
+        self._started = False
         self.uri = f"{'wss' if secure else 'ws'}://{host}:{port}"
         self.password = password
         self.deaths_file = deaths_file
@@ -364,7 +367,17 @@ class Tracker:
         self._death_client: DeathLinkClient | None = None
         self._baseline_task: asyncio.Task | None = None
 
+    def _maybe_start_sweep(self) -> None:
+        """Run the per-slot sweep once, the first time the server is reachable."""
+        if (not self.sweep_on_connect or not self._started
+                or self._baseline_task is not None or not self.connected):
+            return
+        self._baseline_task = asyncio.create_task(
+            _baseline_sweep(self.state, self.uri, self.password), name="ap-baseline-sweep",
+        )
+
     def _notify_connection_change(self) -> None:
+        self._maybe_start_sweep()
         if self._on_connection_change is not None:
             self._on_connection_change(self.connected)
 
@@ -445,14 +458,10 @@ class Tracker:
         self._death_client.start()
 
     def start(self) -> None:
-        if self._baseline_task is not None:
+        if self._started:
             return
+        self._started = True
         self._start_observer_connection()
-        # One-shot, not repeated: hint_points for a slot that never logs in
-        # just stays whatever it was seeded as here.
-        self._baseline_task = asyncio.create_task(
-            _baseline_sweep(self.state, self.uri, self.password), name="ap-baseline-sweep",
-        )
         self._start_deathlink_if_needed()
 
     async def try_claim_observer(self) -> bool:
@@ -488,6 +497,7 @@ class Tracker:
             except (asyncio.CancelledError, Exception):
                 pass
             self._baseline_task = None
+        self._started = False
         stops = []
         if self._observer is not None:
             stops.append(self._observer.stop())

@@ -41,6 +41,8 @@ DEFAULTS: dict[str, Any] = {
         "password": "",
         # Slot the tracker connects as before anyone logs in. Blank = auto.
         "default_slot": "",
+        # On first reaching the AP server, sweep every slot once for progress.
+        "sweep_on_connect": False,
         # Only used when no host.yaml is found (remote mode); host.yaml's own
         # hint_cost always wins when present.
         "hint_cost_override": None,
@@ -222,6 +224,7 @@ class RoomConfig:
     ap_room_id: str = ""
     hints_used_file: pathlib.Path | None = None  # local hint-spend counter, polling mode only
     default_slot: str = ""  # preferred slot for Tracker's placeholder observer connection
+    sweep_on_connect: bool = False  # one-shot per-slot progress sweep on first reachable server
     config_path: pathlib.Path | None = None  # self-hosted mode only: where config.toml was loaded from
     ut_launcher: pathlib.Path | None = None  # Universal Tracker feature: None when disabled/unset
     ut_python_bin: str = "python"
@@ -436,6 +439,7 @@ def resolve_room_config(path: str | os.PathLike[str] | None = None) -> RoomConfi
         ap_room_id=ap_room_id,
         hints_used_file=pathlib.Path(os.environ.get("HINTS_USED_FILE") or str(data_dir / "hints_used_polling.json")),
         default_slot=cfg["server"]["default_slot"],
+        sweep_on_connect=bool(cfg["server"].get("sweep_on_connect", False)),
         config_path=config_path,
         ut_launcher=ut_launcher,
         ut_python_bin=str(cfg["tracker"].get("python_bin") or "python"),

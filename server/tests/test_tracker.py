@@ -173,6 +173,47 @@ def _tracker(state: WorldState, **kwargs) -> Tracker:
     return Tracker(state, host="fake", port=1, **kwargs)
 
 
+def _run_connect_twice(tracker: Tracker, monkeypatch) -> list[str]:
+    calls: list[str] = []
+
+    async def fake_sweep(_state, uri: str, _password: str) -> None:
+        calls.append(uri)
+
+    monkeypatch.setattr("server.tracker._baseline_sweep", fake_sweep)
+
+    async def run() -> None:
+        tracker._started = True
+        tracker._observer_claimed = True  # makes `connected` True without a socket
+        tracker._notify_connection_change()
+        tracker._notify_connection_change()  # a later reconnect must not re-sweep
+        if tracker._baseline_task is not None:
+            await tracker._baseline_task
+
+    asyncio.run(run())
+    return calls
+
+
+def test_sweep_runs_once_on_first_connection_when_enabled(monkeypatch) -> None:
+    tracker = _tracker(_fixture_state(), sweep_on_connect=True)
+    assert _run_connect_twice(tracker, monkeypatch) == ["ws://fake:1"]
+
+
+def test_sweep_off_by_default(monkeypatch) -> None:
+    tracker = _tracker(_fixture_state())
+    assert _run_connect_twice(tracker, monkeypatch) == []
+
+
+def test_sweep_waits_until_connected(monkeypatch) -> None:
+    tracker = _tracker(_fixture_state(), sweep_on_connect=True)
+
+    async def run() -> None:
+        tracker._started = True
+        tracker._notify_connection_change()  # server not reachable yet
+        assert tracker._baseline_task is None
+
+    asyncio.run(run())
+
+
 def test_pick_default_slot_uses_configured_name() -> None:
     state = _fixture_state()
     tracker = _tracker(state, default_slot="Bob")

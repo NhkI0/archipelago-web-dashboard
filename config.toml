@@ -23,6 +23,8 @@ password = ""                  # optional; better to let it read from host.yaml 
 # pick a DeathLink slot if you want both.
 # Blank = auto (goaled+DeathLink slot, else DeathLink, else first).
 default_slot = ""
+# Self-hosted: on first reaching the AP server, sweep every slot once for progress.
+sweep_on_connect = false
 # Only read when no host.yaml is found (remote mode); host.yaml's own hint
 # cost always wins when present. Leave commented out / unset to omit it.
 # hint_cost_override = 10

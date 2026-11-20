@@ -129,6 +129,7 @@ def build_app(room: RoomConfig) -> FastAPI:
             deaths_file=room.deaths_file,
             on_connection_change=on_connection_change,
             default_slot=room.default_slot,
+            sweep_on_connect=room.sweep_on_connect,
         )
     sessions = SessionManager(
         host=room.ap_host, port=room.ap_port, multidata=multidata, secure=room.ap_secure,
